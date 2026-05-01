@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Luminary",
+    "slug": "luminary",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "luminary",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0c0e10"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "app.luminary.mobile",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Luminary reads your activity to show daily steps and movement summaries.",
+        "NSMicrophoneUsageDescription": "Luminary lets you record voice notes in your journal."
+      }
+    },
+    "android": {
+      "package": "app.luminary.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0c0e10"
+      },
+      "permissions": ["ACTIVITY_RECOGNITION", "RECORD_AUDIO"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "color": "#8cacff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      }
+    }
+  }
+}

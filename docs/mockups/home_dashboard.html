@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Luminary - Home Dashboard</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed-variant": "#922e16",
+                        "surface-bright": "#292c2f",
+                        "on-primary-fixed-variant": "#002869",
+                        "error-container": "#9f0519",
+                        "surface": "#0c0e10",
+                        "on-surface-variant": "#aaabad",
+                        "primary": "#8cacff",
+                        "surface-tint": "#8cacff",
+                        "primary-fixed-dim": "#5f8fff",
+                        "background": "#0c0e10",
+                        "on-tertiary": "#00672e",
+                        "inverse-surface": "#f9f9fc",
+                        "on-secondary-fixed": "#691200",
+                        "secondary": "#fe7d5e",
+                        "on-background": "#eeeef0",
+                        "tertiary-dim": "#49ee7f",
+                        "surface-container": "#171a1c",
+                        "secondary-container": "#84240d",
+                        "primary-dim": "#2c6dec",
+                        "tertiary": "#b6ffbf",
+                        "on-primary": "#002a6e",
+                        "surface-container-lowest": "#000000",
+                        "outline-variant": "#46484a",
+                        "on-secondary": "#4e0b00",
+                        "on-error": "#490006",
+                        "on-secondary-container": "#ffc2b4",
+                        "primary-container": "#769dff",
+                        "error-dim": "#d7383b",
+                        "tertiary-fixed-dim": "#49ee7f",
+                        "outline": "#747578",
+                        "inverse-primary": "#0057d1",
+                        "primary-fixed": "#769dff",
+                        "secondary-fixed": "#ffc4b6",
+                        "error": "#ff716c",
+                        "inverse-on-surface": "#535557",
+                        "on-surface": "#eeeef0",
+                        "on-primary-fixed": "#000000",
+                        "on-primary-container": "#001f56",
+                        "on-tertiary-fixed-variant": "#00682e",
+                        "on-tertiary-container": "#005d29",
+                        "tertiary-fixed": "#5bfd8c",
+                        "on-error-container": "#ffa8a3",
+                        "surface-container-high": "#1d2022",
+                        "secondary-fixed-dim": "#ffb09e",
+                        "surface-dim": "#0c0e10",
+                        "on-tertiary-fixed": "#00481e",
+                        "surface-container-low": "#111416",
+                        "secondary-dim": "#f7785a",
+                        "tertiary-container": "#5bfd8c",
+                        "surface-container-highest": "#232629",
+                        "surface-variant": "#232629"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4 { font-family: 'Manrope', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface selection:bg-primary/30 selection:text-primary">
+<!-- Top Navigation Bar -->
+<header class="fixed top-0 w-full z-50 bg-[#0c0e10]/60 backdrop-blur-xl flex justify-between items-center px-6 py-4 shadow-[0_20px_50px_rgba(62,123,250,0.05)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant/30">
+<img alt="User Profile" data-alt="Portrait of a young professional with clean style, looking confident, soft studio lighting with a dark minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCf8qqpx0qtzQCapGx9YaP1KVjd4vXAnHTVuCJiP5D6uGJ1ssRPTVzz7clOLeBZ0Vtmdqwo7V7XLsdBkPP4VmVtuMEmzRlHFS36fdDJrpTBmVf1uTuZI4-8PFEplyB6RDszdi7A7kP6sItJZau5flaYmG9jhJE_oz1Hp3gX47_UkzIi-mrFcflt0neFrfNgjyBk3EJjNQGWGNG_lNKLBoY6Z6sc4LN_0KoC0E3OJvS3BFj7POW6baqu3DULlKsbWBhEltMBrvdAFgkg"/>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-semibold uppercase tracking-[0.05em] text-on-surface-variant">Welcome back</span>
+<span class="text-xl font-bold tracking-tight text-[#3E7BFA]">Luminary</span>
+</div>
+</div>
+<button class="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-[#232629] transition-colors duration-200">
+<span class="material-symbols-outlined text-slate-400">notifications</span>
+</button>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-4xl mx-auto space-y-8">
+<!-- Mood Insight Section -->
+<section class="relative overflow-hidden p-6 rounded-3xl bg-surface-container-low border border-outline-variant/10">
+<div class="absolute top-0 right-0 p-8 opacity-10">
+<span class="material-symbols-outlined text-8xl" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+<div class="relative z-10 flex items-center gap-4">
+<div class="w-12 h-12 flex items-center justify-center rounded-2xl bg-secondary/10 text-secondary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">insights</span>
+</div>
+<div>
+<h3 class="text-on-surface-variant text-sm font-semibold uppercase tracking-[0.05em]">Mood Insight</h3>
+<p class="text-xl font-bold text-on-surface mt-1">You’ve been consistent 3 days in a row 🔥</p>
+</div>
+</div>
+</section>
+<!-- Bento Grid Main Content -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Habits Today -->
+<section class="lg:col-span-2 space-y-4">
+<div class="flex justify-between items-center px-2">
+<h2 class="text-xl font-bold -tracking-[0.02em]">Habits Today</h2>
+<span class="text-primary text-sm font-medium">View all</span>
+</div>
+<div class="bg-surface-container rounded-3xl p-6 space-y-4">
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-2xl border border-outline-variant/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-tertiary/10 text-tertiary">
+<span class="material-symbols-outlined">water_drop</span>
+</div>
+<span class="font-medium">Hydration Goal</span>
+</div>
+<button class="w-8 h-8 rounded-full border-2 border-primary flex items-center justify-center hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-sm text-primary" style="font-variation-settings: 'FILL' 1;">check</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-2xl border border-outline-variant/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-primary/10 text-primary">
+<span class="material-symbols-outlined">menu_book</span>
+</div>
+<span class="font-medium">Read 15 Pages</span>
+</div>
+<button class="w-8 h-8 rounded-full border-2 border-outline-variant flex items-center justify-center hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-sm opacity-0">check</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-2xl border border-outline-variant/5">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-xl bg-secondary/10 text-secondary">
+<span class="material-symbols-outlined">self_improvement</span>
+</div>
+<span class="font-medium">Mindfulness Session</span>
+</div>
+<button class="w-8 h-8 rounded-full border-2 border-outline-variant flex items-center justify-center hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-sm opacity-0">check</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Fitness Status -->
+<section class="space-y-4">
+<div class="flex justify-between items-center px-2">
+<h2 class="text-xl font-bold -tracking-[0.02em]">Fitness</h2>
+</div>
+<div class="bg-surface-container rounded-3xl p-6 h-full flex flex-col justify-between">
+<div class="text-center space-y-2 py-4">
+<div class="inline-block relative">
+<svg class="w-32 h-32 transform -rotate-90">
+<circle class="text-outline-variant/20" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-tertiary-dim shadow-[0_0_15px_rgba(73,238,127,0.3)]" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="100" stroke-linecap="round" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center rotate-90">
+<span class="text-2xl font-extrabold">8,432</span>
+<span class="text-[10px] uppercase font-bold text-on-surface-variant tracking-widest">Steps</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-high p-4 rounded-2xl mt-4 border border-outline-variant/10">
+<div class="flex items-center gap-3 mb-1">
+<span class="material-symbols-outlined text-secondary text-lg">event_repeat</span>
+<span class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">Reminder</span>
+</div>
+<p class="text-sm font-medium leading-snug">HIIT Cardio Session at 5:30 PM</p>
+</div>
+</div>
+</section>
+<!-- Money Snapshot -->
+<section class="space-y-4">
+<div class="flex justify-between items-center px-2">
+<h2 class="text-xl font-bold -tracking-[0.02em]">Money</h2>
+</div>
+<div class="bg-surface-container rounded-3xl p-6">
+<div class="flex justify-between items-end mb-4">
+<div>
+<p class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Daily Spend</p>
+<p class="text-2xl font-bold mt-1">$42.50 <span class="text-sm font-normal text-on-surface-variant">/ $60</span></p>
+</div>
+<span class="material-symbols-outlined text-primary-fixed-dim">account_balance_wallet</span>
+</div>
+<div class="w-full bg-surface-container-high h-3 rounded-full overflow-hidden">
+<div class="bg-gradient-to-r from-primary to-primary-container h-full rounded-full w-[70%]"></div>
+</div>
+<div class="mt-4 flex justify-between text-[10px] font-bold text-on-surface-variant uppercase tracking-[0.05em]">
+<span>Budget Left</span>
+<span class="text-tertiary">$17.50</span>
+</div>
+</div>
+</section>
+<!-- Meals -->
+<section class="lg:col-span-2 space-y-4">
+<div class="flex justify-between items-center px-2">
+<h2 class="text-xl font-bold -tracking-[0.02em]">Next Meal</h2>
+</div>
+<div class="bg-surface-container rounded-3xl overflow-hidden flex flex-col md:flex-row group transition-all duration-300">
+<div class="w-full md:w-48 h-40 md:h-auto relative overflow-hidden">
+<img alt="Healthy Meal" class="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500" data-alt="Vibrant healthy salad with grilled chicken, avocado, and pomegranate seeds on a dark textured ceramic plate, moody lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVN53rUHA2rO78qN-5teTZTP6T1FsSjNnFYOb-8A6bf8Wd2TjLkjAjlJJlffXg3vDT_dwQ0PTXOR3vzXxKSOfOFr2ZzCy9nttaw8zeiRVEeorPNREzf13iqu9jkz9vax8PExqY6Z5YOlH5XEOq90dTMaLb-QuCVkSdvJIBzqLAvOzJJU-fSm112l_fZDSMGKPIhowfeBj4nVzfHrZ0c6BCgzXBacOs8gGN6c4RqEcvfzjBUZUK23P5HkAB92S6KrLANJMNrXeBj_Pn"/>
+<div class="absolute top-3 left-3 bg-surface/80 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">Dinner</div>
+</div>
+<div class="p-6 flex-1 flex flex-col justify-center">
+<h3 class="text-xl font-bold mb-2">Grilled Salmon with Quinoa</h3>
+<div class="flex gap-4">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-on-surface-variant">schedule</span>
+<span class="text-xs text-on-surface-variant">15 min prep</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs text-on-surface-variant">local_fire_department</span>
+<span class="text-xs text-on-surface-variant">420 kcal</span>
+</div>
+</div>
+<button class="mt-6 py-3 px-6 bg-surface-container-highest hover:bg-primary/20 hover:text-primary transition-all rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 w-fit">
+<span>Open Recipe</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-[#0c0e10]/80 backdrop-blur-2xl z-50 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(62,123,250,0.08)]">
+<!-- Home Active Tab -->
+<a class="flex flex-col items-center justify-center bg-[#3E7BFA]/10 text-[#3E7BFA] rounded-2xl px-4 py-2 scale-90 duration-300 ease-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 px-4 py-2 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined">check_circle</span>
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Habits</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 px-4 py-2 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Journal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 px-4 py-2 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined">fitness_center</span>
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Health</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 px-4 py-2 hover:text-white transition-all" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-[10px] uppercase tracking-[0.05em] font-semibold mt-1">Wallet</span>
+</a>
+</nav>
+<!-- Contextual FAB - Only for Home Dashboard -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-gradient-to-br from-primary to-primary-dim rounded-2xl shadow-xl shadow-primary/20 flex items-center justify-center text-on-primary-container z-40 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-2xl font-bold">add</span>
+</button>
+</body></html>

@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.expo/
+.expo-shared/
+web-build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Native
+ios/
+android/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Editor
+.vscode/
+.idea/
+*.iml
+
+# TypeScript
+*.tsbuildinfo
+
+# Supabase
+supabase/.branches
+supabase/.temp
+supabase/seed.sql
+
+# Misc
+.cache/
+.turbo/
+coverage/
