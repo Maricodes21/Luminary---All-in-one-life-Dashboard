@@ -54,7 +54,7 @@ export function useSpotifyAuth() {
   const clientId = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
   const redirectUri =
     process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI ??
-    AuthSession.makeRedirectUri({ scheme: 'luminary', path: 'spotify-auth' });
+    AuthSession.makeRedirectUri({ scheme: 'luminary', path: 'spotify-callback' });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
