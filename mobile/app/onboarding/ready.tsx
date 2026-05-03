@@ -61,9 +61,9 @@ export default function ReadyScreen() {
         {goals.length > 0 && (
           <View style={styles.summaryBlock}>
             <Text style={[t.labelMd, styles.summaryLabel]}>working toward</Text>
-            <Text style={[t.bodyMd, { color: palette.onSurface }]}>
-              {goals.join(' · ')}
-            </Text>
+            {goals.map((g) => (
+              <Text key={g} style={[t.bodyMd, { color: palette.onSurface }]}>{g}</Text>
+            ))}
           </View>
         )}
 

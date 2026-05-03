@@ -4,6 +4,7 @@
  * "Not quite right" is the brand-mandated reject CTA (TONE.md).
  */
 
+import { useEffect, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,16 +19,18 @@ export default function SpotifyScreen() {
   const { connect, isConnected, isLoading, error, ready } = useSpotifyAuth();
   const { setSpotifyConnected } = useOnboardingStore();
 
-  function advance(connected: boolean) {
-    setSpotifyConnected(connected);
-    router.push('/onboarding/body');
-  }
+  const advance = useCallback(
+    (connected: boolean) => {
+      setSpotifyConnected(connected);
+      router.push('/onboarding/body');
+    },
+    [setSpotifyConnected, router],
+  );
 
-  if (isConnected) {
-    // Auto-advance once connected.
-    advance(true);
-    return null;
-  }
+  // Advance only in an effect — never during render.
+  useEffect(() => {
+    if (isConnected) advance(true);
+  }, [isConnected, advance]);
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + spacing.xl }]}>
@@ -38,7 +41,7 @@ export default function SpotifyScreen() {
           Your music knows{'\n'}something.
         </Text>
         <Text style={[t.bodyMd, styles.sub]}>
-          We read your listening history to estimate tonight's mood — valence and energy, translated into feeling. You always confirm what we find.
+          We read your listening history to estimate tonight's mood. Valence and energy, translated into feeling. You always confirm what we find.
         </Text>
         <Text style={[t.bodyMd, styles.sub]}>
           We never store your listening history beyond the nightly snapshot.

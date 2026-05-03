@@ -51,7 +51,7 @@ export default function ProfileScreen() {
         <View style={styles.content}>
           <Text style={[t.headlineLg, styles.headline]}>What should we call you?</Text>
           <Text style={[t.bodyMd, styles.sub]}>
-            This is just for us — it'll appear on your evening summary.
+            This is just for us. It shows up on your evening summary.
           </Text>
 
           <View style={styles.fields}>

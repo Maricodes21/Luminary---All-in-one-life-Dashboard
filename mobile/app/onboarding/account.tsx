@@ -1,8 +1,6 @@
 /**
  * Screen 2 of 10 — Account.
- * Email + password sign-up, with Google and Apple OAuth stubs.
- * On success, Supabase Auth creates the session; useAuthStore is updated
- * by the onAuthStateChange listener wired in app/_layout.tsx (Phase 1).
+ * Email + password sign-up. ScrollView keeps the button above the keyboard.
  */
 
 import { useState } from 'react';
@@ -14,6 +12,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -64,23 +63,25 @@ export default function AccountScreen() {
       setError(authError.message);
       return;
     }
-    // Existing user — skip onboarding, go straight to tabs.
     router.replace('/(tabs)');
   }
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1, backgroundColor: palette.surface }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.root, { paddingBottom: insets.bottom + spacing.xl }]}>
-        <OnboardingProgress step="account" />
-
+      <OnboardingProgress step="account" />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: insets.bottom + spacing.xl },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.content}>
           <Text style={[t.headlineLg, styles.headline]}>Create your account.</Text>
-          <Text style={[t.bodyMd, styles.sub]}>
-            Your data lives here — private, yours.
-          </Text>
 
           <View style={styles.fields}>
             <View>
@@ -144,24 +145,22 @@ export default function AccountScreen() {
             </Text>
           </Pressable>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: palette.surface,
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
   },
   content: {
-    flex: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     gap: spacing.lg,
   },
   headline: { color: palette.onSurface },
-  sub: { color: palette.onSurfaceVariant },
   fields: { gap: spacing.md },
   label: {
     color: palette.onSurfaceVariant,
@@ -183,6 +182,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl,
     gap: spacing.sm,
   },
   primaryBtn: {

@@ -75,12 +75,12 @@ export const GOAL_OPTIONS = [
 
 export const HABIT_SUGGESTIONS: Record<string, string[]> = {
   'Sleep better':        ['Wind down by 10 PM', 'No screens 30 min before bed', 'Morning light'],
-  'Move more':           ['10-min walk', 'Stretch', 'Take the stairs'],
+  'Move more':           ['10 min walk', 'Stretch', 'Take the stairs'],
   'Manage my money':     ['Log one expense', 'Check my balance', 'No impulse buys today'],
   'Be more mindful':     ['2 minutes of stillness', 'One conscious breath', 'Put the phone down'],
   'Read more':           ['10 pages before sleep', 'Carry a book', 'Read instead of scroll'],
   'Drink more water':    ['Glass of water on waking', 'Water before coffee', 'Refill by noon'],
-  'Reduce screen time':  ['Phone off at dinner', 'App timer on', 'Grey-scale evenings'],
+  'Reduce screen time':  ['Phone off at dinner', 'App timer on', 'Greyscale evenings'],
   'Cook at home':        ['Plan tomorrow\'s meal', 'Prep something tonight', 'No delivery today'],
   'Journal regularly':   ['One sentence tonight', 'Morning brain dump', 'Weekly review'],
   'Build a workout habit': ['3 workouts this week', 'Pack gym bag tonight', 'Move for 20 min'],
