@@ -30,6 +30,7 @@ npm install                    # installs all workspaces
 # run the mobile app
 cd mobile
 cp .env.example .env           # fill in Supabase + Spotify credentials
+npm run deps:check             # validates SDK-pinned versions (one-time after install)
 npm run start                  # opens Expo dev server
 ```
 
@@ -37,14 +38,14 @@ For the Supabase backend, see `supabase/README.md`.
 
 ## Tech stack
 
-- **Mobile:** React Native + Expo SDK 51, Expo Router (file-based)
+- **Mobile:** React Native 0.81 + Expo SDK 54, Expo Router 6 (file-based), React 19
 - **State:** Zustand (client) + TanStack Query (server cache)
 - **Backend:** Supabase (Postgres + Auth + RLS) + Edge Functions
 - **Auth:** Email/password + Google OAuth + Apple Sign-In
 - **Spotify:** OAuth Authorization Code + PKCE; mood mapping via audio features
 - **Health:** Apple Health + Google Fit
 - **Validation:** Zod
-- **Animations:** react-native-reanimated + react-native-skia
+- **Animations:** react-native-reanimated (worklets plugin) + expo-blur (glassmorphism)
 - **Type safety:** TypeScript strict mode
 
 ## Architecture principles

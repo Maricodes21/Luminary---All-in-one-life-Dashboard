@@ -8,15 +8,17 @@ Five phases over ~18 weeks. The original handover document is preserved at `docs
 
 **Goal:** App boots, authenticates, navigates between empty tab screens.
 
+**Status: ✅ Complete (scaffold). Two items deferred — see notes.**
+
 - [x] Monorepo scaffold (mobile / packages / supabase)
 - [x] Design system package with tokens (colors, typography, spacing, radii)
 - [x] TONE.md copy bible
-- [ ] Expo SDK 51 with Expo Router (4 tabs + center FAB)
-- [ ] Supabase project + initial schema + RLS policies
-- [ ] Auth: email/password + Google OAuth + Apple Sign-In
-- [ ] Zustand store + TanStack Query setup
-- [ ] Manrope + Inter via expo-google-fonts
-- [ ] CI: lint + type-check on PR
+- [x] Expo SDK 54 + Expo Router 6 + React 19 (4 tabs + center FAB)
+- [x] Supabase project + initial schema + RLS policies
+- [x] Zustand store + TanStack Query setup (`useAuthStore`, `useRitualStore`, `QueryClientProvider`)
+- [x] Manrope + Inter via expo-google-fonts
+- [ ] Auth screens: email/password + Google OAuth + Apple Sign-In ← **Phase 1 (onboarding screen 2)**
+- [ ] CI: lint + type-check on PR ← **deferred; add before first TestFlight build**
 
 ## Phase 1 — Onboarding & Personalization (W3–4)
 
@@ -92,3 +94,6 @@ Daily macros · meal protocol timeline · week strip · smart suggestions by rem
 - 2026-05-01: Continuous mood signal (not daily snapshot).
 - 2026-05-01: Friend Card and Soft Streak added to scope.
 - 2026-05-01: Spotify reject CTA = "Not quite right" (replaces "Adjust").
+- 2026-05-03: react-native-skia removed from README — never installed, not needed. react-native-svg handles icon rendering. No Babel plugin ordering conflict.
+- 2026-05-03: habit_completions RLS tightened — INSERT/UPDATE WITH CHECK now also validates habit_id belongs to auth.uid() via subquery. Migration 0002.
+- 2026-05-03: Phase 1 branch strategy established — main → develop → feat/spotify-pkce. Spotify PKCE built first (highest-risk integration).
