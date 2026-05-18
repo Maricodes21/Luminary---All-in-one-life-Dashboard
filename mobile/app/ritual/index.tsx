@@ -1,29 +1,64 @@
 /**
- * Nightly ritual — entry. This is the heart of the product.
+ * Nightly ritual — stage orchestrator.
  *
- * Stages (Phase 2 implementation will expand each into its own component):
- *   1. Spotify recap card with mood estimate.
- *   2. Mood confirm: "That's about right" / "Not quite right" → mood chips.
- *   3. Optional journal prompt + free text + tags.
- *   4. Habit check-in with soft-streak feedback.
- *   5. Night summary → "See you tomorrow evening."
+ * Stages implemented:
+ *   recap   (Stage 1) — Spotify recap card + loading/empty states
+ *   mood    (Stage 2) — mood confirm/reject with Supabase write
+ *   journal (Stage 3) — stub; full implementation Phase 2 Stage 3
+ *   habits  (Stage 4) — stub; full implementation Phase 2 Stage 4
+ *   summary           — navigates to /ritual/summary
  */
-import { ScrollView, Text, View, StyleSheet, Pressable } from 'react-native';
+import { useEffect } from 'react';
+import { ScrollView, Text, View, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Icon } from '@/components/ui/Icon';
+import { RecapCard } from '@/components/ritual/RecapCard';
+import { MoodConfirm } from '@/components/ritual/MoodConfirm';
+import { useSpotifyRecap } from '@/hooks/useSpotifyRecap';
+import { useRitualStore } from '@/stores/useRitualStore';
 
 export default function RitualScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { stage, setStage, reset } = useRitualStore();
+  const { recap, isLoading, error, retry } = useSpotifyRecap();
+
+  // Reset ephemeral state when the modal is first opened.
+  // Running once on mount (no deps) is intentional.
+  useEffect(() => {
+    reset();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleMoodComplete(wantsJournal: boolean) {
+    setStage(wantsJournal ? 'journal' : 'habits');
+  }
+
+  function handleClose() {
+    reset();
+    router.back();
+  }
+
+  // Navigate to summary screen when stage advances there.
+  useEffect(() => {
+    if (stage === 'summary') {
+      router.push('/ritual/summary');
+    }
+  }, [stage, router]);
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      {/* ── Top bar ───────────────────────────────────────────────────────── */}
       <View style={styles.topbar}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Close ritual">
+        <Pressable
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close ritual"
+        >
           <Icon name="close" size={22} color={palette.onSurfaceVariant} />
         </Pressable>
         <SectionLabel>Tonight's ritual</SectionLabel>
@@ -31,52 +66,120 @@ export default function RitualScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: spacing['2xl'] }}
+        contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={[type.displayMd, { color: palette.onSurface }]}>
-          How are you <Text style={{ color: palette.primary, fontStyle: 'italic' }}>really</Text> feeling?
-        </Text>
-        <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-          Take a moment to check in with yourself.
-        </Text>
+        {/* ── Stage: recap + mood ──────────────────────────────────────────── */}
+        {(stage === 'recap' || stage === 'mood') && (
+          <>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>
+              How are you{' '}
+              <Text style={{ color: palette.primary, fontStyle: 'italic' }}>really</Text>{' '}
+              feeling?
+            </Text>
 
-        <Card style={{ marginTop: spacing.md }}>
-          <SectionLabel>Today's soundtrack</SectionLabel>
-          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
-            Connect Spotify to see your listening recap.
-          </Text>
-          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-            We'll estimate tonight's mood from what you listened to today. You always confirm.
-          </Text>
-        </Card>
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color={palette.primary} size="large" />
+                <Text style={[type.bodySm, styles.loadingText]}>
+                  Loading your listening recap…
+                </Text>
+              </View>
+            )}
 
-        <Card>
-          <SectionLabel>Mood</SectionLabel>
-          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
-            Reflective · Peaceful · Drained · Anxious · Cloudy
-          </Text>
-          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-            Mood chips arrive in Phase 2.
-          </Text>
-        </Card>
+            {!isLoading && error && (
+              <Card>
+                <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>{error}</Text>
+                <Pressable
+                  onPress={retry}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry loading recap"
+                  style={({ pressed }) => [styles.retryBtn, pressed && { opacity: 0.75 }]}
+                >
+                  <Text style={[type.titleMd, { color: palette.primary }]}>Try again</Text>
+                </Pressable>
+              </Card>
+            )}
 
-        <View style={styles.actions}>
-          <Pressable
-            onPress={() => router.back()}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.6 }]}
-          >
-            <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>Not tonight</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/ritual/summary')}
-            accessibilityRole="button"
-            style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
-          >
-            <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
-          </Pressable>
-        </View>
+            {!isLoading && !error && recap === null && (
+              <Card>
+                <SectionLabel>Today's soundtrack</SectionLabel>
+                <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
+                  Nothing logged today.
+                </Text>
+                <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+                  Listen to something tonight — we'll pick it up next time.
+                </Text>
+              </Card>
+            )}
+
+            {!isLoading && !error && recap && (
+              <>
+                <RecapCard recap={recap} />
+                <MoodConfirm recap={recap} onComplete={handleMoodComplete} />
+              </>
+            )}
+
+            {/* Allow skipping if empty or error state */}
+            {!isLoading && (recap === null || error) && (
+              <View style={styles.skipRow}>
+                <Pressable
+                  onPress={() => setStage('habits')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Skip to habits"
+                  style={({ pressed }) => [styles.skipBtn, pressed && { opacity: 0.75 }]}
+                >
+                  <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>
+                    Continue without music
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+          </>
+        )}
+
+        {/* ── Stage: journal (stub) ────────────────────────────────────────── */}
+        {stage === 'journal' && (
+          <>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>
+              What surprised you today?
+            </Text>
+            <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
+              {/* TODO: tone-pass — journal prompt rotates; full implementation Stage 3 */}
+              Journal coming in Stage 3.
+            </Text>
+            <Pressable
+              onPress={() => setStage('habits')}
+              accessibilityRole="button"
+              accessibilityLabel="Continue to habits"
+              style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
+            </Pressable>
+          </>
+        )}
+
+        {/* ── Stage: habits (stub) ─────────────────────────────────────────── */}
+        {stage === 'habits' && (
+          <>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>
+              Today's habits
+            </Text>
+            <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
+              {/* TODO: tone-pass — habit check-in full implementation Stage 4 */}
+              Habit check-in coming in Stage 4.
+            </Text>
+            <Pressable
+              onPress={() => setStage('summary')}
+              accessibilityRole="button"
+              accessibilityLabel="Continue to night summary"
+              style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
+            >
+              <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
+            </Pressable>
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -91,20 +194,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  skipBtn: {
-    flex: 1,
-    paddingVertical: spacing.md,
+  scroll: {
+    padding: spacing.md,
+    gap: spacing.lg,
+    paddingBottom: spacing['2xl'],
+  },
+  loadingContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
+    paddingVertical: spacing.xl,
+    gap: spacing.md,
+  },
+  loadingText: {
+    color: palette.onSurfaceVariant,
+  },
+  retryBtn: {
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  skipRow: {
+    alignItems: 'center',
+  },
+  skipBtn: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   continueBtn: {
-    flex: 2,
     paddingVertical: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radii.lg,
     backgroundColor: palette.primary,
+    marginTop: spacing.md,
   },
 });
