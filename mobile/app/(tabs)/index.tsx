@@ -12,9 +12,11 @@ import { palette, spacing, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Icon } from '@/components/ui/Icon';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
+  const displayName = useAuthStore((s) => s.displayName);
   return (
     <ScrollView
       style={styles.root}
@@ -24,7 +26,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View>
           <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>Welcome back</Text>
-          <Text style={[type.headlineLg, { color: palette.primary, marginTop: 2 }]}>Luminary</Text>
+          <Text style={[type.headlineLg, { color: palette.primary, marginTop: 2 }]}>{displayName ?? 'Luminary'}</Text>
         </View>
       </View>
 

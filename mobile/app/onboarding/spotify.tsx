@@ -4,7 +4,7 @@
  * "Not quite right" is the brand-mandated reject CTA (TONE.md).
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,11 @@ export default function SpotifyScreen() {
   const { connect, isConnected, isLoading, error, ready } = useSpotifyAuth();
   const { setSpotifyConnected } = useOnboardingStore();
 
+  // Track whether the user explicitly tapped Connect on THIS screen. We don't
+  // want to auto-advance when isConnected hydrates true from previously-saved
+  // tokens — that turns the screen into a flash on every entry.
+  const userInitiatedRef = useRef(false);
+
   const advance = useCallback(
     (connected: boolean) => {
       setSpotifyConnected(connected);
@@ -27,9 +32,14 @@ export default function SpotifyScreen() {
     [setSpotifyConnected, router],
   );
 
-  // Advance only in an effect — never during render.
+  const handleConnect = useCallback(() => {
+    userInitiatedRef.current = true;
+    connect();
+  }, [connect]);
+
+  // Auto-advance only after a fresh OAuth completion in this session.
   useEffect(() => {
-    if (isConnected) advance(true);
+    if (isConnected && userInitiatedRef.current) advance(true);
   }, [isConnected, advance]);
 
   return (
@@ -59,7 +69,7 @@ export default function SpotifyScreen() {
 
       <View style={styles.actions}>
         <Pressable
-          onPress={connect}
+          onPress={handleConnect}
           disabled={!ready || isLoading}
           accessibilityRole="button"
           accessibilityLabel="Connect Spotify"

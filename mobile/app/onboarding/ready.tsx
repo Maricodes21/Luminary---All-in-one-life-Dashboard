@@ -24,7 +24,7 @@ export default function ReadyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const store = useOnboardingStore();
-  const setOnboardingComplete = useAuthStore((s) => s.setOnboardingComplete);
+  const { setOnboardingComplete, setDisplayName } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,6 +34,7 @@ export default function ReadyScreen() {
     try {
       await store.commitOnboarding();
       setOnboardingComplete(true);
+      setDisplayName(store.displayName ?? null);
       router.replace('/(tabs)');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Try again.';

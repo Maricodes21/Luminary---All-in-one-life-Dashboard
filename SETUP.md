@@ -46,6 +46,7 @@ npm install
 # Boot the mobile dev server
 cd mobile
 copy .env.example .env   # then edit with real keys
+npx expo install --check # validates Expo SDK 54 version pins; auto-fixes drift
 npm run start
 ```
 

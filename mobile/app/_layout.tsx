@@ -55,7 +55,7 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const { setSession, setOnboardingComplete, setHydrated, hydrated } = useAuthStore();
+  const { setSession, setDisplayName, setOnboardingComplete, setHydrated, hydrated } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
 
@@ -69,10 +69,11 @@ export default function RootLayout() {
       if (session?.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('onboarding_complete')
+          .select('onboarding_complete, display_name')
           .eq('user_id', session.user.id)
           .maybeSingle();
         setOnboardingComplete(profile?.onboarding_complete ?? false);
+        setDisplayName(profile?.display_name ?? null);
       }
 
       setHydrated(true);

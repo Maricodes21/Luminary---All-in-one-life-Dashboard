@@ -22,28 +22,30 @@ Five phases over ~18 weeks. The original handover document is preserved at `docs
 
 ## Phase 1 — Onboarding & Personalization (W3–4)
 
-10-screen flow that captures preferences and unlocks the ritual.
+**Status: ✅ Complete — 2026-05-18.** 10-screen flow that captures preferences and unlocks the ritual.
 
-1. Animated welcome → "Get started"
-2. Account (email/password or OAuth)
-3. Profile (name, avatar, optional pronouns)
-4. **Spotify connect (PKCE)** — explain what data is used; skip allowed
-5. Body (weight + height, optional)
-6. Workout: Gym vs Home
-7. Goals (multi-select, max 5)
-8. Habits (suggested by goals; min 3)
-9. **Personality tone:** "Coach me hard" / "Gentle nudges" / "Just the data"
-10. Ready summary → "Start your first evening"
+- [x] Animated welcome → "Get started"
+- [x] Account (email/password + OAuth via Supabase Auth)
+- [x] Profile (name, avatar, optional pronouns)
+- [x] **Spotify connect (PKCE)** — built FIRST as the highest-risk integration. Token lifecycle, refresh-with-buffer, recap fetch pipeline. Zod-validated responses. `mobile/lib/spotify.ts` (pure utils) + `mobile/hooks/useSpotifyAuth.ts` (React hook) split.
+- [x] Body (weight + height, optional)
+- [x] Workout: Gym vs Home
+- [x] Goals (multi-select, max 5)
+- [x] Habits (suggested by goals; min 3)
+- [x] **Personality tone:** "Coach me hard" / "Gentle nudges" / "Just the data"
+- [x] Ready summary → "Start your first evening"
+- [x] `useOnboardingStore` Zustand accumulator + final-step Supabase write (profile + habits + `onboarding_complete=true`)
+- [x] Auth gate in `app/_layout.tsx` — routes between `/onboarding/welcome` and `/(tabs)` based on session + onboarding state
 
-## Phase 2 — Core Evening Ritual (W5–8) — MVP heart
+## Phase 2 — Core Evening Ritual (W5–8) — MVP heart ▶ NEXT
 
 The product, distilled.
 
 - Spotify recap card (`/v1/me/player/recently-played` + `/v1/audio-features`)
 - Mood mapping (valence × energy → label)
-- Mood confirm: "That's about right" or "Not quite right" → mood chips
-- Optional journal prompt + free-text + tags + voice note
-- Habit check-in with **soft-streak** consistency bands (5-of-7, not miss-and-die)
+- Mood confirm: "That's about right" or "Not quite right" → mood chips; each path asks if user wants to journal — "Yes" advances to journal step, "Not right now" skips it entirely (user can journal from dashboard later)
+- Optional journal prompt + free-text + tags + voice note stub (voice ships Phase 3); only shown if user opts in from mood step
+- Habit check-in with **soft-streak** consistency bands (5-of-7, not miss-and-die); includes "Tomorrow" section to pause individual habits for the next day (`habit_pauses` table)
 - Night summary card
 - Push notification (default 9 PM, user-configurable)
 - **The Friend Card** — daily editorial observation (templates → LLM post-MVP)
@@ -97,3 +99,5 @@ Daily macros · meal protocol timeline · week strip · smart suggestions by rem
 - 2026-05-03: react-native-skia removed from README — never installed, not needed. react-native-svg handles icon rendering. No Babel plugin ordering conflict.
 - 2026-05-03: habit_completions RLS tightened — INSERT/UPDATE WITH CHECK now also validates habit_id belongs to auth.uid() via subquery. Migration 0002.
 - 2026-05-03: Phase 1 branch strategy established — main → develop → feat/spotify-pkce. Spotify PKCE built first (highest-risk integration).
+- 2026-05-18: Phase 1 complete. Architectural patterns established this phase: (a) `lib/*` for pure async utilities, `hooks/use*` for React-bound wrappers — split so utilities can be tested and reused outside the component tree; (b) all external API responses validated through Zod before reaching app code; (c) `@/` path alias resolved via `metro.config.js resolveRequest` (NOT Expo's experimental tsconfigPaths — that experiment normalizes paths on POSIX and silently no-ops on Windows with backslashes); (d) workspace-root `App.js` shim + `mobile/App.js` re-export to defeat the Expo Go monorepo entry-resolution trap.
+- 2026-05-18: Phase 2 scope additions — (a) Journal step is opt-in only: user must tap "Yes" after mood confirm/reject to reach it; "Not right now" skips to habits, no loss, journal available from dashboard later. (b) Habit check-in gains "Tomorrow" section: lightweight toggles to pause individual habits for next day, persisted in a new `habit_pauses` table (date, habit_id, user_id, RLS-scoped); un-paused habits carry forward silently.
