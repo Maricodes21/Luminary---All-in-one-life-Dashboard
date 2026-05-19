@@ -38,6 +38,10 @@ export const onboardingSchema = z.object({
   // Spotify (screen 4) — stored via expo-secure-store separately;
   // we just track whether the user connected.
   spotifyConnected: z.boolean(),
+
+  // Evening reminder time (screen 10 / Ready). Defaults to 21:00.
+  reminderHour: z.number().int().min(0).max(23).default(21),
+  reminderMinute: z.number().int().min(0).max(59).default(0),
 });
 
 export type OnboardingData = z.infer<typeof onboardingSchema>;
@@ -54,6 +58,7 @@ type OnboardingStore = Partial<OnboardingData> & {
   setHabitNames: (v: string[]) => void;
   setToneProfile: (v: 'coach_hard' | 'gentle_nudges' | 'just_data') => void;
   setSpotifyConnected: (v: boolean) => void;
+  setReminderTime: (hour: number, minute: number) => void;
   /** Validate + write to Supabase. Throws on validation or DB error. */
   commitOnboarding: () => Promise<void>;
 };
@@ -95,6 +100,8 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
   habitNames: [],
   toneProfile: 'gentle_nudges',
   spotifyConnected: false,
+  reminderHour: 21,
+  reminderMinute: 0,
 
   setDisplayName: (displayName) => set({ displayName }),
   setPronouns: (pronouns) => set({ pronouns }),
@@ -105,6 +112,7 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
   setHabitNames: (habitNames) => set({ habitNames }),
   setToneProfile: (toneProfile) => set({ toneProfile }),
   setSpotifyConnected: (spotifyConnected) => set({ spotifyConnected }),
+  setReminderTime: (reminderHour, reminderMinute) => set({ reminderHour, reminderMinute }),
 
   commitOnboarding: async () => {
     const state = get();
@@ -129,6 +137,8 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
       goals: data.goals,
       tone_profile: data.toneProfile,
       onboarding_complete: true,
+      reminder_hour: data.reminderHour,
+      reminder_minute: data.reminderMinute,
     });
     if (profileError) throw new Error(profileError.message);
 

@@ -18,6 +18,8 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Icon } from '@/components/ui/Icon';
 import { RecapCard } from '@/components/ritual/RecapCard';
 import { MoodConfirm } from '@/components/ritual/MoodConfirm';
+import { JournalStep } from '@/components/ritual/JournalStep';
+import { HabitCheckin } from '@/components/ritual/HabitCheckin';
 import { useSpotifyRecap } from '@/hooks/useSpotifyRecap';
 import { useRitualStore } from '@/stores/useRitualStore';
 
@@ -139,47 +141,11 @@ export default function RitualScreen() {
           </>
         )}
 
-        {/* ── Stage: journal (stub) ────────────────────────────────────────── */}
-        {stage === 'journal' && (
-          <>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>
-              What surprised you today?
-            </Text>
-            <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
-              {/* TODO: tone-pass — journal prompt rotates; full implementation Stage 3 */}
-              Journal coming in Stage 3.
-            </Text>
-            <Pressable
-              onPress={() => setStage('habits')}
-              accessibilityRole="button"
-              accessibilityLabel="Continue to habits"
-              style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
-            >
-              <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
-            </Pressable>
-          </>
-        )}
+        {/* ── Stage: journal ───────────────────────────────────────────────── */}
+        {stage === 'journal' && <JournalStep />}
 
-        {/* ── Stage: habits (stub) ─────────────────────────────────────────── */}
-        {stage === 'habits' && (
-          <>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>
-              Today's habits
-            </Text>
-            <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
-              {/* TODO: tone-pass — habit check-in full implementation Stage 4 */}
-              Habit check-in coming in Stage 4.
-            </Text>
-            <Pressable
-              onPress={() => setStage('summary')}
-              accessibilityRole="button"
-              accessibilityLabel="Continue to night summary"
-              style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
-            >
-              <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
-            </Pressable>
-          </>
-        )}
+        {/* ── Stage: habits ────────────────────────────────────────────────── */}
+        {stage === 'habits' && <HabitCheckin />}
       </ScrollView>
     </View>
   );

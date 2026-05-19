@@ -25,6 +25,7 @@ export type RitualState = {
   journalText: string;
   journalTags: string[];
   habitsCompleted: string[];
+  totalHabits: number;
   setStage: (s: RitualStage) => void;
   setRecap: (r: SpotifyRecap | null) => void;
   clearRecap: () => void;
@@ -33,6 +34,7 @@ export type RitualState = {
   setJournalText: (text: string) => void;
   setJournalTags: (tags: string[]) => void;
   toggleHabit: (id: string) => void;
+  setTotalHabits: (n: number) => void;
   reset: () => void;
 };
 
@@ -44,6 +46,7 @@ export const useRitualStore = create<RitualState>((set) => ({
   journalText: '',
   journalTags: [],
   habitsCompleted: [],
+  totalHabits: 0,
   setStage: (stage) => set({ stage }),
   setRecap: (recap) => set({ recap }),
   clearRecap: () => set({ recap: undefined }),
@@ -57,6 +60,7 @@ export const useRitualStore = create<RitualState>((set) => ({
         ? s.habitsCompleted.filter((h) => h !== id)
         : [...s.habitsCompleted, id],
     })),
+  setTotalHabits: (totalHabits) => set({ totalHabits }),
   reset: () =>
     set({
       stage: 'recap',
@@ -66,5 +70,6 @@ export const useRitualStore = create<RitualState>((set) => ({
       journalText: '',
       journalTags: [],
       habitsCompleted: [],
+      totalHabits: 0,
     }),
 }));
