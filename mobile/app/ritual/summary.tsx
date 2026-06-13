@@ -44,7 +44,7 @@ export default function RitualSummary() {
       console.warn('[summary] failed to schedule reminder', err);
     }
     reset();
-    router.dismissAll();
+    router.replace('/(tabs)');
   }
 
   return (

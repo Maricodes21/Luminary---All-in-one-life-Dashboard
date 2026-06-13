@@ -1,8 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { palette, spacing, type } from '@luminary/design-system';
+import { View, Text, Image, StyleSheet } from 'react-native';
+import { palette, spacing, radii, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { mapAudioFeaturesToMood, moodCopy } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
 
 type RecapCardProps = {
@@ -10,73 +9,97 @@ type RecapCardProps = {
 };
 
 export function RecapCard({ recap }: RecapCardProps) {
-  const { label, confidence } = mapAudioFeaturesToMood(recap.averageFeatures);
-  const copy = moodCopy[label];
-  const artistNames = recap.topArtists.map((a) => a.name).join(', ');
-  const confident = confidence >= 0.6;
-
   return (
     <Card variant="featured">
-      <SectionLabel>Today's soundtrack</SectionLabel>
+      <View style={styles.center}>
+        <SectionLabel>Today's soundtrack</SectionLabel>
 
-      <View style={styles.statsRow}>
-        <Text style={[type.displayMd, styles.stat]}>
-          {recap.trackCount}
-          <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}> tracks</Text>
-        </Text>
-        <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}> · </Text>
-        <Text style={[type.displayMd, styles.stat]}>
-          {recap.minutesListened}
-          <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}> min</Text>
-        </Text>
-      </View>
-
-      {artistNames.length > 0 && (
-        <Text style={[type.bodySm, styles.artists]} numberOfLines={2}>
-          {artistNames}
-        </Text>
-      )}
-
-      <View style={styles.moodRow}>
-        <View style={styles.moodPill}>
-          <Text style={[type.titleLg, { color: palette.primary }]}>
-            {confident ? copy.display : `Maybe ${copy.display.toLowerCase()}`}
-          </Text>
+        <View style={styles.statTiles}>
+          <View style={styles.statTile}>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>{recap.minutesListened}</Text>
+            <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>min played</Text>
+          </View>
+          <View style={styles.statTile}>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>{recap.trackCount}</Text>
+            <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>tracks</Text>
+          </View>
         </View>
-        <Text style={[type.bodySm, styles.moodHint]}>
-          From your music today
-        </Text>
+
+        {recap.topArtists.length > 0 && (
+          <View style={styles.artistRow}>
+            <View style={styles.artistAvatars}>
+              {recap.topArtists.map((artist) => (
+                <View key={artist.id} style={styles.artistAvatar}>
+                  {artist.imageUrl ? (
+                    <Image source={{ uri: artist.imageUrl }} style={styles.artistImage} />
+                  ) : (
+                    <View style={[styles.artistImage, styles.artistImageFallback]}>
+                      <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>
+                        {artist.name.charAt(0)}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+            <Text
+              style={[
+                type.bodySm,
+                { color: palette.onSurfaceVariant, marginTop: spacing.xs, textAlign: 'center' },
+              ]}
+              numberOfLines={1}
+            >
+              {recap.topArtists.map((a) => a.name).join(' · ')}
+            </Text>
+          </View>
+        )}
       </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: {
+  center: {
+    alignItems: 'center',
+  },
+  statTiles: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    justifyContent: 'center',
     marginTop: spacing.sm,
+    gap: spacing.sm,
+    alignSelf: 'stretch',
   },
-  stat: {
-    color: palette.onSurface,
-  },
-  artists: {
-    color: palette.onSurfaceVariant,
-    marginTop: spacing.xs,
-  },
-  moodRow: {
-    marginTop: spacing.md,
-    gap: spacing.xs,
-  },
-  moodPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: `${palette.primary}18`,
+  statTile: {
+    flex: 1,
+    maxWidth: 150,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 999,
+    backgroundColor: palette.surfaceContainerHighest,
+    borderRadius: radii.md,
   },
-  moodHint: {
-    color: palette.onSurfaceVariant,
-    marginLeft: spacing.xs,
+  artistRow: {
+    marginTop: spacing.md,
+    alignItems: 'center',
+  },
+  artistAvatars: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  artistAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  artistImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  artistImageFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

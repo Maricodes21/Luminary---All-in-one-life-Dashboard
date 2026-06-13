@@ -201,21 +201,24 @@ async function fetchAudioFeatures(
   const results: (AudioFeatures | null)[] = [];
 
   for (const chunk of chunks) {
-    const res = await spotifyGet(
-      accessToken,
-      `/audio-features?ids=${chunk.join(',')}`,
-    );
-    const parsed = audioFeaturesSchema.safeParse(res);
-    if (!parsed.success) {
-      results.push(...chunk.map(() => null));
-      continue;
-    }
-    for (const f of parsed.data.audio_features) {
-      if (!f) {
-        results.push(null);
-      } else {
-        results.push({ valence: f.valence, energy: f.energy, tempo: f.tempo });
+    try {
+      const res = await spotifyGet(
+        accessToken,
+        `/audio-features?ids=${chunk.join(',')}`,
+      );
+      const parsed = audioFeaturesSchema.safeParse(res);
+      if (!parsed.success) {
+        results.push(...chunk.map(() => null));
+        continue;
       }
+      for (const f of parsed.data.audio_features) {
+        results.push(f ? { valence: f.valence, energy: f.energy, tempo: f.tempo } : null);
+      }
+    } catch {
+      // /audio-features returns 403 for apps registered after Spotify's Nov 2023
+      // deprecation. Fall through with nulls so the recap still completes with
+      // the default mood features (valence 0.5, energy 0.5, tempo 100).
+      results.push(...chunk.map(() => null));
     }
   }
 

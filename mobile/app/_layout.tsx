@@ -95,6 +95,7 @@ export default function RootLayout() {
     const { session, onboardingComplete } = useAuthStore.getState();
     const inTabs = segments[0] === '(tabs)';
     const inOnboarding = segments[0] === 'onboarding';
+    const inRitual = segments[0] === 'ritual';
 
     if (!session) {
       if (!inOnboarding) router.replace('/onboarding/welcome');
@@ -106,7 +107,8 @@ export default function RootLayout() {
       return;
     }
 
-    if (!inTabs) {
+    // Allow authenticated users in tabs or the ritual modal — don't redirect either.
+    if (!inTabs && !inRitual) {
       router.replace('/(tabs)');
     }
   }, [hydrated, fontsLoaded, segments, router]);

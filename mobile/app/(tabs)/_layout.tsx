@@ -92,38 +92,37 @@ function RitualFab() {
     router.push('/ritual');
   };
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Begin tonight's ritual"
-      style={styles.fab}
-    >
-      <View style={styles.fabInner}>
+    // box-none on the overlay so taps on empty edges pass through to tabs beneath.
+    // The Pressable itself must NOT have pointer-events restrictions.
+    <View style={styles.fabOverlay} pointerEvents="box-none">
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel="Begin tonight's ritual"
+        style={styles.fabButton}
+      >
         <Icon name="sparkles" size={26} color={palette.onPrimary} />
-      </View>
-    </Pressable>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   host: { flex: 1, backgroundColor: palette.surface },
-  fab: {
+  fabOverlay: {
     position: 'absolute',
     bottom: 56, // sits above the tab bar (84 height − a slight overlap)
-    alignSelf: 'center',
     left: 0,
     right: 0,
     alignItems: 'center',
-    pointerEvents: 'box-none',
   },
-  fabInner: {
+  fabButton: {
     width: 64,
     height: 64,
     borderRadius: radii.lg,
     backgroundColor: palette.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    // Soft glow per design system — no drop shadows.
     shadowColor: palette.surfaceTint,
     shadowOpacity: 0.5,
     shadowRadius: 18,
