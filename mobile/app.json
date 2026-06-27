@@ -27,7 +27,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0c0e10"
       },
-      "permissions": ["ACTIVITY_RECOGNITION", "RECORD_AUDIO"]
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
@@ -46,6 +49,9 @@
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "63aa0a65-7a92-4a88-8ce7-b911f2ca517e"
       }
     }
   }
