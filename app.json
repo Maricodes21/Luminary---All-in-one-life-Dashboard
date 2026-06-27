@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "63aa0a65-7a92-4a88-8ce7-b911f2ca517e"
+      }
+    },
+    "android": {
+      "package": "com.mariciius.luminary"
+    }
+  }
+}

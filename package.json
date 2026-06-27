@@ -14,9 +14,12 @@
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "supabase:start": "cd supabase && supabase start",
-    "supabase:db:reset": "cd supabase && supabase db reset"
+    "supabase:db:reset": "cd supabase && supabase db reset",
+    "mobile:android:open": "npm run android:open --workspace=mobile",
+    "mobile:clear": "npm run start:clear --workspace=mobile"
   },
   "devDependencies": {
+    "@types/react": "~19.1.10",
     "prettier": "^3.3.0"
   },
   "engines": {

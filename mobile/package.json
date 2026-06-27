@@ -2,20 +2,22 @@
   "name": "mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "App.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "ios": "expo start --ios",
     "android": "expo start --android",
+    "android:open": "adb shell am start -W -p app.luminary.mobile -a android.intent.action.VIEW -d \"exp+luminary://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081\"",
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
     "doctor": "npx expo-doctor",
-    "deps:check": "npx expo install --check"
+    "deps:check": "npx expo install --check",
+    "start:clear": "expo start --clear"
   },
   "dependencies": {
-    "@expo-google-fonts/inter": "^0.4.1",
-    "@expo-google-fonts/manrope": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/manrope": "^0.4.2",
     "@luminary/design-system": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@supabase/supabase-js": "^2.45.0",
@@ -43,7 +45,7 @@
     "react-native-safe-area-context": "5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-url-polyfill": "^2.0.0",
+    "react-native-url-polyfill": "^3.0.0",
     "react-native-worklets": "0.5.1",
     "zod": "^3.23.8",
     "zustand": "^4.5.4"

@@ -9,8 +9,7 @@
  * The gate runs once hydration is complete (supabase session restored from
  * AsyncStorage + profile fetched). Until then the splash screen stays visible.
  */
-
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -45,7 +44,8 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontWaitExpired, setFontWaitExpired] = useState(false);
+  const [fontsLoaded, fontError] = useFonts({
     Manrope_600SemiBold,
     Manrope_700Bold,
     Manrope_800ExtraBold,
@@ -58,6 +58,19 @@ export default function RootLayout() {
   const { setSession, setDisplayName, setOnboardingComplete, setHydrated, hydrated } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setFontWaitExpired(true), 3000);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (fontError) {
+      console.warn('[fonts] Falling back to system fonts', fontError);
+    }
+  }, [fontError]);
+
+  const appReady = fontsLoaded || !!fontError || fontWaitExpired;
 
   // Subscribe to Supabase auth state and mirror into the store.
   useEffect(() => {
@@ -88,7 +101,7 @@ export default function RootLayout() {
 
   // Route guard — runs after hydration and font load.
   useEffect(() => {
-    if (!hydrated || !fontsLoaded) return;
+    if (!hydrated || !appReady) return;
 
     SplashScreen.hideAsync().catch(() => {});
 
@@ -111,10 +124,10 @@ export default function RootLayout() {
     if (!inTabs && !inRitual) {
       router.replace('/(tabs)');
     }
-  }, [hydrated, fontsLoaded, segments, router]);
+  }, [hydrated, appReady, segments, router]);
 
   // Hold render until fonts + hydration are both done to avoid flash.
-  if (!fontsLoaded || !hydrated) return null;
+  if (!appReady || !hydrated) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.surface }}>
