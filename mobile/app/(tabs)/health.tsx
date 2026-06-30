@@ -6,187 +6,147 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
-import { useMeals } from '@/hooks/useMeals';
+import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
 
-type HealthTab = 'movement' | 'nutrition';
+const categories: WorkoutPlan['category'][] = ['calisthenics', 'cardio', 'cycling', 'gym'];
+const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
 
 export default function HealthScreen() {
   const insets = useSafeAreaInsets();
-  const [view, setView] = useState<HealthTab>('movement');
-  const { workouts, isLoading: loadingHealth } = useHealthMetrics();
-  const { meals, isLoading: loadingMeals } = useMeals();
+  const { workouts, isLoading } = useHealthMetrics();
+  const [category, setCategory] = useState<WorkoutPlan['category']>('calisthenics');
+  const [level, setLevel] = useState<WorkoutPlan['level']>('steady');
+  const workoutPlans = useProductionStore((s) => s.workoutPlans);
+  const createWorkoutPlan = useProductionStore((s) => s.createWorkoutPlan);
+  const latestPlan = workoutPlans[0];
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
-      <View style={styles.header}>
-        <SectionLabel>Wellness</SectionLabel>
-        <Text style={[type.displaySm, { color: palette.onSurface, marginTop: spacing.xs }]}>
-          Your body in your own words
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: 120 }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <SectionLabel>Physical health</SectionLabel>
+      <Text style={[type.displaySm, { color: palette.onSurface, marginTop: spacing.xs }]}>Movement</Text>
+      <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+        Health Connect first. Your body data stays permissioned.
+      </Text>
+
+      <Card style={{ marginTop: spacing.lg }}>
+        <SectionLabel>Health Connect</SectionLabel>
+        <View style={styles.metricRow}>
+          <View style={styles.metricTile}>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>--</Text>
+            <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>steps</Text>
+          </View>
+          <View style={styles.metricTile}>
+            <Text style={[type.displayMd, { color: palette.onSurface }]}>--</Text>
+            <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>bpm</Text>
+          </View>
+        </View>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.md }]}>
+          Connect Health Connect to read steps, heart rate, and sleep where permissions allow it.
         </Text>
+      </Card>
+
+      <View style={styles.spaced}>
+        <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Weekly plan setup</Text>
+        <Card>
+          <SectionLabel>Category</SectionLabel>
+          <View style={styles.chipGrid}>
+            {categories.map((item) => (
+              <Choice key={item} label={item} active={category === item} onPress={() => setCategory(item)} />
+            ))}
+          </View>
+          <SectionLabel style={{ marginTop: spacing.md }}>Level</SectionLabel>
+          <View style={styles.chipGrid}>
+            {levels.map((item) => (
+              <Choice key={item} label={item} active={level === item} onPress={() => setLevel(item)} />
+            ))}
+          </View>
+          <Pressable onPress={() => createWorkoutPlan(category, level)} style={styles.primaryButton}>
+            <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create your plan for the week</Text>
+          </Pressable>
+        </Card>
       </View>
 
-      {/* Segmented Control */}
-      <View style={styles.segments}>
-        <Pressable
-          onPress={() => setView('movement')}
-          style={[styles.segment, view === 'movement' && styles.segmentActive]}
-        >
-          <Text style={[type.labelMd, view === 'movement' ? { color: palette.onSurface } : { color: palette.onSurfaceVariant }]}>
-            Movement
+      {latestPlan && (
+        <Card style={{ marginTop: spacing.md }} variant="featured">
+          <SectionLabel>This week</SectionLabel>
+          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
+            {latestPlan.category} / {latestPlan.level}
           </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setView('nutrition')}
-          style={[styles.segment, view === 'nutrition' && styles.segmentActive]}
-        >
-          <Text style={[type.labelMd, view === 'nutrition' ? { color: palette.onSurface } : { color: palette.onSurfaceVariant }]}>
-            Nutrition
-          </Text>
-        </Pressable>
+          {latestPlan.days.map((day, index) => (
+            <View key={day} style={{ marginTop: spacing.sm }}>
+              <View style={styles.planRow}>
+                <Text style={[type.labelMd, { color: palette.onSurface }]}>Day {index + 1}</Text>
+                <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>{day}</Text>
+              </View>
+              <ProgressBar value={index + 1} max={latestPlan.days.length} color={palette.tertiary} style={{ marginTop: spacing.xs }} />
+            </View>
+          ))}
+        </Card>
+      )}
+
+      <View style={styles.spaced}>
+        <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Logged workouts</Text>
+        {isLoading ? (
+          <ActivityIndicator color={palette.primary} />
+        ) : workouts.length > 0 ? (
+          workouts.map((workout) => (
+            <Card key={workout.id} style={{ marginBottom: spacing.sm }}>
+              <Text style={[type.labelMd, { color: palette.onSurface }]}>{workout.workout_type}</Text>
+              <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
+                {workout.workout_date} / {workout.duration_minutes || '--'} min
+              </Text>
+            </Card>
+          ))
+        ) : (
+          <Card variant="recessed">
+            <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
+              No workouts logged yet. Build the week first; logging comes after.
+            </Text>
+          </Card>
+        )}
       </View>
+    </ScrollView>
+  );
+}
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 120 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {view === 'movement' && (
-          <View>
-            {loadingHealth ? (
-              <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.xl }} />
-            ) : (
-              <>
-                <Card style={{ marginTop: spacing.lg }}>
-                  <SectionLabel>Today's Activity</SectionLabel>
-                  <View style={styles.ringsPlaceholder}>
-                    <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>
-                      Connect Apple Health or Google Fit to sync step data.
-                    </Text>
-                  </View>
-                </Card>
-
-                <View style={styles.spaced}>
-                  <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Workouts</Text>
-                  {workouts.length > 0 ? (
-                    workouts.map((w) => (
-                      <Card key={w.id} style={{ marginBottom: spacing.sm }}>
-                        <Text style={[type.labelMd, { color: palette.onSurface }]}>
-                          {w.workout_type === 'gym' ? 'Gym Session' : 'Home Workout'}
-                        </Text>
-                        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-                          {w.workout_date} • {w.duration_minutes || '--'} min
-                        </Text>
-                      </Card>
-                    ))
-                  ) : (
-                    <Card variant="recessed">
-                      <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>No workouts tracked yet.</Text>
-                    </Card>
-                  )}
-                </View>
-
-                <View style={styles.spaced}>
-                  <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Vitals</Text>
-                  <Card variant="recessed">
-                    <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                      Resting Heart Rate: -- bpm{'\n'}Sleep Score: --
-                    </Text>
-                  </Card>
-                </View>
-              </>
-            )}
-          </View>
-        )}
-
-        {view === 'nutrition' && (
-          <View>
-            {loadingMeals ? (
-              <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.xl }} />
-            ) : (
-              <>
-                <Card style={{ marginTop: spacing.lg }}>
-                  <SectionLabel>Daily Macros</SectionLabel>
-                  <View style={{ marginTop: spacing.sm }}>
-                    <View style={styles.macroRow}>
-                      <Text style={[type.labelMd, { color: palette.onSurface }]}>Protein</Text>
-                      <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>0g / 150g</Text>
-                    </View>
-                    <ProgressBar value={0} max={100} color={palette.primary} style={{ marginTop: spacing.xs, marginBottom: spacing.md }} />
-
-                    <View style={styles.macroRow}>
-                      <Text style={[type.labelMd, { color: palette.onSurface }]}>Carbs</Text>
-                      <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>0g / 200g</Text>
-                    </View>
-                    <ProgressBar value={0} max={100} color={palette.secondary} style={{ marginTop: spacing.xs, marginBottom: spacing.md }} />
-
-                    <View style={styles.macroRow}>
-                      <Text style={[type.labelMd, { color: palette.onSurface }]}>Fats</Text>
-                      <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>0g / 65g</Text>
-                    </View>
-                    <ProgressBar value={0} max={100} color={palette.tertiary} style={{ marginTop: spacing.xs }} />
-                  </View>
-                </Card>
-
-                <View style={styles.spaced}>
-                  <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Meals Today</Text>
-                  {meals.length > 0 ? (
-                    meals.map((m) => (
-                      <Card key={m.id} style={{ marginBottom: spacing.sm }}>
-                        <Text style={[type.labelMd, { color: palette.onSurface }]}>{m.name}</Text>
-                        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-                          {m.calories || '--'} kcal
-                        </Text>
-                      </Card>
-                    ))
-                  ) : (
-                    <Card variant="recessed">
-                      <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>No meals tracked today.</Text>
-                    </Card>
-                  )}
-                </View>
-              </>
-            )}
-          </View>
-        )}
-      </ScrollView>
-    </View>
+function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.choice, active && styles.choiceActive]}>
+      <Text style={[type.labelMd, { color: active ? palette.onPrimary : palette.onSurfaceVariant }]}>{label}</Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
-  header: { paddingHorizontal: spacing.md },
-  segments: {
-    flexDirection: 'row',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
-    backgroundColor: palette.surfaceContainerLow,
-    borderRadius: radii.pill,
-    padding: 4,
-  },
-  segment: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-  },
-  segmentActive: {
-    backgroundColor: palette.surfaceContainerHigh,
-  },
   content: { paddingHorizontal: spacing.md },
   spaced: { marginTop: spacing.xl },
-  ringsPlaceholder: {
-    height: 120,
-    justifyContent: 'center',
+  metricRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  metricTile: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: spacing.sm,
-    backgroundColor: palette.surfaceContainerLowest,
+    backgroundColor: palette.surfaceContainerHigh,
     borderRadius: radii.md,
     padding: spacing.md,
   },
-  macroRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  choice: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: palette.surfaceContainerHigh,
   },
+  choiceActive: { backgroundColor: palette.primary },
+  primaryButton: {
+    backgroundColor: palette.primary,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginTop: spacing.md,
+  },
+  planRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
 });

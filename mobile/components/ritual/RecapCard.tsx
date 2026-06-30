@@ -25,6 +25,21 @@ export function RecapCard({ recap }: RecapCardProps) {
           </View>
         </View>
 
+        <Text style={[type.titleLg, { color: palette.primary, marginTop: spacing.md, textAlign: 'center' }]}>
+          {recap.moodPhrase}
+        </Text>
+
+        {recap.topTracks.length > 0 && (
+          <View style={styles.trackList}>
+            <SectionLabel>Top tracks today</SectionLabel>
+            {recap.topTracks.map((track) => (
+              <Text key={track.id} style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+                {track.name} / {track.artistName}
+              </Text>
+            ))}
+          </View>
+        )}
+
         {recap.topArtists.length > 0 && (
           <View style={styles.artistRow}>
             <View style={styles.artistAvatars}>
@@ -49,7 +64,7 @@ export function RecapCard({ recap }: RecapCardProps) {
               ]}
               numberOfLines={1}
             >
-              {recap.topArtists.map((a) => a.name).join(' · ')}
+              {recap.topArtists.map((a) => a.name).join(' / ')}
             </Text>
           </View>
         )}
@@ -81,6 +96,13 @@ const styles = StyleSheet.create({
   artistRow: {
     marginTop: spacing.md,
     alignItems: 'center',
+  },
+  trackList: {
+    alignSelf: 'stretch',
+    marginTop: spacing.md,
+    padding: spacing.md,
+    backgroundColor: palette.surfaceContainerHigh,
+    borderRadius: radii.md,
   },
   artistAvatars: {
     flexDirection: 'row',

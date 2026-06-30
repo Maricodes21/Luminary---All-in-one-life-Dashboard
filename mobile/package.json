@@ -2,12 +2,12 @@
   "name": "mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "index.js",
+  "main": "App.js",
   "scripts": {
     "start": "expo start",
-    "ios": "expo start --ios",
-    "android": "expo start --android",
-    "android:open": "adb shell am start -W -p app.luminary.mobile -a android.intent.action.VIEW -d \"exp+luminary://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081\"",
+    "ios": "expo run:ios",
+    "android": "expo run:android",
+    "android:open": "adb shell am start -W -p app.luminary.mobile -a android.intent.action.VIEW -d \"expo-dev-launcher://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081\"",
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
@@ -27,6 +27,7 @@
     "expo-blur": "~15.0.7",
     "expo-constants": "~18.0.8",
     "expo-crypto": "~15.0.7",
+    "expo-dev-client": "~6.0.21",
     "expo-font": "~14.0.7",
     "expo-haptics": "~15.0.7",
     "expo-linking": "~8.0.8",
@@ -53,6 +54,8 @@
   "devDependencies": {
     "@babel/core": "^7.25.0",
     "@types/react": "~19.1.10",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.0"
   }
 }

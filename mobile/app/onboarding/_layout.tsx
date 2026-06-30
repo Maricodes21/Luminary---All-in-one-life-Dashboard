@@ -9,7 +9,7 @@
  * here and updated via the route name so each child screen stays lean.
  */
 
-import { Stack, useSegments } from 'expo-router';
+import { Stack } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii } from '@luminary/design-system';

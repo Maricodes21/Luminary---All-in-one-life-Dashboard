@@ -40,7 +40,9 @@ export type SpotifyRecap = {
   date: string; // YYYY-MM-DD
   trackCount: number;
   minutesListened: number;
+  topTracks: Array<{ id: string; name: string; artistName: string; playCount: number }>;
   topArtists: Array<{ id: string; name: string; imageUrl?: string }>;
+  moodPhrase: string;
   averageFeatures: { valence: number; energy: number; tempo: number };
 };
 
@@ -169,14 +171,16 @@ export async function fetchRecap(
     date: today,
     trackCount: todayTracks.length,
     minutesListened,
+    topTracks: inferTopTracks(todayTracks),
     topArtists,
+    moodPhrase: buildMoodPhrase(todayTracks, topArtists),
     averageFeatures: avgFeatures,
   };
 }
 
 // ─── Private API helpers ──────────────────────────────────────────────────────
 
-type RecentTrack = { trackId: string; playedAt: string };
+type RecentTrack = { trackId: string; name: string; artistName: string; playedAt: string };
 type AudioFeatures = { valence: number; energy: number; tempo: number };
 
 async function fetchRecentlyPlayed(accessToken: string): Promise<RecentTrack[]> {
@@ -186,6 +190,8 @@ async function fetchRecentlyPlayed(accessToken: string): Promise<RecentTrack[]> 
 
   return parsed.data.items.map((item) => ({
     trackId: item.track.id,
+    name: item.track.name,
+    artistName: item.track.artists[0]?.name ?? 'Unknown artist',
     playedAt: item.played_at,
   }));
 }
@@ -215,9 +221,8 @@ async function fetchAudioFeatures(
         results.push(f ? { valence: f.valence, energy: f.energy, tempo: f.tempo } : null);
       }
     } catch {
-      // /audio-features returns 403 for apps registered after Spotify's Nov 2023
-      // deprecation. Fall through with nulls so the recap still completes with
-      // the default mood features (valence 0.5, energy 0.5, tempo 100).
+      // /audio-features may be restricted for newer Spotify apps. Fall through
+      // so the recap still completes with default mood features.
       results.push(...chunk.map(() => null));
     }
   }
@@ -263,7 +268,11 @@ const tokenResponseSchema = z.object({
 const recentlyPlayedSchema = z.object({
   items: z.array(
     z.object({
-      track: z.object({ id: z.string() }),
+      track: z.object({
+        id: z.string(),
+        name: z.string(),
+        artists: z.array(z.object({ name: z.string() })),
+      }),
       played_at: z.string(),
     }),
   ),
@@ -311,4 +320,31 @@ function toIsoDate(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+function inferTopTracks(tracks: RecentTrack[]): SpotifyRecap['topTracks'] {
+  const byId = new Map<string, SpotifyRecap['topTracks'][number]>();
+  for (const track of tracks) {
+    const existing = byId.get(track.trackId);
+    if (existing) {
+      existing.playCount += 1;
+    } else {
+      byId.set(track.trackId, {
+        id: track.trackId,
+        name: track.name,
+        artistName: track.artistName,
+        playCount: 1,
+      });
+    }
+  }
+  return [...byId.values()].sort((a, b) => b.playCount - a.playCount).slice(0, 5);
+}
+
+function buildMoodPhrase(tracks: RecentTrack[], artists: SpotifyRecap['topArtists']): string {
+  if (tracks.length === 0) return 'quiet signal';
+  const lateNight = tracks.some((track) => Number(track.playedAt.slice(11, 13)) >= 21);
+  const repeat = inferTopTracks(tracks)[0]?.playCount ?? 1;
+  const anchor = artists[0]?.name ?? tracks[0]?.artistName ?? 'the usual rotation';
+  const texture = repeat >= 3 ? 'repeat-loop' : lateNight ? 'late-window' : 'soft-focus';
+  return `${texture} ${anchor.toLowerCase()}`;
 }

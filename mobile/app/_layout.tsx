@@ -74,30 +74,60 @@ export default function RootLayout() {
 
   // Subscribe to Supabase auth state and mirror into the store.
   useEffect(() => {
-    // Restore session from AsyncStorage on first load.
-    supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session ?? null;
-      setSession(session);
-
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_complete, display_name')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        setOnboardingComplete(profile?.onboarding_complete ?? false);
-        setDisplayName(profile?.display_name ?? null);
+    let cancelled = false;
+    const hydrationTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[auth] Session restore timed out; continuing without a restored session.');
+        setHydrated(true);
       }
+    }, 5000);
 
-      setHydrated(true);
-    });
+    // Restore session from AsyncStorage on first load.
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (cancelled) return;
+
+        const session = data.session ?? null;
+        setSession(session);
+
+        if (session?.user) {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('onboarding_complete, display_name')
+            .eq('user_id', session.user.id)
+            .maybeSingle();
+
+          if (error) {
+            console.warn('[auth] Profile restore failed', error.message);
+          }
+
+          if (!cancelled) {
+            setOnboardingComplete(profile?.onboarding_complete ?? false);
+            setDisplayName(profile?.display_name ?? null);
+          }
+        }
+      })
+      .catch((error) => {
+        console.warn('[auth] Session restore failed', error);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          clearTimeout(hydrationTimeout);
+          setHydrated(true);
+        }
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
 
-    return () => listener.subscription.unsubscribe();
-  }, [setSession, setOnboardingComplete, setHydrated]);
+    return () => {
+      cancelled = true;
+      clearTimeout(hydrationTimeout);
+      listener.subscription.unsubscribe();
+    };
+  }, [setSession, setDisplayName, setOnboardingComplete, setHydrated]);
 
   // Route guard — runs after hydration and font load.
   useEffect(() => {

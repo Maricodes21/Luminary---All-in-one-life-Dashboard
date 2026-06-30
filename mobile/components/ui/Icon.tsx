@@ -9,12 +9,12 @@ import { palette } from '@luminary/design-system';
  * system's "tactile feel" rule. Swap in @expo/vector-icons later if we want a
  * wider catalog, but the primitive stays.
  *
- * Naming follows semantic intent (home, journal, health, money, lock, sparkles, close)
+ * Naming follows semantic intent (home, journal, meals, health, money, lock, sparkles, close)
  * rather than visual shape. Component is named `Icon`, not `Symbol`, because
  * `Symbol` is a built-in JS global and shadowing it bites you eventually.
  */
 
-type IconName = 'home' | 'journal' | 'health' | 'money' | 'lock' | 'sparkles' | 'close';
+type IconName = 'home' | 'journal' | 'meals' | 'health' | 'money' | 'lock' | 'sparkles' | 'close';
 
 export type IconProps = {
   name: IconName;
@@ -41,6 +41,16 @@ const paths: Record<IconName, () => React.ReactNode> = {
       strokeWidth={2}
       fill="none"
       strokeLinecap="round"
+    />
+  ),
+  meals: () => (
+    <Path
+      d="M7 3v8M11 3v8M7 7h4M9 11v10M17 3v18M15 3c3 2.5 3 6.5 0 9"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   ),
   health: () => (

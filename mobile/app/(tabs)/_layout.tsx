@@ -12,7 +12,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { Pressable, View, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
-import { palette, spacing, radii, glass } from '@luminary/design-system';
+import { palette, radii, glass } from '@luminary/design-system';
 import { Icon } from '@/components/ui/Icon';
 
 export default function TabsLayout() {
@@ -58,6 +58,13 @@ export default function TabsLayout() {
           options={{
             title: 'Journal',
             tabBarIcon: ({ color }) => <Icon name="journal" color={color} />,
+          }}
+        />
+        <Tabs.Screen
+          name="meals"
+          options={{
+            title: 'Meals',
+            tabBarIcon: ({ color }) => <Icon name="meals" color={color} />,
           }}
         />
         <Tabs.Screen
