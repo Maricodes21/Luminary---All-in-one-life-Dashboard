@@ -16,9 +16,13 @@ alter table public.budget_transactions
 alter table public.health_workouts
   drop constraint if exists health_workouts_workout_type_check;
 
+update public.health_workouts
+set workout_type = 'calisthenics'
+where workout_type = 'home';
+
 alter table public.health_workouts
   add constraint health_workouts_workout_type_check
-  check (workout_type in ('calisthenics', 'cardio', 'cycling', 'gym', 'home'));
+  check (workout_type in ('calisthenics', 'cardio', 'cycling', 'gym'));
 
 create table if not exists public.health_metrics (
   id uuid primary key default uuid_generate_v4(),
@@ -116,3 +120,12 @@ alter table public.integration_consents enable row level security;
 drop policy if exists "integration_consents are self-scoped" on public.integration_consents;
 create policy "integration_consents are self-scoped" on public.integration_consents
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.health_workouts to authenticated;
+grant select, insert, update, delete on table public.health_metrics to authenticated;
+grant select, insert, update, delete on table public.workout_plans to authenticated;
+grant select, insert, update, delete on table public.meal_plans to authenticated;
+grant select, insert, update, delete on table public.expense_notification_prompts to authenticated;
+grant select, insert, update, delete on table public.transaction_imports to authenticated;
+grant select, insert, update, delete on table public.integration_consents to authenticated;

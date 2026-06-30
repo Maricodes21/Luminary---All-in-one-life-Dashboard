@@ -13,12 +13,24 @@ const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
 
 export default function HealthScreen() {
   const insets = useSafeAreaInsets();
-  const { workouts, isLoading } = useHealthMetrics();
+  const { workouts, latestMetric, isLoading } = useHealthMetrics();
   const [category, setCategory] = useState<WorkoutPlan['category']>('calisthenics');
   const [level, setLevel] = useState<WorkoutPlan['level']>('steady');
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
   const createWorkoutPlan = useProductionStore((s) => s.createWorkoutPlan);
   const latestPlan = workoutPlans[0];
+  const hasLiveMetrics = !!latestMetric;
+  const metricTiles = hasLiveMetrics
+    ? [
+        { value: formatNumber(latestMetric.steps), label: 'steps' },
+        { value: formatNumber(latestMetric.heart_rate_bpm), label: 'bpm' },
+        { value: formatSleep(latestMetric.sleep_minutes), label: 'sleep' },
+      ]
+    : [
+        { value: String(latestPlan?.days.length ?? workouts.length), label: latestPlan ? 'planned days' : 'logged' },
+        { value: String(estimateWeeklyMinutes(latestPlan, workouts)), label: 'weekly min' },
+        { value: latestPlan ? formatLabel(latestPlan.category) : 'Ready', label: 'focus' },
+      ];
 
   return (
     <ScrollView
@@ -35,17 +47,25 @@ export default function HealthScreen() {
       <Card style={{ marginTop: spacing.lg }}>
         <SectionLabel>Health Connect</SectionLabel>
         <View style={styles.metricRow}>
-          <View style={styles.metricTile}>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>--</Text>
-            <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>steps</Text>
-          </View>
-          <View style={styles.metricTile}>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>--</Text>
-            <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>bpm</Text>
-          </View>
+          {metricTiles.map((tile) => (
+            <View key={tile.label} style={styles.metricTile}>
+              <Text
+                style={[type.displayMd, { color: palette.onSurface }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {tile.value}
+              </Text>
+              <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]} numberOfLines={1}>
+                {tile.label}
+              </Text>
+            </View>
+          ))}
         </View>
         <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.md }]}>
-          Connect Health Connect to read steps, heart rate, and sleep where permissions allow it.
+          {hasLiveMetrics
+            ? `Latest ${latestMetric.source.replace('_', ' ')} sync from ${latestMetric.metric_date}.`
+            : 'No synced body metrics yet, so this falls back to your current plan and logged workouts.'}
         </Text>
       </Card>
 
@@ -121,6 +141,30 @@ function Choice({ label, active, onPress }: { label: string; active: boolean; on
   );
 }
 
+function formatNumber(value: number | null) {
+  return value == null ? '--' : Intl.NumberFormat().format(value);
+}
+
+function formatSleep(value: number | null) {
+  if (value == null) return '--';
+  const hours = Math.floor(value / 60);
+  const minutes = value % 60;
+  return `${hours}h ${minutes}m`;
+}
+
+function formatLabel(value: string) {
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function estimateWeeklyMinutes(plan: WorkoutPlan | undefined, workouts: { duration_minutes: number | null }[]) {
+  const remoteMinutes = workouts.reduce((sum, workout) => sum + (workout.duration_minutes ?? 0), 0);
+  if (remoteMinutes > 0) return remoteMinutes;
+  return (plan?.days.length ?? 0) * 45;
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
   content: { paddingHorizontal: spacing.md },
@@ -128,6 +172,7 @@ const styles = StyleSheet.create({
   metricRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   metricTile: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     backgroundColor: palette.surfaceContainerHigh,
     borderRadius: radii.md,
