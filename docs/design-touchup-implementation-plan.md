@@ -9,6 +9,26 @@ Luminary has moved past the static prototype stage. The mobile app now has a wor
 
 The next sprint is a product retouch: keep the calm, private, dark Luminary identity, but make each module feel like a real assistant surface rather than a shared card-and-form template.
 
+## Execution Checkpoint - 2026-06-30
+
+The first design touchup implementation pass is complete on `codex/design-touchup`.
+
+Shipped in this pass:
+
+- Shared `ActionSheet` and `QuickActionTile` primitives.
+- Expanded icon set for settings, capture, search, scan, planning, substitutions, and receipts.
+- Curated module presets for habits, meals, workouts, journal prompts, and money categories.
+- Home profile/settings entry, integration cards, category-based habit suggestions, and cross-module glance cards.
+- Meal logging sheet with search, presets, camera/barcode entry points, manual fallback, meal thumbnails, and planner sheet.
+- Health Connect action sheet, workout planner controls, visual workout hero, exercise cards, and substitute actions.
+- Money amount-first expense sheet, receipt/date affordances, scannable budget cards, and transaction confirmation styling.
+- Journal prompt chips, mood tags, richer entry cards, and a trend preview state.
+
+Validation:
+
+- `npm run type-check --workspace=mobile`
+- `npm run lint --workspace=mobile`
+
 ## Design Goal
 
 Make Luminary feel like a quiet life operating system:
@@ -161,4 +181,3 @@ Acceptance criteria:
 5. `feat: retouch health planner and exercise substitutions`
 6. `feat: retouch money quick add and journal prompts`
 7. `chore: polish mobile touchup docs and qa notes`
-

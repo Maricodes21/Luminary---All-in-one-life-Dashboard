@@ -9,3 +9,5 @@ export { Locked } from './Locked';
 export type { LockedProps } from './Locked';
 export { Icon } from './Icon';
 export type { IconProps } from './Icon';
+export { ActionSheet } from './ActionSheet';
+export { QuickActionTile } from './QuickActionTile';

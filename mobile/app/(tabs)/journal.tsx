@@ -4,9 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Card } from '@/components/ui/Card';
+import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Icon } from '@/components/ui/Icon';
+import { Chip } from '@/components/ui/Chip';
 import { useJournalEntries } from '@/hooks/useJournalEntries';
 import { EntryCard } from '@/components/journal/EntryCard';
 import { useProductionStore } from '@/stores/useProductionStore';
+import { journalPrompts, moodTags } from '@/lib/modulePresets';
 
 type TabView = 'timeline' | 'trends';
 
@@ -15,25 +19,33 @@ export default function JournalScreen() {
   const [view, setView] = useState<TabView>('timeline');
   const [draft, setDraft] = useState('');
   const [tagDraft, setTagDraft] = useState('');
+  const [selectedPrompt, setSelectedPrompt] = useState(journalPrompts[0]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { data: remoteEntries, isLoading } = useJournalEntries();
   const localEntries = useProductionStore((s) => s.journalEntries.filter((entry) => !entry.deletedAt));
   const addJournalEntry = useProductionStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useProductionStore((s) => s.deleteJournalEntry);
 
-  const tags = useMemo(
-    () =>
-      tagDraft
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-    [tagDraft],
-  );
+  const tags = useMemo(() => {
+    const typedTags = tagDraft
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+    return Array.from(new Set([...selectedTags, ...typedTags]));
+  }, [selectedTags, tagDraft]);
+
+  const entriesNeeded = Math.max(0, 3 - localEntries.length);
 
   const onSave = () => {
     if (!draft.trim()) return;
-    addJournalEntry(draft.trim(), '', tags);
+    addJournalEntry(draft.trim(), selectedPrompt, tags);
     setDraft('');
     setTagDraft('');
+    setSelectedTags([]);
+  };
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]));
   };
 
   return (
@@ -53,6 +65,25 @@ export default function JournalScreen() {
           <View>
             <Card>
               <SectionLabel>New entry</SectionLabel>
+              <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.xs }]}>{selectedPrompt}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.promptStrip}>
+                {journalPrompts.map((prompt, index) => (
+                  <Pressable
+                    key={prompt}
+                    onPress={() => setSelectedPrompt(prompt)}
+                    style={[styles.promptChip, selectedPrompt === prompt && styles.promptChipActive]}
+                  >
+                    <Text
+                      style={[
+                        type.bodySm,
+                        { color: selectedPrompt === prompt ? palette.onPrimary : palette.onSurfaceVariant },
+                      ]}
+                    >
+                      Prompt {index + 1}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
               <TextInput
                 value={draft}
                 onChangeText={setDraft}
@@ -61,10 +92,15 @@ export default function JournalScreen() {
                 multiline
                 style={styles.entryInput}
               />
+              <View style={styles.tagGrid}>
+                {moodTags.map((tag) => (
+                  <Chip key={tag} label={tag} selected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} />
+                ))}
+              </View>
               <TextInput
                 value={tagDraft}
                 onChangeText={setTagDraft}
-                placeholder="tags, separated, quietly"
+                placeholder="extra tags, separated quietly"
                 placeholderTextColor={palette.onSurfaceVariant}
                 style={styles.tagInput}
               />
@@ -75,7 +111,17 @@ export default function JournalScreen() {
 
             {localEntries.map((entry) => (
               <Card key={entry.id} style={{ marginTop: spacing.md }}>
-                <Text style={[type.bodyMd, { color: palette.onSurface }]}>{entry.body}</Text>
+                <View style={styles.entryTop}>
+                  <View style={styles.entryIcon}>
+                    <Icon name="journal" size={18} color={palette.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    {entry.title ? <Text style={[type.labelSm, { color: palette.primary }]}>{entry.title}</Text> : null}
+                    <Text style={[type.bodyMd, { color: palette.onSurface, marginTop: entry.title ? spacing.xs : 0 }]}>
+                      {entry.body}
+                    </Text>
+                  </View>
+                </View>
                 <View style={styles.entryMeta}>
                   <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>
                     {new Date(entry.writtenAt).toLocaleDateString()}
@@ -93,9 +139,9 @@ export default function JournalScreen() {
             ) : remoteEntries && remoteEntries.length > 0 ? (
               remoteEntries.map((entry) => <EntryCard key={entry.id} entry={entry} />)
             ) : localEntries.length === 0 ? (
-              <Card style={{ marginTop: spacing.lg }}>
+              <Card style={{ marginTop: spacing.lg }} variant="recessed">
                 <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                  Nothing here yet. Tonight could be the first one.
+                  Nothing here yet. Start with one honest sentence.
                 </Text>
               </Card>
             ) : null}
@@ -104,19 +150,31 @@ export default function JournalScreen() {
 
         {view === 'trends' && (
           <View>
-            <Card style={{ marginTop: spacing.lg }}>
-              <SectionLabel>Weekly mood</SectionLabel>
-              <View style={styles.placeholderChart}>
-                <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>
-                  More data needed to plot your trends. Keep checking in.
-                </Text>
+            <Card>
+              <View style={styles.trendHeader}>
+                <View>
+                  <SectionLabel>Weekly mood</SectionLabel>
+                  <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
+                    {entriesNeeded ? `${entriesNeeded} more entries to unlock` : 'Enough signal to begin'}
+                  </Text>
+                </View>
+                <Icon name="trend" color={palette.primary} size={24} />
               </View>
+              <View style={styles.trendBars}>
+                {[0.35, 0.6, 0.42, 0.76, 0.52, 0.7, 0.5].map((value, index) => (
+                  <View key={index} style={styles.trendBarColumn}>
+                    <View style={[styles.trendBar, { height: 34 + value * 74, opacity: entriesNeeded ? 0.35 : 1 }]} />
+                    <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{index + 1}</Text>
+                  </View>
+                ))}
+              </View>
+              <ProgressBar value={localEntries.length} max={3} color={palette.primary} style={{ marginTop: spacing.md }} />
             </Card>
 
             <Card style={{ marginTop: spacing.md }} variant="recessed">
-              <SectionLabel>Insight</SectionLabel>
+              <SectionLabel>Insight preview</SectionLabel>
               <Text style={[type.bodyMd, { color: palette.onSurface, marginTop: spacing.xs }]}>
-                Your entries are now saved locally first, then queued for sync when the database is ready.
+                Luminary will look for repeated tags, energy shifts, and the days that ask for softer plans.
               </Text>
             </Card>
           </View>
@@ -156,8 +214,16 @@ const styles = StyleSheet.create({
   },
   segmentActive: { backgroundColor: palette.surfaceContainerHigh },
   content: { paddingHorizontal: spacing.md },
+  promptStrip: { gap: spacing.sm, paddingRight: spacing.md, marginTop: spacing.md },
+  promptChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  promptChipActive: { backgroundColor: palette.primary },
   entryInput: {
-    minHeight: 110,
+    minHeight: 120,
     color: palette.onSurface,
     backgroundColor: palette.surfaceContainerHigh,
     borderRadius: radii.md,
@@ -165,6 +231,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     textAlignVertical: 'top',
   },
+  tagGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   tagInput: {
     color: palette.onSurface,
     backgroundColor: palette.surfaceContainerHigh,
@@ -179,19 +246,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.md,
   },
+  entryTop: { flexDirection: 'row', gap: spacing.md },
+  entryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   entryMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
     marginTop: spacing.md,
   },
-  placeholderChart: {
-    height: 150,
-    justifyContent: 'center',
-    alignItems: 'center',
+  trendHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+  trendBars: {
+    height: 140,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
     backgroundColor: palette.surfaceContainerLowest,
     borderRadius: radii.md,
     padding: spacing.md,
+  },
+  trendBarColumn: { alignItems: 'center', gap: spacing.xs },
+  trendBar: {
+    width: 18,
+    borderRadius: radii.pill,
+    backgroundColor: palette.primary,
   },
 });

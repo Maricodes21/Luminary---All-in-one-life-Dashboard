@@ -14,7 +14,27 @@ import { palette } from '@luminary/design-system';
  * `Symbol` is a built-in JS global and shadowing it bites you eventually.
  */
 
-type IconName = 'home' | 'journal' | 'meals' | 'health' | 'money' | 'lock' | 'sparkles' | 'close';
+type IconName =
+  | 'home'
+  | 'journal'
+  | 'meals'
+  | 'health'
+  | 'money'
+  | 'lock'
+  | 'sparkles'
+  | 'close'
+  | 'settings'
+  | 'plus'
+  | 'search'
+  | 'camera'
+  | 'barcode'
+  | 'calendar'
+  | 'check'
+  | 'clock'
+  | 'profile'
+  | 'swap'
+  | 'receipt'
+  | 'trend';
 
 export type IconProps = {
   name: IconName;
@@ -96,6 +116,106 @@ const paths: Record<IconName, () => React.ReactNode> = {
       strokeWidth={2}
       fill="none"
       strokeLinecap="round"
+    />
+  ),
+  settings: () => (
+    <Path
+      d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM4 13l-1-1 2-3 1.5.5a7 7 0 0 1 1.2-.7L8 6h4l.3 2.3c.4.2.8.4 1.2.7L15 8.5l2 3-1 1v1l1 1-2 3-1.5-.5c-.4.3-.8.5-1.2.7L12 20H8l-.3-2.3c-.4-.2-.8-.4-1.2-.7L5 17.5l-2-3 1-1v-1z"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      fill="none"
+      strokeLinejoin="round"
+    />
+  ),
+  plus: () => (
+    <Path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+  ),
+  search: () => (
+    <Path
+      d="M10.5 18a7.5 7.5 0 1 1 5.3-2.2L21 21"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+    />
+  ),
+  camera: () => (
+    <Path
+      d="M4 8h3l1.5-2h7L17 8h3v11H4V8zM12 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinejoin="round"
+    />
+  ),
+  barcode: () => (
+    <Path
+      d="M5 5v14M8 5v14M12 5v14M16 5v14M19 5v14"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+    />
+  ),
+  calendar: () => (
+    <Path
+      d="M5 5h14v15H5zM8 3v4M16 3v4M5 10h14"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  check: () => (
+    <Path d="M5 12.5l4.2 4L19 7" stroke="currentColor" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+  ),
+  clock: () => (
+    <Path
+      d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+    />
+  ),
+  profile: () => (
+    <Path
+      d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 21a7.5 7.5 0 0 1 15 0"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+    />
+  ),
+  swap: () => (
+    <Path
+      d="M7 7h11l-3-3M17 17H6l3 3"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  receipt: () => (
+    <Path
+      d="M7 3h10v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2V3zM9 8h6M9 12h6M9 16h4"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  trend: () => (
+    <Path
+      d="M4 17l5-5 4 3 7-8M16 7h4v4"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   ),
 };
