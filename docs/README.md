@@ -2,6 +2,10 @@
 
 Reference assets, originals, and mockups.
 
+## Living implementation plans
+
+- `design-touchup-implementation-plan.md` — current 2026-06-30 plan for the Home, Habits, Journal, Meals, Health, and Money retouch on `codex/design-touchup`.
+
 ## /originals
 The handover materials Mari delivered to kick off the project. Treat as read-only reference; the canonical living docs are at the repo root.
 

@@ -1,5 +1,22 @@
 # Luminary Roadmap
 
+## Current Status - 2026-06-30
+
+**Active branch:** `codex/design-touchup`
+
+The app is now beyond the static-prototype stage. The mobile workspace has a local-first production scaffold for Home, Journal, Meals, Health, and Money, with persisted client state, Supabase schema coverage for production modules, Spotify recap plumbing, Health metrics querying, and local sync queue foundations.
+
+The next sprint is the **Design Touchup Sprint**. Its job is to convert the current functional scaffold into richer module experiences:
+
+- Home becomes the daily command center with profile/settings, connection states, habit suggestions, and cross-module summaries.
+- Habits move from inline text entry to a category-based suggestion flow.
+- Meals becomes a functional logging module with presets, search, meal scan, barcode scan, and weekly planning.
+- Health gains stronger Health Connect prompting plus workout suggestions and substitutions.
+- Money shifts toward fast expense capture, clearer budget visuals, and confirmable notification-assisted logging.
+- Journal keeps its quiet tone while gaining prompts, mood tags, and more meaningful trend empty states.
+
+The detailed working plan lives in `docs/design-touchup-implementation-plan.md`.
+
 Five phases over ~18 weeks. The original handover document is preserved at `docs/luminary_roadmap.docx`.
 
 > **MVP definition (post-discussion 2026-05-01):** All five phases ship for v1.0. The ritual (Phases 0–2) is the heart, but Mari's MVP includes the life modules (Wallet, Health, Meals) unlocked and functional. Modules are visible-but-locked from day 1 — users opt in during personalization.
@@ -39,6 +56,8 @@ Five phases over ~18 weeks. The original handover document is preserved at `docs
 
 ## Phase 2 — Core Evening Ritual (W5–8) — MVP heart ▶ NEXT
 
+**Current status:** Implemented as a scaffold. Polish and deeper insight UX continue alongside the design touchup sprint.
+
 The product, distilled.
 
 - Spotify recap card (`/v1/me/player/recently-played` + `/v1/audio-features`)
@@ -53,6 +72,8 @@ The product, distilled.
 
 ## Phase 3 — Reflection & Insights (W9–11)
 
+**Current status:** Journal timeline exists locally. Trends and insight UX need the design touchup pass.
+
 - Journal list with search + tag filter
 - Mood trend charts (7d / 30d) — line + heatmap
 - Weekly review (Sunday auto-generated)
@@ -63,14 +84,36 @@ The product, distilled.
 
 All visible-but-locked from day 1; unlock individually.
 
+**Current status:** Local-first module scaffold exists for Wallet, Health, and Meals. The next step is interaction depth and visual distinction, not a backend-first rebuild.
+
 ### 4a. Wallet
 Monthly overview · expense logging (FAB) · category budgets · savings goals · upcoming bills
+
+Design touchup focus:
+
+- Quick-add expense sheet with amount-first capture.
+- Category selection, notes, date, and receipt photo stub.
+- Notification assist cards that feel like confirmable transaction suggestions.
+- Budget/category visuals that are easier to scan.
 
 ### 4b. Health
 Steps ring (HealthKit/Google Fit) · gym/home workout suggestions · weekly plan · vitals grid · strength projection
 
+Design touchup focus:
+
+- Stronger Health Connect prompt and permission state.
+- Generated workout plan detail with exercises for each day.
+- Substitute actions for workouts and individual exercises.
+- Useful fallback state when live metrics are unavailable.
+
 ### 4c. Meals
 Daily macros · meal protocol timeline · week strip · smart suggestions by remaining macros · quick log
+
+Design touchup focus:
+
+- Replace the basic meal form with presets, search, camera meal scan, barcode scan, and manual fallback.
+- Add visual meal cards with calories and macros.
+- Expand weekly planning into a dedicated generate/customize/substitute flow.
 
 ## Phase 5 — Polish & Launch (W17–18)
 
@@ -101,3 +144,4 @@ Daily macros · meal protocol timeline · week strip · smart suggestions by rem
 - 2026-05-03: Phase 1 branch strategy established — main → develop → feat/spotify-pkce. Spotify PKCE built first (highest-risk integration).
 - 2026-05-18: Phase 1 complete. Architectural patterns established this phase: (a) `lib/*` for pure async utilities, `hooks/use*` for React-bound wrappers — split so utilities can be tested and reused outside the component tree; (b) all external API responses validated through Zod before reaching app code; (c) `@/` path alias resolved via `metro.config.js resolveRequest` (NOT Expo's experimental tsconfigPaths — that experiment normalizes paths on POSIX and silently no-ops on Windows with backslashes); (d) workspace-root `App.js` shim + `mobile/App.js` re-export to defeat the Expo Go monorepo entry-resolution trap.
 - 2026-05-18: Phase 2 scope additions — (a) Journal step is opt-in only: user must tap "Yes" after mood confirm/reject to reach it; "Not right now" skips to habits, no loss, journal available from dashboard later. (b) Habit check-in gains "Tomorrow" section: lightweight toggles to pause individual habits for next day, persisted in a new `habit_pauses` table (date, habit_id, user_id, RLS-scoped); un-paused habits carry forward silently.
+- 2026-06-30: Production modules reached a local-first scaffold state. Design touchup branch created from the committed scaffold to deepen Home, Habits, Meals, Health, Money, and Journal UX without discarding the existing persisted-state architecture.

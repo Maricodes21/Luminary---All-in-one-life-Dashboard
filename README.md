@@ -59,7 +59,9 @@ For the Supabase backend, see `supabase/README.md`.
 
 ## Status
 
-Phase 0 (project setup) — in progress. See `ROADMAP.md` for the full plan.
+The app has a local-first production scaffold for Home, Journal, Meals, Health, and Money. The current branch, `codex/design-touchup`, is for the design retouch sprint: profile/settings, richer habit suggestions, functional meal logging, Health Connect/workout planning polish, faster money capture, and journal prompt/trend improvements.
+
+See `ROADMAP.md` for the product roadmap and `docs/design-touchup-implementation-plan.md` for the active implementation plan.
 
 ---
 
