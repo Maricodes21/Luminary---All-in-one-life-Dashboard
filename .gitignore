@@ -55,3 +55,4 @@ supabase/seed.sql
 .cache/
 .turbo/
 coverage/
+.superpowers/
