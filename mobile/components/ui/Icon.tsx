@@ -14,7 +14,7 @@ import { palette } from '@luminary/design-system';
  * `Symbol` is a built-in JS global and shadowing it bites you eventually.
  */
 
-type IconName =
+export type IconName =
   | 'home'
   | 'journal'
   | 'meals'
@@ -34,7 +34,9 @@ type IconName =
   | 'profile'
   | 'swap'
   | 'receipt'
-  | 'trend';
+  | 'trend'
+  | 'water'
+  | 'book';
 
 export type IconProps = {
   name: IconName;
@@ -211,6 +213,26 @@ const paths: Record<IconName, () => React.ReactNode> = {
   trend: () => (
     <Path
       d="M4 17l5-5 4 3 7-8M16 7h4v4"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  water: () => (
+    <Path
+      d="M12 3s6 6.2 6 11a6 6 0 0 1-12 0c0-4.8 6-11 6-11zM9 15a3 3 0 0 0 3 3"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  book: () => (
+    <Path
+      d="M5 5.5A2.5 2.5 0 0 1 7.5 3H20v16H7.5A2.5 2.5 0 0 0 5 21V5.5zM5 5.5V21M9 7h7M9 11h6"
       stroke="currentColor"
       strokeWidth={2}
       fill="none"

@@ -50,7 +50,7 @@ export default function ReadyScreen() {
       await store.commitOnboarding();
       setOnboardingComplete(true);
       setDisplayName(store.displayName ?? null);
-      router.replace('/(tabs)');
+      router.replace('/ritual');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Try again.';
       setError(msg);

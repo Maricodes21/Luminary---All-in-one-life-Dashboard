@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View, Text, Image, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -14,6 +15,9 @@ import { useProductionStore } from '@/stores/useProductionStore';
 import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { habitCategories, habitSuggestions, type HabitSuggestion } from '@/lib/modulePresets';
+import { calculateNutritionTargets } from '@/lib/nutrition';
+import { getDailyFocusNote } from '@/lib/dailyFocus';
+import { getHabitIconName } from '@/lib/habitIcons';
 
 const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
 
@@ -27,13 +31,13 @@ function useHomeSpotifyRecap() {
 }
 
 export default function HomeScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const displayName = useAuthStore((s) => s.displayName);
-  const { data: recap } = useHomeSpotifyRecap();
+  const { data: recap, refetch: refetchRecap, isFetching: recapFetching } = useHomeSpotifyRecap();
   const spotify = useSpotifyAuth();
   const [customHabitName, setCustomHabitName] = useState('');
   const [habitSheetOpen, setHabitSheetOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Morning');
   const today = new Date().toISOString().slice(0, 10);
   const habits = useProductionStore((s) =>
@@ -43,17 +47,36 @@ export default function HomeScreen() {
   const mealPlan = useProductionStore((s) => s.mealPlan);
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
   const expenses = useProductionStore((s) => s.expenses);
+  const bodyProfile = useProductionStore((s) => s.bodyProfile);
+  const profileSettings = useProductionStore((s) => s.profileSettings);
   const addHabit = useProductionStore((s) => s.addHabit);
-  const updateHabit = useProductionStore((s) => s.updateHabit);
   const archiveHabit = useProductionStore((s) => s.archiveHabit);
   const toggleHabitCompletion = useProductionStore((s) => s.toggleHabitCompletion);
   const syncQueue = useProductionStore((s) => s.syncQueue);
   const completedToday = habits.filter((habit) => habit.completedOn.includes(today)).length;
   const todayMeals = meals.filter((meal) => meal.mealDate === today);
+  const nutritionTargets = calculateNutritionTargets(bodyProfile);
+  const proteinLogged = todayMeals.reduce((sum, meal) => sum + meal.proteinG, 0);
+  const proteinRemaining = Math.max(0, nutritionTargets.proteinG - proteinLogged);
+  const ritualDoneToday = habits.length > 0 && completedToday === habits.length;
   const todaySpend = expenses
     .filter((expense) => expense.transactionDate === today)
     .reduce((sum, expense) => sum + expense.amount, 0);
   const latestPlan = workoutPlans[0];
+  const focusNote = getDailyFocusNote(today, {
+    displayName: displayName ?? profileSettings.displayName,
+    toneProfile: profileSettings.toneProfile,
+    completedHabits: completedToday,
+    totalHabits: habits.length,
+    proteinRemaining,
+    ritualDone: ritualDoneToday,
+  });
+
+  useEffect(() => {
+    if (spotify.isConnected) {
+      void refetchRecap();
+    }
+  }, [spotify.isConnected, refetchRecap]);
 
   const suggestedHabits = useMemo(
     () =>
@@ -87,7 +110,7 @@ export default function HomeScreen() {
             <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>Good morning,</Text>
             <Text style={[type.headlineLg, { color: palette.primary, marginTop: 2 }]}>{displayName ?? 'Mari'}</Text>
           </View>
-          <Pressable onPress={() => setSettingsOpen(true)} style={styles.profileButton} accessibilityRole="button">
+          <Pressable onPress={() => router.push('/settings')} style={styles.profileButton} accessibilityRole="button">
             <Icon name="profile" size={20} color={palette.onSurface} />
             <Icon name="settings" size={16} color={palette.primary} />
           </Pressable>
@@ -96,12 +119,18 @@ export default function HomeScreen() {
         <View style={styles.connectionRow}>
           <ConnectionTile
             label="Spotify"
-            detail={recap ? `${recap.trackCount} tracks today` : spotify.isConnected ? 'Connected' : 'Connect music'}
+            detail={recap ? `${recap.trackCount} tracks today` : spotify.isConnected ? 'Connected, checking today' : 'Connect music'}
             active={!!recap || spotify.isConnected}
             icon="sparkles"
-            onPress={spotify.isConnected ? undefined : spotify.connect}
+            onPress={spotify.isConnected ? () => refetchRecap() : spotify.connect}
           />
-          <ConnectionTile label="Health Connect" detail="Set up body data" active={false} icon="health" />
+          <ConnectionTile
+            label="Health Connect"
+            detail="Set up body data"
+            active={false}
+            icon="health"
+            onPress={() => router.push('/(tabs)/health')}
+          />
         </View>
 
         {recap ? (
@@ -113,7 +142,11 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <SectionLabel>Listening today</SectionLabel>
                 <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-                  Connect Spotify to bring music and mood into the daily brief.
+                  {spotify.isConnected
+                    ? recapFetching
+                      ? 'Checking today\'s listening signal.'
+                      : 'Spotify is connected. Once you have listening history today, your recap will show here.'
+                    : 'Connect Spotify to bring music and mood into the daily brief.'}
                 </Text>
               </View>
             </View>
@@ -123,9 +156,34 @@ export default function HomeScreen() {
         <Card variant="recessed" style={styles.spaced}>
           <SectionLabel>Today's focus</SectionLabel>
           <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
-            A few small steps lead to big progress.
+            {focusNote}
           </Text>
         </Card>
+
+        {!ritualDoneToday ? (
+          <Card variant="featured" style={styles.spaced}>
+            <Pressable
+              onPress={() => router.push('/ritual')}
+              style={styles.ritualCard}
+              accessibilityRole="button"
+              accessibilityLabel="Begin tonight's ritual"
+            >
+              <View style={styles.ritualIcon}>
+                <Icon name="sparkles" size={22} color={palette.onPrimary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <SectionLabel>Nightly ritual</SectionLabel>
+                <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]}>
+                  Close the day while it is still fresh.
+                </Text>
+                <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
+                  {completedToday} of {habits.length} habits checked in today
+                </Text>
+              </View>
+              <Icon name="journal" size={20} color={palette.primary} />
+            </Pressable>
+          </Card>
+        ) : null}
 
         <View style={styles.spaced}>
           <View style={styles.sectionHeader}>
@@ -135,38 +193,44 @@ export default function HomeScreen() {
             </Text>
           </View>
           <Card>
-            <View style={styles.habitRingRow}>
-              {habits.slice(0, 4).map((habit) => {
-                const completed = habit.completedOn.includes(today);
-                return (
-                  <Pressable
-                    key={habit.id}
-                    onPress={() => toggleHabitCompletion(habit.id, today)}
-                    style={styles.habitRingItem}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: completed }}
-                  >
-                    <View style={[styles.habitRing, completed && styles.habitRingActive]}>
-                      <Icon name={completed ? 'check' : 'sparkles'} size={18} color={completed ? palette.onPrimary : palette.primary} />
-                    </View>
-                    <Text style={[type.bodySm, { color: palette.onSurface, textAlign: 'center' }]} numberOfLines={1}>
-                      {habit.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
             {habits.map((habit) => (
               <View key={habit.id} style={styles.habitRow}>
-                <TextInput
-                  value={habit.name}
-                  onChangeText={(text) => updateHabit(habit.id, text)}
-                  style={styles.habitInput}
-                  placeholderTextColor={palette.onSurfaceVariant}
-                />
-                <Pressable onPress={() => archiveHabit(habit.id)} accessibilityRole="button" style={styles.textButton}>
-                  <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Delete</Text>
+                <Pressable
+                  onPress={() => toggleHabitCompletion(habit.id, today)}
+                  style={[styles.habitToggle, habit.completedOn.includes(today) && styles.habitToggleDone]}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: habit.completedOn.includes(today) }}
+                  accessibilityLabel={habit.name}
+                >
+                  <Icon
+                    name={getHabitIconName(habit.name)}
+                    size={16}
+                    color={habit.completedOn.includes(today) ? palette.onPrimary : palette.onSurfaceVariant}
+                  />
+                </Pressable>
+                <Pressable
+                  onPress={() => toggleHabitCompletion(habit.id, today)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: habit.completedOn.includes(today) }}
+                  style={styles.habitNameButton}
+                >
+                  <Text
+                    style={[
+                      type.bodyMd,
+                      { color: habit.completedOn.includes(today) ? palette.onSurfaceVariant : palette.onSurface },
+                      habit.completedOn.includes(today) && styles.habitDoneText,
+                    ]}
+                  >
+                    {habit.name}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => archiveHabit(habit.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Archive ${habit.name}`}
+                  style={styles.iconButton}
+                >
+                  <Icon name="close" size={16} color={palette.onSurfaceVariant} />
                 </Pressable>
               </View>
             ))}
@@ -184,20 +248,23 @@ export default function HomeScreen() {
             <QuickActionTile
               icon="meals"
               label="Meals"
-              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealPlan[0]?.breakfast ?? 'Plan your first plate'}
+              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealPlan[0]?.breakfast?.name ?? 'Plan your first plate'}
               accent={palette.secondary}
+              onPress={() => router.push('/(tabs)/meals')}
             />
             <QuickActionTile
               icon="health"
               label="Movement"
               detail={latestPlan ? `${latestPlan.category} / ${latestPlan.level}` : 'Create a weekly plan'}
               accent={palette.tertiary}
+              onPress={() => router.push('/(tabs)/health')}
             />
             <QuickActionTile
               icon="money"
               label="Spend"
               detail={todaySpend ? `R${todaySpend.toFixed(0)} captured today` : 'No purchases logged'}
               accent={palette.primary}
+              onPress={() => router.push('/(tabs)/money')}
             />
             <QuickActionTile
               icon="sparkles"
@@ -208,6 +275,7 @@ export default function HomeScreen() {
                   : 'Local rhythm is current'
               }
               accent={palette.primary}
+              onPress={() => router.push('/settings')}
             />
           </View>
         </View>
@@ -256,18 +324,6 @@ export default function HomeScreen() {
         </Card>
       </ActionSheet>
 
-      <ActionSheet visible={settingsOpen} onClose={() => setSettingsOpen(false)} eyebrow="Profile" title="Settings and services">
-        <QuickActionTile icon="profile" label={displayName ?? 'Mari'} detail="Profile, avatar, tone, and privacy" />
-        <QuickActionTile
-          icon="sparkles"
-          label="Spotify"
-          detail={spotify.isConnected ? 'Connected for listening recaps' : 'Connect music for mood signals'}
-          onPress={spotify.isConnected ? undefined : spotify.connect}
-        />
-        <QuickActionTile icon="health" label="Health Connect" detail="Steps, heart rate, sleep, and workouts" />
-        <QuickActionTile icon="clock" label="Notifications" detail="Evening reminder and weekly review timing" />
-        {spotify.error ? <Text style={[type.bodySm, { color: palette.error }]}>{spotify.error}</Text> : null}
-      </ActionSheet>
     </>
   );
 }
@@ -404,31 +460,52 @@ const styles = StyleSheet.create({
   },
   spaced: { marginTop: spacing.sm },
   emptyIntegration: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  ritualCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  ritualIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primary,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',
     justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  habitRingRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
-  habitRingItem: { flex: 1, alignItems: 'center', gap: spacing.xs },
-  habitRing: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  habitRingActive: { backgroundColor: palette.primary },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.surfaceContainerHigh,
   },
-  habitInput: { flex: 1, color: palette.onSurface, paddingVertical: spacing.sm },
-  textButton: { paddingVertical: spacing.sm, paddingHorizontal: spacing.xs },
+  habitToggle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  habitToggleDone: { backgroundColor: palette.primary },
+  habitNameButton: { flex: 1, paddingVertical: spacing.xs },
+  habitDoneText: { textDecorationLine: 'line-through' },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   addHabitButton: {
     marginTop: spacing.md,
     borderRadius: radii.md,

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Image } from 'react-native';
+import { Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -15,7 +15,6 @@ import { exerciseAlternates, workoutExercises, type ExercisePreset } from '@/lib
 
 const categories: WorkoutPlan['category'][] = ['calisthenics', 'cardio', 'cycling', 'gym'];
 const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
-const equipmentOptions = ['bodyweight', 'dumbbells', 'bands', 'bike'];
 const timeOptions = ['25 min', '40 min', '55 min'];
 
 export default function HealthScreen() {
@@ -23,13 +22,15 @@ export default function HealthScreen() {
   const { workouts, latestMetric, isLoading } = useHealthMetrics();
   const [category, setCategory] = useState<WorkoutPlan['category']>('calisthenics');
   const [level, setLevel] = useState<WorkoutPlan['level']>('steady');
-  const [equipment, setEquipment] = useState('bodyweight');
   const [timeAvailable, setTimeAvailable] = useState('40 min');
   const [connectOpen, setConnectOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [healthPermissionMessage, setHealthPermissionMessage] = useState<string | null>(null);
   const [replacements, setReplacements] = useState<Record<string, string>>({});
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
+  const workoutLogs = useProductionStore((s) => s.workoutLogs);
   const createWorkoutPlan = useProductionStore((s) => s.createWorkoutPlan);
+  const completeWorkout = useProductionStore((s) => s.completeWorkout);
   const latestPlan = workoutPlans[0];
   const hasLiveMetrics = !!latestMetric;
   const planCategory = latestPlan?.category ?? category;
@@ -45,10 +46,33 @@ export default function HealthScreen() {
         { value: String(estimateWeeklyMinutes(latestPlan, workouts)), label: 'weekly min' },
         { value: latestPlan ? formatLabel(latestPlan.category) : 'Ready', label: 'focus' },
       ];
+  const loggedWorkouts = [
+    ...workoutLogs.map((workout) => ({
+      id: workout.id,
+      title: workout.title,
+      workoutType: workout.workoutType,
+      workoutDate: workout.workoutDate,
+      durationMinutes: workout.durationMinutes,
+    })),
+    ...workouts.map((workout) => ({
+      id: workout.id,
+      title: workout.workout_type,
+      workoutType: workout.workout_type,
+      workoutDate: workout.workout_date,
+      durationMinutes: workout.duration_minutes ?? 0,
+    })),
+  ];
 
   const onCreatePlan = () => {
     createWorkoutPlan(category, level);
     setPlannerOpen(true);
+  };
+
+  const onRequestHealthPermissions = async () => {
+    setHealthPermissionMessage('Opening Android app settings. Native Health Connect permissions are not wired yet.');
+    await Linking.openSettings().catch(() => {
+      setHealthPermissionMessage('Could not open settings from the emulator. Check Android app permissions manually.');
+    });
   };
 
   const onReplaceExercise = (exerciseName: string) => {
@@ -56,6 +80,16 @@ export default function HealthScreen() {
     const currentIndex = exerciseAlternates.indexOf(current);
     const next = exerciseAlternates[(currentIndex + 1) % exerciseAlternates.length];
     setReplacements((state) => ({ ...state, [exerciseName]: next }));
+  };
+
+  const onCompleteWorkout = (day: string) => {
+    const durationMinutes = Number(timeAvailable.replace(/\D/g, '')) || 40;
+    completeWorkout({
+      title: day,
+      workoutType: planCategory,
+      durationMinutes,
+      notes: exerciseList.slice(0, 3).map((exercise) => replacements[exercise.name] ?? exercise.name).join(', '),
+    });
   };
 
   return (
@@ -78,7 +112,30 @@ export default function HealthScreen() {
           </Pressable>
         </View>
 
-        <Card style={{ marginTop: spacing.lg }}>
+        <View style={{ marginTop: spacing.lg }}>
+          <View style={styles.sectionHeader}>
+            <Text style={[type.headlineMd, { color: palette.onSurface }]}>Today's workout</Text>
+            <Text style={[type.labelSm, { color: palette.primary }]}>Recommended</Text>
+          </View>
+          <Card variant="featured" padding="sm">
+            <Image source={{ uri: exerciseList[0].imageUrl }} style={styles.heroImage} />
+            <View style={styles.workoutHeroContent}>
+              <View style={{ flex: 1 }}>
+                <Text style={[type.titleLg, { color: palette.onSurface }]}>
+                  {latestPlan ? `${formatLabel(latestPlan.category)} strength` : 'Build your week'}
+                </Text>
+                <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
+                  {timeAvailable} / {latestPlan?.level ?? level}
+                </Text>
+              </View>
+              <Pressable onPress={latestPlan ? () => setPlannerOpen(true) : onCreatePlan} style={styles.inlineButton}>
+                <Text style={[type.labelMd, { color: palette.onPrimary }]}>{latestPlan ? 'Open' : 'Create'}</Text>
+              </Pressable>
+            </View>
+          </Card>
+        </View>
+
+        <Card style={styles.spaced}>
           <View style={styles.cardHeader}>
             <SectionLabel>Health Connect</SectionLabel>
             <Pressable onPress={() => setConnectOpen(true)}>
@@ -100,37 +157,18 @@ export default function HealthScreen() {
           <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.md }]}>
             {hasLiveMetrics
               ? `Latest ${latestMetric.source.replace('_', ' ')} sync from ${latestMetric.metric_date}.`
-              : 'No synced metrics yet. This view falls back to plans and logged workouts.'}
+              : 'Connect when you want body metrics here. Your workout plan still works without it.'}
           </Text>
         </Card>
 
         <View style={styles.spaced}>
-          <View style={styles.sectionHeader}>
-            <Text style={[type.headlineMd, { color: palette.onSurface }]}>Today's workout</Text>
-            <Text style={[type.labelSm, { color: palette.primary }]}>Recommended</Text>
-          </View>
-          <Card variant="featured" padding="sm">
-            <Image source={{ uri: exerciseList[0].imageUrl }} style={styles.heroImage} />
-            <View style={styles.workoutHeroContent}>
-              <View style={{ flex: 1 }}>
-                <Text style={[type.titleLg, { color: palette.onSurface }]}>
-                  {latestPlan ? `${formatLabel(latestPlan.category)} strength` : 'Build your week'}
-                </Text>
-                <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-                  {timeAvailable} / {latestPlan?.level ?? level} / {equipment}
-                </Text>
-              </View>
-              <Pressable onPress={latestPlan ? () => setPlannerOpen(true) : onCreatePlan} style={styles.inlineButton}>
-                <Text style={[type.labelMd, { color: palette.onPrimary }]}>{latestPlan ? 'Open' : 'Create'}</Text>
-              </Pressable>
-            </View>
-          </Card>
-        </View>
-
-        <View style={styles.spaced}>
           <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Plan setup</Text>
           <Card>
-            <SectionLabel>Category</SectionLabel>
+            <SectionLabel>Exercise variety</SectionLabel>
+            <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+              Build a week from familiar movements, then swap exercises when equipment, energy, or recovery changes.
+            </Text>
+            <SectionLabel style={{ marginTop: spacing.md }}>Category</SectionLabel>
             <View style={styles.chipGrid}>
               {categories.map((item) => (
                 <Choice key={item} label={item} active={category === item} onPress={() => setCategory(item)} />
@@ -140,12 +178,6 @@ export default function HealthScreen() {
             <View style={styles.chipGrid}>
               {levels.map((item) => (
                 <Choice key={item} label={item} active={level === item} onPress={() => setLevel(item)} />
-              ))}
-            </View>
-            <SectionLabel style={{ marginTop: spacing.md }}>Equipment</SectionLabel>
-            <View style={styles.chipGrid}>
-              {equipmentOptions.map((item) => (
-                <Chip key={item} label={item} selected={equipment === item} onPress={() => setEquipment(item)} />
               ))}
             </View>
             <SectionLabel style={{ marginTop: spacing.md }}>Time</SectionLabel>
@@ -189,19 +221,19 @@ export default function HealthScreen() {
           <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Logged workouts</Text>
           {isLoading ? (
             <ActivityIndicator color={palette.primary} />
-          ) : workouts.length > 0 ? (
-            workouts.map((workout) => (
+          ) : loggedWorkouts.length > 0 ? (
+            loggedWorkouts.map((workout) => (
               <Card key={workout.id} style={{ marginBottom: spacing.sm }}>
-                <Text style={[type.labelMd, { color: palette.onSurface }]}>{workout.workout_type}</Text>
+                <Text style={[type.labelMd, { color: palette.onSurface }]}>{workout.title}</Text>
                 <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-                  {workout.workout_date} / {workout.duration_minutes || '--'} min
+                  {workout.workoutDate} / {workout.durationMinutes || '--'} min / {workout.workoutType}
                 </Text>
               </Card>
             ))
           ) : (
             <Card variant="recessed">
               <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                No workouts logged yet. Create a week first; completion comes after.
+                No workouts logged yet. Create a week, then mark each session complete when you finish.
               </Text>
             </Card>
           )}
@@ -209,12 +241,21 @@ export default function HealthScreen() {
       </ScrollView>
 
       <ActionSheet visible={connectOpen} onClose={() => setConnectOpen(false)} eyebrow="Permissioned data" title="Connect Health services">
-        <QuickActionTile icon="health" label="Health Connect" detail="Steps, heart rate, sleep, and workouts" accent={palette.tertiary} />
+        <QuickActionTile
+          icon="health"
+          label="Health Connect"
+          detail="Steps, heart rate, sleep, and workouts"
+          accent={palette.tertiary}
+          onPress={onRequestHealthPermissions}
+        />
         <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
           Luminary should request only the metrics it can explain: steps, heart rate, sleep, and workout sessions.
           Users can revoke access at any time from Android settings.
         </Text>
-        <Pressable style={styles.primaryButton}>
+        {healthPermissionMessage ? (
+          <Text style={[type.bodySm, { color: palette.primary }]}>{healthPermissionMessage}</Text>
+        ) : null}
+        <Pressable onPress={onRequestHealthPermissions} style={styles.primaryButton} accessibilityRole="button">
           <Text style={[type.labelMd, { color: palette.onPrimary }]}>Request permissions</Text>
         </Pressable>
       </ActionSheet>
@@ -225,7 +266,7 @@ export default function HealthScreen() {
             <SectionLabel>Day {index + 1}</SectionLabel>
             <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>{day}</Text>
             <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-              {timeAvailable} / {equipment}
+              {timeAvailable}
             </Text>
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
               {exerciseList.map((exercise) => (
@@ -237,6 +278,9 @@ export default function HealthScreen() {
                 />
               ))}
             </View>
+            <Pressable onPress={() => onCompleteWorkout(day)} style={styles.primaryButton}>
+              <Text style={[type.labelMd, { color: palette.onPrimary }]}>Complete workout</Text>
+            </Pressable>
           </Card>
         ))}
       </ActionSheet>

@@ -3,9 +3,20 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BodyProfile } from '@/lib/nutrition';
 import { parseExpenseNotification } from '@/lib/expenseNotifications';
+import { buildMealPlanDay, buildWorkoutDays } from '@/lib/planning';
 
 type SyncAction = 'create' | 'update' | 'delete';
-type SyncEntity = 'habit' | 'journal' | 'meal' | 'workout_plan' | 'expense' | 'budget' | 'saving_goal' | 'expense_prompt';
+type SyncEntity =
+  | 'habit'
+  | 'journal'
+  | 'meal'
+  | 'workout'
+  | 'workout_plan'
+  | 'expense'
+  | 'budget'
+  | 'saving_goal'
+  | 'expense_prompt'
+  | 'profile_settings';
 
 export type SyncQueueItem = {
   id: string;
@@ -42,15 +53,30 @@ export type MealLog = {
   carbsG: number;
   fatG: number;
   prep: string;
+  source?: 'manual' | 'curated' | 'usda' | 'open_food_facts' | 'themealdb';
+  providerId?: string;
+  ingredients?: string[];
+  allergens?: string[];
 };
 
 export type MealPlanDay = {
   id: string;
   day: string;
-  breakfast: string;
-  lunch: string;
-  dinner: string;
+  breakfast: MealPlanSlot;
+  lunch: MealPlanSlot;
+  dinner: MealPlanSlot;
+  snacks: MealPlanSlot[];
   prep: string;
+};
+
+export type MealPlanSlot = {
+  name: string;
+  calories: number;
+  proteinG: number;
+  note: string;
+  recipeId?: string;
+  substitutions?: string[];
+  prepSteps?: string[];
 };
 
 export type WorkoutPlan = {
@@ -60,6 +86,24 @@ export type WorkoutPlan = {
   level: 'beginner' | 'steady' | 'advanced';
   days: string[];
   createdAt: string;
+};
+
+export type LocalWorkoutLog = {
+  id: string;
+  workoutDate: string;
+  workoutType: WorkoutPlan['category'];
+  title: string;
+  durationMinutes: number;
+  notes?: string;
+};
+
+export type ProfileSettings = {
+  displayName: string;
+  toneProfile: 'gentle' | 'direct' | 'coach' | 'minimal';
+  reminderHour: number;
+  reminderMinute: number;
+  privacyMode: boolean;
+  metricUnits: boolean;
 };
 
 export type ExpenseCategory = 'Needs' | 'Wants' | 'Savings' | 'Emergencies';
@@ -99,17 +143,22 @@ export type ExpensePrompt = {
 };
 
 type ProductionState = {
+  profileSettings: ProfileSettings;
   bodyProfile: BodyProfile;
   habits: Habit[];
   journalEntries: LocalJournalEntry[];
   meals: MealLog[];
   mealPlan: MealPlanDay[];
   workoutPlans: WorkoutPlan[];
+  workoutLogs: LocalWorkoutLog[];
   expenses: Expense[];
   budgets: Budget[];
+  monthlyIncome: number;
+  monthlyBudget: number;
   savingGoals: SavingGoal[];
   expensePrompts: ExpensePrompt[];
   syncQueue: SyncQueueItem[];
+  updateProfileSettings: (settings: Partial<ProfileSettings>) => void;
   addHabit: (name: string) => void;
   updateHabit: (id: string, name: string) => void;
   archiveHabit: (id: string) => void;
@@ -120,9 +169,13 @@ type ProductionState = {
   addMeal: (meal: Omit<MealLog, 'id' | 'mealDate'> & { mealDate?: string }) => void;
   generateMealPlan: () => void;
   createWorkoutPlan: (category: WorkoutPlan['category'], level: WorkoutPlan['level']) => void;
+  completeWorkout: (workout: Omit<LocalWorkoutLog, 'id' | 'workoutDate'> & { workoutDate?: string }) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'transactionDate' | 'source'> & Partial<Pick<Expense, 'transactionDate' | 'source'>>) => void;
   addBudget: (category: ExpenseCategory, limit: number) => void;
+  updateBudget: (category: ExpenseCategory, limit: number) => void;
+  updateMonthlyPlan: (income: number, monthlyBudget: number) => void;
   addSavingGoal: (name: string, targetAmount: number) => void;
+  contributeToSavingGoal: (id: string, amount: number) => void;
   addExpensePromptFromNotification: (sourceApp: string, rawText: string) => void;
   dismissExpensePrompt: (id: string) => void;
   logExpensePrompt: (id: string, category: ExpenseCategory) => void;
@@ -140,6 +193,14 @@ function enqueue(entity: SyncEntity, action: SyncAction, payload: unknown): Sync
 export const useProductionStore = create<ProductionState>()(
   persist(
     (set, get) => ({
+      profileSettings: {
+        displayName: 'Mari',
+        toneProfile: 'gentle',
+        reminderHour: 21,
+        reminderMinute: 0,
+        privacyMode: true,
+        metricUnits: true,
+      },
       bodyProfile: {
         weightKg: 75,
         heightCm: 175,
@@ -157,14 +218,27 @@ export const useProductionStore = create<ProductionState>()(
       meals: [],
       mealPlan: [],
       workoutPlans: [],
+      workoutLogs: [],
       expenses: [],
+      monthlyIncome: 30000,
+      monthlyBudget: 23000,
       budgets: [
         { id: 'budget_needs', category: 'Needs', limit: 12000 },
         { id: 'budget_wants', category: 'Wants', limit: 3500 },
+        { id: 'budget_savings', category: 'Savings', limit: 6000 },
+        { id: 'budget_emergencies', category: 'Emergencies', limit: 1500 },
       ],
       savingGoals: [],
       expensePrompts: [],
       syncQueue: [],
+      updateProfileSettings: (settings) =>
+        set((state) => {
+          const profileSettings = { ...state.profileSettings, ...settings };
+          return {
+            profileSettings,
+            syncQueue: [...state.syncQueue, enqueue('profile_settings', 'update', profileSettings)],
+          };
+        }),
       addHabit: (name) =>
         set((state) => {
           const habit = { id: id('habit'), name: name.trim(), position: state.habits.length, completedOn: [] };
@@ -214,19 +288,10 @@ export const useProductionStore = create<ProductionState>()(
         }),
       generateMealPlan: () =>
         set((state) => {
-          const goalNote =
-            state.bodyProfile.goal === 'gain'
-              ? 'Add a dense carb serving.'
-              : state.bodyProfile.goal === 'lose'
-                ? 'Keep the plate high-volume and simple.'
-                : 'Keep portions steady and flexible.';
           const mealPlan = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName, index) => ({
             id: `plan_${dayName.toLowerCase()}`,
             day: dayName,
-            breakfast: index % 2 === 0 ? 'Greek yoghurt, oats, berries' : 'Eggs, toast, fruit',
-            lunch: index % 2 === 0 ? 'Chicken rice bowl' : 'Tuna pasta salad',
-            dinner: index % 2 === 0 ? 'Lean mince, potatoes, greens' : 'Salmon, couscous, vegetables',
-            prep: goalNote,
+            ...buildMealPlanDay(state.bodyProfile.goal, index),
           }));
           return { mealPlan };
         }),
@@ -237,12 +302,24 @@ export const useProductionStore = create<ProductionState>()(
             weekOf: today(),
             category,
             level,
-            days: buildWorkoutDays(category, level),
+            days: buildWorkoutDays(category, level, today()),
             createdAt: now(),
           };
           return {
             workoutPlans: [plan, ...state.workoutPlans],
             syncQueue: [...state.syncQueue, enqueue('workout_plan', 'create', plan)],
+          };
+        }),
+      completeWorkout: (workout) =>
+        set((state) => {
+          const item = {
+            ...workout,
+            id: id('workout_log'),
+            workoutDate: workout.workoutDate ?? today(),
+          };
+          return {
+            workoutLogs: [item, ...state.workoutLogs],
+            syncQueue: [...state.syncQueue, enqueue('workout', 'create', item)],
           };
         }),
       addExpense: (expense) =>
@@ -263,6 +340,20 @@ export const useProductionStore = create<ProductionState>()(
           const item = { id: id('budget'), category, limit };
           return { budgets: [...state.budgets, item], syncQueue: [...state.syncQueue, enqueue('budget', 'create', item)] };
         }),
+      updateBudget: (category, limit) =>
+        set((state) => {
+          const existing = state.budgets.find((budget) => budget.category === category);
+          const budgets = existing
+            ? state.budgets.map((budget) => (budget.category === category ? { ...budget, limit } : budget))
+            : [...state.budgets, { id: id('budget'), category, limit }];
+          return { budgets, syncQueue: [...state.syncQueue, enqueue('budget', existing ? 'update' : 'create', { category, limit })] };
+        }),
+      updateMonthlyPlan: (monthlyIncome, monthlyBudget) =>
+        set((state) => ({
+          monthlyIncome,
+          monthlyBudget,
+          syncQueue: [...state.syncQueue, enqueue('budget', 'update', { monthlyIncome, monthlyBudget })],
+        })),
       addSavingGoal: (name, targetAmount) =>
         set((state) => {
           const item = { id: id('goal'), name, targetAmount, currentAmount: 0 };
@@ -271,6 +362,13 @@ export const useProductionStore = create<ProductionState>()(
             syncQueue: [...state.syncQueue, enqueue('saving_goal', 'create', item)],
           };
         }),
+      contributeToSavingGoal: (goalId, amount) =>
+        set((state) => ({
+          savingGoals: state.savingGoals.map((goal) =>
+            goal.id === goalId ? { ...goal, currentAmount: Math.min(goal.targetAmount, goal.currentAmount + amount) } : goal,
+          ),
+          syncQueue: [...state.syncQueue, enqueue('saving_goal', 'update', { id: goalId, contribution: amount })],
+        })),
       addExpensePromptFromNotification: (sourceApp, rawText) =>
         set((state) => {
           const parsed = parseExpenseNotification(rawText);
@@ -319,14 +417,18 @@ export const useProductionStore = create<ProductionState>()(
       name: 'luminary.production.store',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
+        profileSettings: state.profileSettings,
         bodyProfile: state.bodyProfile,
         habits: state.habits,
         journalEntries: state.journalEntries,
         meals: state.meals,
         mealPlan: state.mealPlan,
         workoutPlans: state.workoutPlans,
+        workoutLogs: state.workoutLogs,
         expenses: state.expenses,
         budgets: state.budgets,
+        monthlyIncome: state.monthlyIncome,
+        monthlyBudget: state.monthlyBudget,
         savingGoals: state.savingGoals,
         expensePrompts: state.expensePrompts,
         syncQueue: state.syncQueue,
@@ -334,14 +436,3 @@ export const useProductionStore = create<ProductionState>()(
     },
   ),
 );
-
-function buildWorkoutDays(category: WorkoutPlan['category'], level: WorkoutPlan['level']): string[] {
-  const volume = level === 'advanced' ? 5 : level === 'steady' ? 4 : 3;
-  const templates: Record<WorkoutPlan['category'], string[]> = {
-    calisthenics: ['Push + core', 'Legs + mobility', 'Pull + core', 'Full body', 'Skill practice'],
-    cardio: ['Easy run', 'Intervals', 'Zone 2 walk/run', 'Tempo session', 'Recovery walk'],
-    cycling: ['Endurance ride', 'Hill repeats', 'Easy spin', 'Tempo ride', 'Long ride'],
-    gym: ['Upper body', 'Lower body', 'Push', 'Pull', 'Full body'],
-  };
-  return templates[category].slice(0, volume);
-}

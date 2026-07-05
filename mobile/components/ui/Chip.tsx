@@ -6,6 +6,7 @@ export type ChipProps = {
   selected?: boolean;
   accent?: string; // tint when selected; defaults to primary.
   onPress?: () => void;
+  disabled?: boolean;
   style?: ViewStyle;
 };
 
@@ -15,18 +16,21 @@ export type ChipProps = {
  * Default: surface-container-high background with a ghost border (no 1px line — uses 15% opacity outline-variant).
  * Selected: tint @ 18% bg, accent text + accent border.
  */
-export function Chip({ label, selected = false, accent = palette.primary, onPress, style }: ChipProps) {
+export function Chip({ label, selected = false, accent = palette.primary, onPress, disabled = false, style }: ChipProps) {
+  const isDisabled = disabled || !onPress;
   return (
     <Pressable
       onPress={onPress}
+      disabled={isDisabled}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled: isDisabled }}
       style={({ pressed }) => [
         styles.base,
         {
           backgroundColor: selected ? `${accent}30` : palette.surfaceContainerHigh,
           borderColor: selected ? `${accent}80` : ghostBorder(0.15),
         },
+        isDisabled && styles.disabled,
         pressed && { opacity: 0.85 },
         style,
       ]}
@@ -43,4 +47,5 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1, // ghost border only — color comes from ghostBorder() at 15% opacity per design system.
   },
+  disabled: { opacity: 0.62 },
 });

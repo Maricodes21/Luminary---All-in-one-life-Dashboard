@@ -63,7 +63,10 @@ export default function RitualScreen() {
         >
           <Icon name="close" size={22} color={palette.onSurfaceVariant} />
         </Pressable>
-        <SectionLabel>Tonight's ritual</SectionLabel>
+        <View style={styles.topbarTitle}>
+          <SectionLabel>Tonight's ritual</SectionLabel>
+          <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{stageStepLabel(stage)}</Text>
+        </View>
         <View style={{ width: 22 }} />
       </View>
 
@@ -151,6 +154,13 @@ export default function RitualScreen() {
   );
 }
 
+function stageStepLabel(stage: ReturnType<typeof useRitualStore.getState>['stage']) {
+  if (stage === 'journal') return '2 of 4';
+  if (stage === 'habits') return '3 of 4';
+  if (stage === 'summary') return '4 of 4';
+  return '1 of 4';
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
   topbar: {
@@ -160,6 +170,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  topbarTitle: { alignItems: 'center', gap: 2 },
   scroll: {
     padding: spacing.md,
     gap: spacing.lg,

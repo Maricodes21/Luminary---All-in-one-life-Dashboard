@@ -124,9 +124,8 @@ async function refreshTokens(refreshToken: string, clientId: string): Promise<Sp
  *
  * Pipeline:
  *   1. GET /v1/me/player/recently-played?limit=50 — raw track list
- *   2. GET /v1/audio-features?ids=... — batch audio features (max 100)
- *   3. GET /v1/me/top/artists?time_range=short_term&limit=3 — top artists
- *   4. Average valence/energy/tempo over valid feature rows
+ *   2. GET /v1/me/top/artists?time_range=short_term&limit=3 — top artists
+ *   3. Infer a lightweight mood signal from listening timing and repeats.
  *
  * Returns null if no tracks were found for today (user hasn't listened).
  */
@@ -148,22 +147,6 @@ export async function fetchRecap(
   const todayTracks = recentlyPlayed.filter((t) => t.playedAt.startsWith(today));
   if (todayTracks.length === 0) return null;
 
-  const trackIds = [...new Set(todayTracks.map((t) => t.trackId))];
-  const features = await fetchAudioFeatures(accessToken, trackIds);
-
-  const valid = features.filter(
-    (f): f is AudioFeatures => f !== null && typeof f.valence === 'number',
-  );
-
-  const avgFeatures =
-    valid.length > 0
-      ? {
-          valence: avg(valid.map((f) => f.valence)),
-          energy: avg(valid.map((f) => f.energy)),
-          tempo: avg(valid.map((f) => f.tempo)),
-        }
-      : { valence: 0.5, energy: 0.5, tempo: 100 };
-
   // Rough minutes: assume average track ~3.5 min when duration unavailable.
   const minutesListened = Math.round((todayTracks.length * 3.5 * 60) / 60);
 
@@ -174,15 +157,13 @@ export async function fetchRecap(
     topTracks: inferTopTracks(todayTracks),
     topArtists,
     moodPhrase: buildMoodPhrase(todayTracks, topArtists),
-    averageFeatures: avgFeatures,
+    averageFeatures: inferAverageFeatures(todayTracks),
   };
 }
 
 // ─── Private API helpers ──────────────────────────────────────────────────────
 
 type RecentTrack = { trackId: string; name: string; artistName: string; playedAt: string };
-type AudioFeatures = { valence: number; energy: number; tempo: number };
-
 async function fetchRecentlyPlayed(accessToken: string): Promise<RecentTrack[]> {
   const res = await spotifyGet(accessToken, '/me/player/recently-played?limit=50');
   const parsed = recentlyPlayedSchema.safeParse(res);
@@ -194,40 +175,6 @@ async function fetchRecentlyPlayed(accessToken: string): Promise<RecentTrack[]> 
     artistName: item.track.artists[0]?.name ?? 'Unknown artist',
     playedAt: item.played_at,
   }));
-}
-
-async function fetchAudioFeatures(
-  accessToken: string,
-  trackIds: string[],
-): Promise<(AudioFeatures | null)[]> {
-  if (trackIds.length === 0) return [];
-
-  // Spotify audio-features accepts up to 100 IDs.
-  const chunks = chunkArray(trackIds, 100);
-  const results: (AudioFeatures | null)[] = [];
-
-  for (const chunk of chunks) {
-    try {
-      const res = await spotifyGet(
-        accessToken,
-        `/audio-features?ids=${chunk.join(',')}`,
-      );
-      const parsed = audioFeaturesSchema.safeParse(res);
-      if (!parsed.success) {
-        results.push(...chunk.map(() => null));
-        continue;
-      }
-      for (const f of parsed.data.audio_features) {
-        results.push(f ? { valence: f.valence, energy: f.energy, tempo: f.tempo } : null);
-      }
-    } catch {
-      // /audio-features may be restricted for newer Spotify apps. Fall through
-      // so the recap still completes with default mood features.
-      results.push(...chunk.map(() => null));
-    }
-  }
-
-  return results;
 }
 
 async function fetchTopArtists(
@@ -278,18 +225,6 @@ const recentlyPlayedSchema = z.object({
   ),
 });
 
-const audioFeaturesSchema = z.object({
-  audio_features: z.array(
-    z
-      .object({
-        valence: z.number(),
-        energy: z.number(),
-        tempo: z.number(),
-      })
-      .nullable(),
-  ),
-});
-
 const topArtistsSchema = z.object({
   items: z.array(
     z.object({
@@ -301,19 +236,6 @@ const topArtistsSchema = z.object({
 });
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-
-function avg(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return nums.reduce((a, b) => a + b, 0) / nums.length;
-}
-
-function chunkArray<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
@@ -347,4 +269,22 @@ function buildMoodPhrase(tracks: RecentTrack[], artists: SpotifyRecap['topArtist
   const anchor = artists[0]?.name ?? tracks[0]?.artistName ?? 'the usual rotation';
   const texture = repeat >= 3 ? 'repeat-loop' : lateNight ? 'late-window' : 'soft-focus';
   return `${texture} ${anchor.toLowerCase()}`;
+}
+
+function inferAverageFeatures(tracks: RecentTrack[]): SpotifyRecap['averageFeatures'] {
+  if (tracks.length === 0) return { valence: 0.5, energy: 0.5, tempo: 100 };
+  const repeat = inferTopTracks(tracks)[0]?.playCount ?? 1;
+  const lateNightCount = tracks.filter((track) => Number(track.playedAt.slice(11, 13)) >= 21).length;
+  const repeatRatio = repeat / tracks.length;
+  const lateRatio = lateNightCount / tracks.length;
+
+  return {
+    valence: clamp(0.58 - lateRatio * 0.12 + repeatRatio * 0.08),
+    energy: clamp(0.52 + tracks.length / 120 - lateRatio * 0.08),
+    tempo: Math.round(96 + Math.min(28, tracks.length * 0.9) - lateRatio * 8),
+  };
+}
+
+function clamp(value: number) {
+  return Math.max(0, Math.min(1, value));
 }

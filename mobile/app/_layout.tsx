@@ -55,7 +55,15 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const { setSession, setDisplayName, setOnboardingComplete, setHydrated, hydrated } = useAuthStore();
+  const {
+    session,
+    onboardingComplete,
+    setSession,
+    setDisplayName,
+    setOnboardingComplete,
+    setHydrated,
+    hydrated,
+  } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
 
@@ -82,31 +90,38 @@ export default function RootLayout() {
       }
     }, 5000);
 
+    async function syncSessionProfile(nextSession: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) {
+      if (cancelled) return;
+
+      if (!nextSession?.user) {
+        setSession(null);
+        setOnboardingComplete(false);
+        setDisplayName(null);
+        return;
+      }
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('onboarding_complete, display_name')
+        .eq('user_id', nextSession.user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[auth] Profile restore failed', error.message);
+      }
+
+      if (!cancelled) {
+        setSession(nextSession);
+        setOnboardingComplete(profile?.onboarding_complete ?? false);
+        setDisplayName(profile?.display_name ?? null);
+      }
+    }
+
     // Restore session from AsyncStorage on first load.
     supabase.auth
       .getSession()
       .then(async ({ data }) => {
-        if (cancelled) return;
-
-        const session = data.session ?? null;
-        setSession(session);
-
-        if (session?.user) {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('onboarding_complete, display_name')
-            .eq('user_id', session.user.id)
-            .maybeSingle();
-
-          if (error) {
-            console.warn('[auth] Profile restore failed', error.message);
-          }
-
-          if (!cancelled) {
-            setOnboardingComplete(profile?.onboarding_complete ?? false);
-            setDisplayName(profile?.display_name ?? null);
-          }
-        }
+        await syncSessionProfile(data.session ?? null);
       })
       .catch((error) => {
         console.warn('[auth] Session restore failed', error);
@@ -118,8 +133,8 @@ export default function RootLayout() {
         }
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void syncSessionProfile(nextSession);
     });
 
     return () => {
@@ -135,10 +150,10 @@ export default function RootLayout() {
 
     SplashScreen.hideAsync().catch(() => {});
 
-    const { session, onboardingComplete } = useAuthStore.getState();
     const inTabs = segments[0] === '(tabs)';
     const inOnboarding = segments[0] === 'onboarding';
     const inRitual = segments[0] === 'ritual';
+    const inSettings = segments[0] === 'settings';
 
     if (!session) {
       if (!inOnboarding) router.replace('/onboarding/welcome');
@@ -151,10 +166,10 @@ export default function RootLayout() {
     }
 
     // Allow authenticated users in tabs or the ritual modal — don't redirect either.
-    if (!inTabs && !inRitual) {
+    if (!inTabs && !inRitual && !inSettings) {
       router.replace('/(tabs)');
     }
-  }, [hydrated, appReady, segments, router]);
+  }, [hydrated, appReady, segments, router, session, onboardingComplete]);
 
   // Hold render until fonts + hydration are both done to avoid flash.
   if (!appReady || !hydrated) return null;
@@ -175,6 +190,7 @@ export default function RootLayout() {
               name="ritual"
               options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
             />
+            <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="+not-found" />
           </Stack>

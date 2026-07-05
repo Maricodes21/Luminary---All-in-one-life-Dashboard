@@ -24,10 +24,11 @@ import {
 } from '@/lib/ritual';
 import { calculateBand, bandCopy } from '@/lib/streak';
 import { useRitualStore } from '@/stores/useRitualStore';
+import { useProductionStore } from '@/stores/useProductionStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Habit = { id: string; name: string; icon: string | null; position: number };
+type Habit = { id: string; name: string; icon: string | null; position: number; source: 'remote' | 'local' };
 
 // ─── Date helpers (local to this file) ───────────────────────────────────────
 
@@ -45,6 +46,10 @@ function addDays(d: Date, n: number): Date {
 
 export function HabitCheckin() {
   const { toggleHabit, setTotalHabits, setStage } = useRitualStore();
+  const localHabits = useProductionStore((s) =>
+    s.habits.filter((habit) => !habit.archivedAt).sort((a, b) => a.position - b.position),
+  );
+  const toggleLocalHabitCompletion = useProductionStore((s) => s.toggleHabitCompletion);
 
   const [habits, setHabits] = useState<Habit[]>([]);
   const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
@@ -94,17 +99,43 @@ export function HabitCheckin() {
       if (pausesRes.error) throw pausesRes.error;
       if (historyRes.error) throw historyRes.error;
 
-      const loadedHabits = (habitsRes.data ?? []) as Habit[];
+      const remoteHabits = (habitsRes.data ?? []).map((habit) => ({
+        ...(habit as Omit<Habit, 'source'>),
+        source: 'remote' as const,
+      }));
+      const loadedHabits = remoteHabits.length > 0
+        ? remoteHabits
+        : localHabits.map((habit) => ({
+            id: habit.id,
+            name: habit.name,
+            icon: null,
+            position: habit.position,
+            source: 'local' as const,
+          }));
       setHabits(loadedHabits);
       setTotalHabits(loadedHabits.length);
 
-      setCompletedToday(new Set((todayRes.data ?? []).map((r) => r.habit_id as string)));
+      const remoteCompleted = new Set((todayRes.data ?? []).map((r) => r.habit_id as string));
+      const localCompleted = localHabits
+        .filter((habit) => habit.completedOn.includes(today))
+        .map((habit) => habit.id);
+      setCompletedToday(new Set(remoteHabits.length > 0 ? [...remoteCompleted] : localCompleted));
       setPausedTomorrow(new Set((pausesRes.data ?? []).map((r) => r.habit_id as string)));
       setCompletedDates(new Set((historyRes.data ?? []).map((r) => r.completed_on as string)));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('[HabitCheckin] load error', msg);
-      setError("We couldn't load your habits. Try closing and reopening.");
+      const fallbackHabits = localHabits.map((habit) => ({
+        id: habit.id,
+        name: habit.name,
+        icon: null,
+        position: habit.position,
+        source: 'local' as const,
+      }));
+      setHabits(fallbackHabits);
+      setTotalHabits(fallbackHabits.length);
+      setCompletedToday(new Set(localHabits.filter((habit) => habit.completedOn.includes(today)).map((habit) => habit.id)));
+      setError(null);
     } finally {
       setIsLoading(false);
     }
@@ -133,6 +164,12 @@ export function HabitCheckin() {
     setCompletedDates(nextDates);
 
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const habit = habits.find((item) => item.id === habitId);
+    if (habit?.source === 'local') {
+      toggleLocalHabitCompletion(habitId, today);
+      return;
+    }
 
     try {
       if (wasCompleted) {
@@ -255,26 +292,27 @@ export function HabitCheckin() {
       <Card variant="recessed" style={styles.tomorrowCard}>
         <SectionLabel>Tomorrow</SectionLabel>
         <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-          Anything you'd like to skip tomorrow?
+          Keep active tomorrow
         </Text>
         <View style={styles.tomorrowList}>
           {habits.map((habit) => {
             const paused = pausedTomorrow.has(habit.id);
+            const activeTomorrow = !paused;
             return (
               <Pressable
                 key={habit.id}
                 onPress={() => handlePauseToggle(habit.id)}
                 accessibilityRole="switch"
-                accessibilityLabel={`${habit.name} — ${paused ? 'paused tomorrow' : 'active tomorrow'}`}
-                accessibilityState={{ checked: paused }}
+                accessibilityLabel={`${habit.name} - ${activeTomorrow ? 'active tomorrow' : 'paused tomorrow'}`}
+                accessibilityState={{ checked: activeTomorrow }}
                 style={({ pressed }) => [styles.tomorrowRow, pressed && { opacity: 0.75 }]}
               >
-                <Text style={[type.bodyMd, { color: paused ? palette.onSurfaceVariant : palette.onSurface }]}>
+                <Text style={[type.bodyMd, { color: activeTomorrow ? palette.onSurface : palette.onSurfaceVariant }]}>
                   {habit.name}
                 </Text>
-                <View style={[styles.tomorrowToggle, paused && styles.tomorrowTogglePaused]}>
-                  <Text style={[type.labelSm, { color: paused ? palette.onSurfaceVariant : palette.primary }]}>
-                    {paused ? 'skipping' : 'on'}
+                <View style={[styles.tomorrowToggle, !activeTomorrow && styles.tomorrowTogglePaused]}>
+                  <Text style={[type.labelSm, { color: activeTomorrow ? palette.primary : palette.onSurfaceVariant }]}>
+                    {activeTomorrow ? 'on' : 'paused'}
                   </Text>
                 </View>
               </Pressable>

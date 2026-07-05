@@ -2,6 +2,8 @@ import { View, Text, Image, StyleSheet } from 'react-native';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { mapAudioFeaturesToMood, moodCopy } from '@/lib/mood';
+import { describeListeningSignal, formatMoodHeadline } from '@/lib/spotifyDisplay';
 import type { SpotifyRecap } from '@/lib/spotify';
 
 type RecapCardProps = {
@@ -9,6 +11,11 @@ type RecapCardProps = {
 };
 
 export function RecapCard({ recap }: RecapCardProps) {
+  const spotifyMood = mapAudioFeaturesToMood(recap.averageFeatures);
+  const mood = moodCopy[spotifyMood.label].display;
+  const headline = formatMoodHeadline(mood, recap.moodPhrase);
+  const listeningSignal = describeListeningSignal(recap);
+
   return (
     <Card variant="featured">
       <View style={styles.center}>
@@ -26,7 +33,15 @@ export function RecapCard({ recap }: RecapCardProps) {
         </View>
 
         <Text style={[type.titleLg, { color: palette.primary, marginTop: spacing.md, textAlign: 'center' }]}>
-          {recap.moodPhrase}
+          {headline.title}
+        </Text>
+        {headline.detail ? (
+          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs, textAlign: 'center' }]}>
+            {headline.detail}
+          </Text>
+        ) : null}
+        <Text style={[type.labelSm, { color: listeningSignal.isThin ? palette.secondary : palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+          {listeningSignal.copy}
         </Text>
 
         {recap.topTracks.length > 0 && (

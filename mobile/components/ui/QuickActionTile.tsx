@@ -8,6 +8,8 @@ type QuickActionTileProps = {
   detail?: string;
   accent?: string;
   onPress?: () => void;
+  disabled?: boolean;
+  status?: string;
   style?: ViewStyle;
 };
 
@@ -17,13 +19,18 @@ export function QuickActionTile({
   detail,
   accent = palette.primary,
   onPress,
+  disabled = false,
+  status,
   style,
 }: QuickActionTileProps) {
+  const isDisabled = disabled || !onPress;
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85 }, style]}
+      disabled={isDisabled}
+      style={({ pressed }) => [styles.tile, isDisabled && styles.disabledTile, pressed && { opacity: 0.85 }, style]}
       accessibilityRole="button"
+      accessibilityState={{ disabled: isDisabled }}
     >
       <View style={[styles.iconWrap, { backgroundColor: `${accent}24` }]}>
         <Icon name={icon} size={20} color={accent} />
@@ -35,6 +42,11 @@ export function QuickActionTile({
         {detail ? (
           <Text style={[type.bodySm, styles.detail]} numberOfLines={2}>
             {detail}
+          </Text>
+        ) : null}
+        {status ? (
+          <Text style={[type.labelSm, styles.status]} numberOfLines={1}>
+            {status}
           </Text>
         ) : null}
       </View>
@@ -60,6 +72,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  disabledTile: { opacity: 0.62 },
   label: { color: palette.onSurface },
   detail: { color: palette.onSurfaceVariant, marginTop: 2 },
+  status: { color: palette.primary, marginTop: 4 },
 });
