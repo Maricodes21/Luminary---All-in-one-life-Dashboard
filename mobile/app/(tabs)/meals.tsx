@@ -13,6 +13,7 @@ import { calculateNutritionTargets, type BodyGoal } from '@/lib/nutrition';
 import { useProductionStore, type MealLog, type MealPlanDay, type MealPlanSlot } from '@/stores/useProductionStore';
 import { mealPresets, type MealPreset } from '@/lib/modulePresets';
 import { getAllLibraryMeals, getSubstitutionsForMeal } from '@/lib/contentLibrary';
+import { coerceMealPlanSlot } from '@/lib/planning';
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
@@ -109,6 +110,11 @@ export default function MealsScreen() {
   const onDeleteActivePlanDay = (dayId: string) => {
     deleteMealPlanDay(dayId);
     setSelectedPlanDay(null);
+    setSelectedPlanMeal(null);
+  };
+
+  const onClosePlanner = () => {
+    setPlannerOpen(false);
     setSelectedPlanMeal(null);
   };
 
@@ -267,11 +273,6 @@ export default function MealsScreen() {
             style={styles.searchInput}
           />
         </View>
-        <View style={styles.secondaryActionRow}>
-          <SmallAction icon="camera" label="Scan meal" onPress={() => undefined} />
-          <SmallAction icon="barcode" label="Barcode" onPress={() => undefined} accent={palette.tertiary} />
-          <SmallAction icon="plus" label="Manual entry" onPress={() => undefined} accent={palette.secondary} />
-        </View>
         <SectionLabel>Quick add</SectionLabel>
         {filteredPresets.map((preset) => (
           <MealPresetRow key={preset.name} preset={preset} onPress={() => onAddPreset(preset)} />
@@ -309,7 +310,7 @@ export default function MealsScreen() {
         </Card>
       </ActionSheet>
 
-      <ActionSheet visible={plannerOpen} onClose={() => setPlannerOpen(false)} eyebrow="Weekly planner" title="Generate, swap, prep">
+      <ActionSheet visible={plannerOpen} onClose={onClosePlanner} eyebrow="Weekly planner" title="Generate, swap, prep">
         {mealPlan.length === 0 ? (
           <Pressable onPress={onCreatePlan} style={styles.primaryButton}>
             <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create weekly plan</Text>
@@ -419,20 +420,22 @@ function SmallAction({
 function MealCard({ meal, onDelete }: { meal: MealLog; onDelete: () => void }) {
   const preset = mealPresets.find((item) => item.name === meal.name) ?? mealPresets[0];
   return (
-    <Card style={{ marginBottom: spacing.sm }}>
+    <Card padding="sm" radius="md" style={{ marginBottom: spacing.sm }}>
       <View style={styles.mealCardRow}>
-        <Image source={{ uri: preset.imageUrl }} style={styles.mealImage} />
-        <View style={{ flex: 1 }}>
+        <MealThumb uri={preset.imageUrl} variant="logged" />
+        <View style={styles.mealTextStack}>
           <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{meal.mealType}</Text>
-          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: 2 }]}>{meal.name}</Text>
-          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+          <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]} numberOfLines={1}>{meal.name}</Text>
+          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]} numberOfLines={1}>
             P {meal.proteinG}g / C {meal.carbsG}g / F {meal.fatG}g
           </Text>
           {meal.source ? (
             <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{formatMealSource(meal.source)}</Text>
           ) : null}
         </View>
-        <Text style={[type.titleMd, { color: palette.onSurface }]}>{meal.calories} cal</Text>
+        <Text style={[type.titleMd, { color: palette.onSurface, textAlign: 'right' }]} numberOfLines={1}>
+          {meal.calories} cal
+        </Text>
         <Pressable onPress={onDelete} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`Delete ${meal.name}`}>
           <Icon name="trash" size={17} color={palette.error} />
         </Pressable>
@@ -444,8 +447,8 @@ function MealCard({ meal, onDelete }: { meal: MealLog; onDelete: () => void }) {
 function MealPresetRow({ preset, onPress }: { preset: MealPreset; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.presetRow} accessibilityRole="button">
-      <Image source={{ uri: preset.imageUrl }} style={styles.presetImage} />
-      <View style={{ flex: 1 }}>
+      <MealThumb uri={preset.imageUrl} variant="preset" />
+      <View style={styles.planMealText}>
         <Text style={[type.titleMd, { color: palette.onSurface }]}>{preset.name}</Text>
         <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
           Found: {preset.calories} cal, {preset.proteinG}g protein. Adjust if needed.
@@ -460,7 +463,7 @@ function MealPresetRow({ preset, onPress }: { preset: MealPreset; onPress: () =>
 function MealSuggestionCard({ preset, onPress }: { preset: MealPreset; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.suggestionMealCard} accessibilityRole="button">
-      <Image source={{ uri: preset.imageUrl }} style={styles.suggestionMealImage} />
+      <MealThumb uri={preset.imageUrl} variant="suggestion" />
       <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>{preset.mealType}</Text>
       <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]} numberOfLines={2}>
         {preset.name}
@@ -497,7 +500,7 @@ function WeeklyPlanPreview({
   if (!selectedDay || !plannedDay) return null;
 
   return (
-    <Card variant="recessed">
+    <View style={styles.weeklyPlanSurface}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRail}>
         {days.map((day) => {
           const selected = day.id === selectedDay.id;
@@ -528,7 +531,7 @@ function WeeklyPlanPreview({
           <Text style={[type.labelMd, { color: palette.primary }]}>Edit day</Text>
         </Pressable>
       </View>
-    </Card>
+    </View>
   );
 }
 
@@ -550,11 +553,11 @@ function PlanMealRow({
       style={[styles.planMealRow, compact && styles.planMealRowCompact]}
       accessibilityRole={onPress ? 'button' : undefined}
     >
-      <Image source={{ uri: slot.imageUrl }} style={compact ? styles.planMealImageCompact : styles.planMealImage} />
+      <MealThumb uri={slot.imageUrl} variant={compact ? 'planCompact' : 'plan'} />
       <View style={styles.mealSlotLabel}>
         <Text style={[type.labelSm, { color: palette.primary }]}>{label}</Text>
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.planMealText}>
         <Text style={[compact ? type.bodySm : type.titleMd, { color: palette.onSurface }]} numberOfLines={compact ? 1 : 2}>
           {slot.name}
         </Text>
@@ -562,7 +565,7 @@ function PlanMealRow({
           {slot.calories} cal / P {slot.proteinG}g / {slot.prepTimeMinutes} min
         </Text>
         {!compact && substitution ? (
-          <Text style={[type.labelSm, { color: palette.secondary, marginTop: 2 }]}>{substitution}</Text>
+          <Text style={[type.labelSm, { color: palette.secondary, marginTop: 2 }]} numberOfLines={1}>{substitution}</Text>
         ) : null}
       </View>
     </Pressable>
@@ -573,11 +576,13 @@ function PlanMealDetail({ label, slot, onBack }: { label: string; slot: MealPlan
   const prepSteps = slot.prepSteps && slot.prepSteps.length > 0
     ? slot.prepSteps
     : ['Prepare the main protein or base first.', 'Plate with the planned sides and adjust seasoning.'];
-  const substitutions = slot.substitutions && slot.substitutions.length > 0 ? slot.substitutions : [getSubstitutionHint(slot.name)].filter(Boolean);
+  const substitutions = Array.isArray(slot.substitutions) && slot.substitutions.length > 0
+    ? slot.substitutions
+    : [getSubstitutionHint(slot.name)].filter(Boolean);
 
   return (
     <View style={styles.planMealDetail}>
-      <Image source={{ uri: slot.imageUrl }} style={styles.prepHeroImage} />
+      <MealThumb uri={slot.imageUrl} variant="hero" />
       <View style={styles.prepHeroActions}>
         <Pressable onPress={onBack} style={styles.prepHeroButton} accessibilityRole="button">
           <Icon name="close" size={18} color={palette.onSurface} />
@@ -634,6 +639,37 @@ function NutritionPill({ label, value, color }: { label: string; value: string; 
   );
 }
 
+function MealThumb({
+  uri,
+  variant,
+}: {
+  uri: string | undefined;
+  variant: 'logged' | 'preset' | 'suggestion' | 'plan' | 'planCompact' | 'hero';
+}) {
+  const [failed, setFailed] = useState(false);
+  const imageStyle = mealImageStyle(variant);
+  const iconSize = variant === 'hero' ? 34 : 18;
+
+  if (!uri || failed) {
+    return (
+      <View style={[imageStyle, styles.imageFallback]}>
+        <Icon name="meals" size={iconSize} color={palette.primary} />
+      </View>
+    );
+  }
+
+  return <Image source={{ uri }} style={imageStyle} onError={() => setFailed(true)} />;
+}
+
+function mealImageStyle(variant: 'logged' | 'preset' | 'suggestion' | 'plan' | 'planCompact' | 'hero') {
+  if (variant === 'hero') return styles.prepHeroImage;
+  if (variant === 'suggestion') return styles.suggestionMealImage;
+  if (variant === 'preset') return styles.presetImage;
+  if (variant === 'planCompact') return styles.planMealImageCompact;
+  if (variant === 'plan') return styles.planMealImage;
+  return styles.mealImage;
+}
+
 function getSubstitutionHint(mealName: string) {
   const libraryMeal = getAllLibraryMeals().find((meal) => meal.name.toLowerCase() === mealName.toLowerCase());
   if (!libraryMeal) return null;
@@ -658,7 +694,7 @@ function normalizePlanDay(day: MealPlanDay) {
     breakfast?: string | MealPlanSlot;
     lunch?: string | MealPlanSlot;
     dinner?: string | MealPlanSlot;
-    snacks?: MealPlanSlot[];
+    snacks?: (string | Partial<MealPlanSlot>)[];
     prep?: string;
   };
 
@@ -667,30 +703,14 @@ function normalizePlanDay(day: MealPlanDay) {
     lunch: normalizePlanSlot(legacyDay.lunch, 'Lunch'),
     dinner: normalizePlanSlot(legacyDay.dinner, 'Dinner'),
     snacks: Array.isArray(legacyDay.snacks) && legacyDay.snacks.length > 0
-      ? legacyDay.snacks
+      ? legacyDay.snacks.map((snack, index) => normalizePlanSlot(snack, `Snack ${index + 1}`))
       : [normalizePlanSlot(undefined, 'Goal-based snack')],
     prep: legacyDay.prep ?? 'Prep the anchor ingredients first, then swap meals around appetite.',
   };
 }
 
-function normalizePlanSlot(value: string | MealPlanSlot | undefined, fallback: string): MealPlanSlot {
-  if (value && typeof value === 'object') return value;
-  const name = value ?? fallback;
-  return {
-    name,
-    calories: 450,
-    proteinG: 30,
-    carbsG: 47,
-    fatG: 13,
-    note: 'Legacy plan item',
-    recipeId: name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
-    imageUrl: 'https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=600&auto=format&fit=crop',
-    ingredients: ['protein base', 'carb base', 'vegetables', 'sauce'],
-    prepTimeMinutes: 25,
-    difficulty: 'Easy',
-    servings: 2,
-    prepSteps: ['Prepare the meal base.', 'Cook the protein or main ingredient.', 'Plate and season before serving.'],
-  };
+function normalizePlanSlot(value: string | Partial<MealPlanSlot> | undefined, fallback: string): MealPlanSlot {
+  return coerceMealPlanSlot(value, fallback);
 }
 
 const styles = StyleSheet.create({
@@ -707,7 +727,7 @@ const styles = StyleSheet.create({
   },
   spaced: { marginTop: spacing.xl },
   spacedSm: { marginTop: spacing.md },
-  targetHeader: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start' },
+  targetHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start' },
   targetDetails: { flex: 1, minWidth: 0 },
   calorieRing: {
     width: 104,
@@ -733,8 +753,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: palette.primary,
   },
-  goalStack: { gap: spacing.sm, minWidth: 92 },
+  goalStack: { flexBasis: '100%', flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
   goalButton: {
+    flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
@@ -803,7 +824,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     marginTop: spacing.md,
   },
-  mealCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  mealCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  mealTextStack: { flex: 1, minWidth: 0 },
   iconButton: {
     width: 36,
     height: 36,
@@ -812,7 +834,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: palette.surfaceContainerHigh,
   },
-  mealImage: { width: 72, height: 72, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
+  mealImage: { width: 56, height: 56, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
+  imageFallback: { alignItems: 'center', justifyContent: 'center' },
   presetRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -824,6 +847,7 @@ const styles = StyleSheet.create({
   presetImage: { width: 58, height: 58, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
   mealSlotList: { gap: spacing.sm, marginTop: spacing.sm },
   weekRail: { gap: spacing.sm, paddingBottom: spacing.sm },
+  weeklyPlanSurface: { gap: spacing.sm },
   weekDayButton: {
     minWidth: 52,
     height: 46,
@@ -840,20 +864,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     marginTop: spacing.md,
-  },
-  planCarousel: { gap: spacing.sm, paddingRight: spacing.md },
-  planDayCard: {
-    width: 190,
-    minHeight: 132,
-    borderRadius: radii.lg,
-    backgroundColor: palette.surfaceContainer,
-    padding: spacing.md,
-  },
-  planDayTopline: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
   },
   planDetailHeader: {
     flexDirection: 'row',
@@ -881,9 +891,10 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainerHigh,
   },
   planMealRowCompact: { padding: spacing.xs + 2 },
-  planMealImage: { width: 54, height: 54, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
+  planMealImage: { width: 56, height: 56, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
   planMealImageCompact: { width: 40, height: 40, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHighest },
   mealSlotLabel: { width: 72 },
+  planMealText: { flex: 1, minWidth: 0 },
   planMealDetail: {
     borderRadius: radii.md,
     gap: spacing.sm,

@@ -10,7 +10,7 @@ import {
 } from './contentLibrary';
 import { getDailyFocusNote } from './dailyFocus';
 import { getHabitIconName } from './habitIcons';
-import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays } from './planning';
+import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays, coerceMealPlanSlot } from './planning';
 
 test('meal search returns local and provider-backed options with attribution', () => {
   const results = searchContentLibrary('chicken');
@@ -137,6 +137,28 @@ test('meal plan slots expose recipe guide fields', () => {
   assert.ok(slots.every((slot) => typeof slot.carbsG === 'number'));
   assert.ok(slots.every((slot) => typeof slot.fatG === 'number'));
   assert.ok(slots.every((slot) => typeof slot.prepTimeMinutes === 'number'));
+});
+
+test('legacy meal plan slots are upgraded before rendering prep guides', () => {
+  const slot = coerceMealPlanSlot(
+    {
+      name: 'Legacy salmon dinner',
+      calories: 580,
+      proteinG: 42,
+      note: 'Old persisted plan item',
+      substitutions: 'swap something' as unknown as string[],
+    },
+    'Dinner',
+  );
+
+  assert.equal(slot.name, 'Legacy salmon dinner');
+  assert.equal(slot.calories, 580);
+  assert.ok(slot.imageUrl.startsWith('https://'));
+  assert.ok(slot.ingredients.length >= 3);
+  assert.ok(slot.prepSteps.length >= 3);
+  assert.equal(typeof slot.carbsG, 'number');
+  assert.equal(typeof slot.fatG, 'number');
+  assert.equal(slot.substitutions, undefined);
 });
 
 test('workout generation varies sessions by category and volume', () => {

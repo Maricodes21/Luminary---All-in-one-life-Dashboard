@@ -137,6 +137,31 @@ export function buildMealPlanDay(goal: BodyGoal, index: number): PlanDay {
   return options[index % options.length];
 }
 
+export function coerceMealPlanSlot(value: string | Partial<PlanSlot> | undefined, fallback: string): PlanSlot {
+  const source = value && typeof value === 'object' ? value : {};
+  const name = typeof value === 'string' ? value : source.name ?? fallback;
+  const calories = source.calories ?? 450;
+  const proteinG = source.proteinG ?? 30;
+  const guide = recipeGuideFor(name, Array.isArray(source.prepSteps) ? source.prepSteps : []);
+
+  return {
+    name,
+    calories,
+    proteinG,
+    carbsG: source.carbsG ?? Math.max(8, Math.round((calories * 0.42) / 4)),
+    fatG: source.fatG ?? Math.max(4, Math.round((calories * 0.26) / 9)),
+    note: source.note ?? 'Legacy plan item',
+    recipeId: source.recipeId ?? slugify(name),
+    imageUrl: source.imageUrl ?? guide.imageUrl,
+    ingredients: Array.isArray(source.ingredients) && source.ingredients.length > 0 ? source.ingredients : guide.ingredients,
+    prepTimeMinutes: source.prepTimeMinutes ?? guide.prepTimeMinutes,
+    difficulty: source.difficulty ?? guide.difficulty,
+    servings: source.servings ?? 2,
+    substitutions: Array.isArray(source.substitutions) ? source.substitutions : undefined,
+    prepSteps: Array.isArray(source.prepSteps) && source.prepSteps.length >= 3 ? source.prepSteps : guide.prepSteps,
+  };
+}
+
 export function buildMealPlanWeek(goal: BodyGoal, seed = new Date().toISOString().slice(0, 10)): PlanDay[] {
   const offset = stableIndex(`${seed}:${goal}:meals`, 7);
   return Array.from({ length: 7 }, (_, index) => {
@@ -291,7 +316,11 @@ function stepsFor(text: string, starterSteps: string[], ingredients: string[]) {
     return ['Heat the oven and spread the carb base on a tray.', `Season ${ingredients[0]} and add it beside the vegetables.`, 'Roast until cooked through, then finish with herbs or lemon.'];
   }
   if (starterSteps.length >= 3) return starterSteps;
-  return [...starterSteps, 'Pack sauce separately and season again before serving.'].slice(0, 3);
+  return [
+    starterSteps[0] ?? `Prepare ${ingredients[0]} and season it well.`,
+    starterSteps[1] ?? `Cook or warm ${ingredients[1]} while the vegetables are prepared.`,
+    'Pack sauce separately and season again before serving.',
+  ];
 }
 
 function imageFor(text: string) {
@@ -302,7 +331,7 @@ function imageFor(text: string) {
   if (text.includes('beef') || text.includes('pasta')) return 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop';
   if (text.includes('fish') || text.includes('hake')) return 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600&auto=format&fit=crop';
   if (text.includes('egg')) return 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&auto=format&fit=crop';
-  return 'https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=600&auto=format&fit=crop';
+  return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop';
 }
 
 function guideNoteFor(role: 'breakfast' | 'lunch' | 'dinner' | 'snack', fallback: string, index: number) {
