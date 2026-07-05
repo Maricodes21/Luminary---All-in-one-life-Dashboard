@@ -4,8 +4,15 @@ export type PlanSlot = {
   name: string;
   calories: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   note: string;
-  recipeId?: string;
+  recipeId: string;
+  imageUrl: string;
+  ingredients: string[];
+  prepTimeMinutes: number;
+  difficulty: 'Easy' | 'Steady' | 'Prep';
+  servings: number;
   substitutions?: string[];
   prepSteps?: string[];
 };
@@ -130,6 +137,23 @@ export function buildMealPlanDay(goal: BodyGoal, index: number): PlanDay {
   return options[index % options.length];
 }
 
+export function buildMealPlanWeek(goal: BodyGoal, seed = new Date().toISOString().slice(0, 10)): PlanDay[] {
+  const offset = stableIndex(`${seed}:${goal}:meals`, 7);
+  return Array.from({ length: 7 }, (_, index) => {
+    const dayIndex = (offset + index) % 7;
+    const baseDay = buildMealPlanDay(goal, index);
+    return {
+      breakfast: rotateSlot(baseDay.breakfast, weeklyNames[goal].breakfast[dayIndex], dayIndex, 'breakfast'),
+      lunch: rotateSlot(baseDay.lunch, weeklyNames[goal].lunch[(dayIndex + index) % 7], dayIndex, 'lunch'),
+      dinner: rotateSlot(baseDay.dinner, weeklyNames[goal].dinner[dayIndex], dayIndex, 'dinner'),
+      snacks: baseDay.snacks.map((snack, snackIndex) =>
+        rotateSlot(snack, weeklyNames[goal].snack[(dayIndex + snackIndex) % 7], dayIndex, 'snack'),
+      ),
+      prep: weeklyPrepNotes[dayIndex],
+    };
+  });
+}
+
 export function buildWorkoutDays(category: WorkoutCategory, level: WorkoutLevel, seed = new Date().toISOString().slice(0, 10)): string[] {
   const volume = level === 'advanced' ? 5 : level === 'steady' ? 4 : 3;
   const sessions = workoutTemplates[category][level];
@@ -149,7 +173,23 @@ function slot(
   prepSteps: string[],
   substitutions: string[],
 ): PlanSlot {
-  return { name, calories, proteinG, note, prepSteps, substitutions };
+  const guide = recipeGuideFor(name, prepSteps);
+  return {
+    name,
+    calories,
+    proteinG,
+    carbsG: Math.max(8, Math.round((calories * 0.42) / 4)),
+    fatG: Math.max(4, Math.round((calories * 0.26) / 9)),
+    note,
+    recipeId: slugify(name),
+    imageUrl: guide.imageUrl,
+    ingredients: guide.ingredients,
+    prepTimeMinutes: guide.prepTimeMinutes,
+    difficulty: guide.difficulty,
+    servings: 2,
+    prepSteps: guide.prepSteps,
+    substitutions,
+  };
 }
 
 function stableIndex(value: string, modulo: number) {
@@ -158,4 +198,123 @@ function stableIndex(value: string, modulo: number) {
     hash = (hash * 33 + value.charCodeAt(index)) >>> 0;
   }
   return modulo === 0 ? 0 : hash % modulo;
+}
+
+const weeklyNames: Record<BodyGoal, Record<'breakfast' | 'lunch' | 'dinner' | 'snack', string[]>> = {
+  lose: {
+    breakfast: ['Greek yoghurt crunch bowl', 'Herb egg scramble toast', 'Cottage cheese tomato toast', 'Berry protein oats', 'Turkey egg breakfast wrap', 'Apple cinnamon yoghurt', 'Spinach omelette plate'],
+    lunch: ['Chicken salad grain bowl', 'Turkey crunch wrap', 'Tuna potato lunch box', 'Lemon chicken couscous salad', 'Lean mince lettuce bowl', 'Hummus chicken mezze box', 'Protein soup jar'],
+    dinner: ['White fish potato greens', 'Lean mince lettuce bowls', 'Chicken soup bowl', 'Lemon herb chicken tray', 'Turkey chilli rice bowl', 'Hake tacos with slaw', 'Tofu vegetable stir-fry'],
+    snack: ['Apple cottage cheese', 'Protein shake', 'Carrots and hummus', 'Boiled eggs and fruit', 'Greek yoghurt cocoa cup', 'Tuna rice cakes', 'Cucumber cottage dip'],
+  },
+  maintain: {
+    breakfast: ['Oats yoghurt berries', 'Eggs toast fruit', 'Breakfast burrito', 'Peanut butter banana oats', 'Savoury cottage toast', 'Berry smoothie bowl', 'Mushroom egg wrap'],
+    lunch: ['Chicken rice bowl', 'Tuna pasta salad', 'Chicken couscous salad', 'Turkey avocado sandwich', 'Chickpea feta bowl', 'Pork rice noodle salad', 'Salmon potato lunch box'],
+    dinner: ['Salmon couscous vegetables', 'Lean mince potatoes greens', 'Pork rice stir-fry', 'Chicken pesto pasta', 'Beef fajita bowl', 'Hake sweet potato plate', 'Tofu peanut noodle bowl'],
+    snack: ['Smoothie', 'Nuts and fruit', 'Yoghurt granola', 'Protein milk and banana', 'Cheese crackers fruit', 'Hummus pita slices', 'Oats protein milk'],
+  },
+  gain: {
+    breakfast: ['Protein oats banana', 'Egg bagel fruit', 'French toast yoghurt', 'Loaded breakfast burrito', 'Chocolate peanut oats', 'Bagel cottage stack', 'Banana oat smoothie bowl'],
+    lunch: ['Chicken rice bowl avocado', 'Salmon rice bowl', 'Beef potato bowl', 'Chicken pesto pasta lunch', 'Turkey rice burrito bowl', 'Tuna mayo pasta box', 'Lentil beef chilli bowl'],
+    dinner: ['Beef pasta greens', 'Chicken burrito bowl', 'Chicken pesto pasta', 'Salmon potato avocado plate', 'Beef rice noodle bowl', 'Chicken thigh couscous tray', 'Turkey meatball pasta'],
+    snack: ['Peanut butter smoothie', 'Trail mix', 'Banana oat shake', 'Greek yoghurt granola', 'Protein milk', 'Cheese crackers fruit', 'Dates peanut butter toast'],
+  },
+};
+
+const weeklyPrepNotes = [
+  'Batch one protein and one grain; keep sauces separate.',
+  'Cook once, assemble fresh so texture stays good.',
+  'Prep chopped vegetables ahead and finish the protein fresh.',
+  'Use leftovers as lunch, then cook dinner fresh.',
+  'Keep a quick snack ready before appetite dips.',
+  'Make the flexible base first, then season per meal.',
+  'Reset containers and prep the first two days of next week.',
+];
+
+function rotateSlot(slot: PlanSlot, name: string, index: number, role: 'breakfast' | 'lunch' | 'dinner' | 'snack'): PlanSlot {
+  const guide = recipeGuideFor(name, slot.prepSteps ?? []);
+  const calorieShift = role === 'snack' ? (index % 2) * 20 : (index % 3) * 30;
+  const calories = slot.calories + calorieShift;
+  return {
+    ...slot,
+    name,
+    calories,
+    proteinG: slot.proteinG + (role === 'dinner' && index % 2 === 0 ? 2 : 0),
+    carbsG: Math.max(8, Math.round((calories * 0.42) / 4)),
+    fatG: Math.max(4, Math.round((calories * 0.26) / 9)),
+    note: guideNoteFor(role, slot.note, index),
+    recipeId: slugify(name),
+    imageUrl: guide.imageUrl,
+    ingredients: guide.ingredients,
+    prepTimeMinutes: guide.prepTimeMinutes,
+    difficulty: guide.difficulty,
+    servings: role === 'snack' ? 1 : 2,
+    prepSteps: guide.prepSteps,
+  };
+}
+
+function recipeGuideFor(name: string, starterSteps: string[]) {
+  const text = name.toLowerCase();
+  const imageUrl = imageFor(text);
+  const ingredients = ingredientsFor(text);
+  const prepSteps = stepsFor(text, starterSteps, ingredients);
+  const prepTimeMinutes = text.includes('smoothie') || text.includes('shake') ? 10 : text.includes('bowl') ? 20 : text.includes('tray') || text.includes('pasta') ? 35 : 25;
+  const difficulty: PlanSlot['difficulty'] = prepTimeMinutes <= 15 ? 'Easy' : prepTimeMinutes >= 30 ? 'Prep' : 'Steady';
+
+  return { imageUrl, ingredients, prepSteps, prepTimeMinutes, difficulty };
+}
+
+function ingredientsFor(text: string) {
+  if (text.includes('salmon')) return ['salmon fillet', 'couscous or potatoes', 'green vegetables', 'lemon', 'olive oil'];
+  if (text.includes('fish') || text.includes('hake')) return ['white fish fillet', 'potatoes', 'slaw or greens', 'lemon', 'yoghurt sauce'];
+  if (text.includes('chicken')) return ['chicken breast or thighs', 'rice or couscous', 'greens', 'sauce', 'herbs'];
+  if (text.includes('beef') || text.includes('mince')) return ['lean beef or mince', 'rice, pasta, or potatoes', 'tomato base', 'greens', 'spices'];
+  if (text.includes('turkey')) return ['turkey slices or mince', 'wrap or rice', 'salad vegetables', 'yoghurt sauce', 'herbs'];
+  if (text.includes('tuna')) return ['tuna', 'potatoes or pasta', 'yoghurt dressing', 'cucumber', 'lemon'];
+  if (text.includes('tofu') || text.includes('chickpea') || text.includes('lentil')) return ['tofu or legumes', 'rice or noodles', 'mixed vegetables', 'sauce', 'sesame or herbs'];
+  if (text.includes('oat') || text.includes('yoghurt') || text.includes('smoothie') || text.includes('shake')) return ['Greek yoghurt or milk', 'oats', 'fruit', 'protein powder', 'seeds or nut butter'];
+  if (text.includes('egg') || text.includes('omelette') || text.includes('burrito')) return ['eggs', 'toast or wrap', 'spinach', 'tomato', 'cheese or avocado'];
+  return ['protein base', 'carb base', 'vegetables', 'sauce', 'seasoning'];
+}
+
+function stepsFor(text: string, starterSteps: string[], ingredients: string[]) {
+  if (text.includes('smoothie') || text.includes('shake')) {
+    return ['Add liquid, fruit, and protein to the blender.', 'Blend until smooth, adding ice or oats to adjust texture.', 'Pour into a bottle and chill if saving for later.'];
+  }
+  if (text.includes('oat') || text.includes('yoghurt')) {
+    return ['Build the yoghurt or oat base first.', `Add ${ingredients[2]} and keep crunchy toppings separate.`, 'Pack chilled and stir just before eating.'];
+  }
+  if (text.includes('pasta')) {
+    return ['Cook pasta until just tender and reserve a little pasta water.', `Cook ${ingredients[0]} with seasoning until browned.`, 'Fold through sauce, vegetables, and pasta water until glossy.'];
+  }
+  if (text.includes('tray')) {
+    return ['Heat the oven and spread the carb base on a tray.', `Season ${ingredients[0]} and add it beside the vegetables.`, 'Roast until cooked through, then finish with herbs or lemon.'];
+  }
+  if (starterSteps.length >= 3) return starterSteps;
+  return [...starterSteps, 'Pack sauce separately and season again before serving.'].slice(0, 3);
+}
+
+function imageFor(text: string) {
+  if (text.includes('salmon')) return 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=600&auto=format&fit=crop';
+  if (text.includes('chicken')) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&auto=format&fit=crop';
+  if (text.includes('oat') || text.includes('yoghurt')) return 'https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=600&auto=format&fit=crop';
+  if (text.includes('smoothie') || text.includes('shake')) return 'https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=600&auto=format&fit=crop';
+  if (text.includes('beef') || text.includes('pasta')) return 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?w=600&auto=format&fit=crop';
+  if (text.includes('fish') || text.includes('hake')) return 'https://images.unsplash.com/photo-1535399831218-d5bd36d1a6b3?w=600&auto=format&fit=crop';
+  if (text.includes('egg')) return 'https://images.unsplash.com/photo-1525351484163-7529414344d8?w=600&auto=format&fit=crop';
+  return 'https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=600&auto=format&fit=crop';
+}
+
+function guideNoteFor(role: 'breakfast' | 'lunch' | 'dinner' | 'snack', fallback: string, index: number) {
+  const notes = {
+    breakfast: ['Quick start', 'Steady energy', 'Prep-ahead breakfast'],
+    lunch: ['Portable lunch', 'Batch-friendly', 'Good cold or warm'],
+    dinner: ['Fresh cook', 'Family-style dinner', 'Leftover-friendly'],
+    snack: ['Protein bridge', 'Easy top-up', 'Packable snack'],
+  };
+  return notes[role][index % notes[role].length] ?? fallback;
+}
+
+function slugify(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }

@@ -10,7 +10,7 @@ import {
 } from './contentLibrary';
 import { getDailyFocusNote } from './dailyFocus';
 import { getHabitIconName } from './habitIcons';
-import { buildMealPlanDay, buildWorkoutDays } from './planning';
+import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays } from './planning';
 
 test('meal search returns local and provider-backed options with attribution', () => {
   const results = searchContentLibrary('chicken');
@@ -115,6 +115,28 @@ test('meal plan days include prep instructions per meal', () => {
   assert.ok(slots.length >= 4);
   assert.ok(slots.every((slot) => Array.isArray(slot.prepSteps)));
   assert.ok(slots.every((slot) => (slot.prepSteps?.length ?? 0) >= 2));
+});
+
+test('weekly meal plans are varied enough for a full planner', () => {
+  const week = buildMealPlanWeek('maintain', '2026-07-06');
+  const dinners = week.map((day) => day.dinner.name);
+
+  assert.equal(week.length, 7);
+  assert.ok(new Set(dinners).size >= 6);
+  assert.ok(week.every((day) => [day.breakfast, day.lunch, day.dinner, ...day.snacks].length >= 4));
+});
+
+test('meal plan slots expose recipe guide fields', () => {
+  const week = buildMealPlanWeek('gain', '2026-07-06');
+  const slots = week.flatMap((day) => [day.breakfast, day.lunch, day.dinner, ...day.snacks]);
+
+  assert.ok(slots.every((slot) => slot.recipeId));
+  assert.ok(slots.every((slot) => slot.imageUrl?.startsWith('https://')));
+  assert.ok(slots.every((slot) => (slot.ingredients?.length ?? 0) >= 3));
+  assert.ok(slots.every((slot) => (slot.prepSteps?.length ?? 0) >= 3));
+  assert.ok(slots.every((slot) => typeof slot.carbsG === 'number'));
+  assert.ok(slots.every((slot) => typeof slot.fatG === 'number'));
+  assert.ok(slots.every((slot) => typeof slot.prepTimeMinutes === 'number'));
 });
 
 test('workout generation varies sessions by category and volume', () => {

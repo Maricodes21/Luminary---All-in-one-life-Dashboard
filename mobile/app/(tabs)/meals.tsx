@@ -21,7 +21,10 @@ export default function MealsScreen() {
   const meals = useProductionStore((s) => s.meals);
   const mealPlan = useProductionStore((s) => s.mealPlan);
   const addMeal = useProductionStore((s) => s.addMeal);
+  const deleteMeal = useProductionStore((s) => s.deleteMeal);
   const generateMealPlan = useProductionStore((s) => s.generateMealPlan);
+  const deleteMealPlanDay = useProductionStore((s) => s.deleteMealPlanDay);
+  const clearMealPlan = useProductionStore((s) => s.clearMealPlan);
   const [logSheetOpen, setLogSheetOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [selectedPlanDay, setSelectedPlanDay] = useState<MealPlanDay | null>(null);
@@ -95,6 +98,18 @@ export default function MealsScreen() {
     setSelectedPlanDay(day);
     setSelectedPlanMeal(null);
     setPlannerOpen(true);
+  };
+
+  const onClearPlan = () => {
+    clearMealPlan();
+    setSelectedPlanDay(null);
+    setSelectedPlanMeal(null);
+  };
+
+  const onDeleteActivePlanDay = (dayId: string) => {
+    deleteMealPlanDay(dayId);
+    setSelectedPlanDay(null);
+    setSelectedPlanMeal(null);
   };
 
   return (
@@ -198,7 +213,7 @@ export default function MealsScreen() {
             </Pressable>
           </View>
           {todayMeals.length > 0 ? (
-            todayMeals.map((meal) => <MealCard key={meal.id} meal={meal} />)
+            todayMeals.map((meal) => <MealCard key={meal.id} meal={meal} onDelete={() => deleteMeal(meal.id)} />)
           ) : (
             <Card variant="recessed">
               <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
@@ -212,22 +227,25 @@ export default function MealsScreen() {
           <View style={styles.sectionHeader}>
             <Text style={[type.headlineMd, { color: palette.onSurface }]}>Weekly plan</Text>
             <Pressable
-              onPress={mealPlan.length ? () => onOpenPlanDay(mealPlan[0]) : onCreatePlan}
+              onPress={mealPlan.length ? onClearPlan : onCreatePlan}
               accessibilityRole="button"
             >
-              <Text style={[type.labelMd, { color: palette.primary }]}>{mealPlan.length ? 'Open' : 'Create'}</Text>
+              <Text style={[type.labelMd, { color: mealPlan.length ? palette.error : palette.primary }]}>
+                {mealPlan.length ? 'Clear' : 'Create'}
+              </Text>
             </Pressable>
           </View>
           {mealPlan.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.planCarousel}
-            >
-              {mealPlan.map((day) => (
-                <PlanDayPreview key={day.id} day={day} onPress={() => onOpenPlanDay(day)} />
-              ))}
-            </ScrollView>
+            <WeeklyPlanPreview
+              days={mealPlan}
+              activeDay={activePlanDay}
+              onSelectDay={setSelectedPlanDay}
+              onOpenMeal={(label, slot) => {
+                setSelectedPlanMeal({ label, slot });
+                setPlannerOpen(true);
+              }}
+              onOpenDay={onOpenPlanDay}
+            />
           ) : (
             <Card variant="recessed">
               <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
@@ -296,6 +314,12 @@ export default function MealsScreen() {
           <Pressable onPress={onCreatePlan} style={styles.primaryButton}>
             <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create weekly plan</Text>
           </Pressable>
+        ) : selectedPlanMeal ? (
+          <PlanMealDetail
+            label={selectedPlanMeal.label}
+            slot={selectedPlanMeal.slot}
+            onBack={() => setSelectedPlanMeal(null)}
+          />
         ) : activePlanDay && activePlannedDay ? (
           <Card variant="featured">
             <View style={styles.planDetailHeader}>
@@ -307,6 +331,10 @@ export default function MealsScreen() {
                 {sumPlanCalories(activePlannedDay)} cal
               </Text>
             </View>
+            <Pressable onPress={() => onDeleteActivePlanDay(activePlanDay.id)} style={styles.deletePlanButton} accessibilityRole="button">
+              <Icon name="trash" size={16} color={palette.error} />
+              <Text style={[type.labelSm, { color: palette.error }]}>Delete this day</Text>
+            </Pressable>
             <View style={styles.mealSlotList}>
               <PlanMealRow label="Breakfast" slot={activePlannedDay.breakfast} onPress={() => setSelectedPlanMeal({ label: 'Breakfast', slot: activePlannedDay.breakfast })} />
               <PlanMealRow label="Lunch" slot={activePlannedDay.lunch} onPress={() => setSelectedPlanMeal({ label: 'Lunch', slot: activePlannedDay.lunch })} />
@@ -326,7 +354,6 @@ export default function MealsScreen() {
             <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.md }]}>
               {activePlannedDay.prep}
             </Text>
-            {selectedPlanMeal ? <PlanMealDetail label={selectedPlanMeal.label} slot={selectedPlanMeal.slot} /> : null}
           </Card>
         ) : null}
       </ActionSheet>
@@ -389,7 +416,7 @@ function SmallAction({
   );
 }
 
-function MealCard({ meal }: { meal: MealLog }) {
+function MealCard({ meal, onDelete }: { meal: MealLog; onDelete: () => void }) {
   const preset = mealPresets.find((item) => item.name === meal.name) ?? mealPresets[0];
   return (
     <Card style={{ marginBottom: spacing.sm }}>
@@ -406,6 +433,9 @@ function MealCard({ meal }: { meal: MealLog }) {
           ) : null}
         </View>
         <Text style={[type.titleMd, { color: palette.onSurface }]}>{meal.calories} cal</Text>
+        <Pressable onPress={onDelete} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`Delete ${meal.name}`}>
+          <Icon name="trash" size={17} color={palette.error} />
+        </Pressable>
       </View>
     </Card>
   );
@@ -443,26 +473,62 @@ function MealSuggestionCard({ preset, onPress }: { preset: MealPreset; onPress: 
   );
 }
 
-function PlanDayPreview({ day, onPress }: { day: MealPlanDay; onPress: () => void }) {
-  const plannedDay = normalizePlanDay(day);
-  const slots = [plannedDay.breakfast, plannedDay.lunch, plannedDay.dinner, ...plannedDay.snacks];
-  const totalCalories = slots.reduce((sum, slot) => sum + slot.calories, 0);
-  const totalProtein = slots.reduce((sum, slot) => sum + slot.proteinG, 0);
+function WeeklyPlanPreview({
+  days,
+  activeDay,
+  onSelectDay,
+  onOpenMeal,
+  onOpenDay,
+}: {
+  days: MealPlanDay[];
+  activeDay: MealPlanDay | null;
+  onSelectDay: (day: MealPlanDay) => void;
+  onOpenMeal: (label: string, slot: MealPlanSlot) => void;
+  onOpenDay: (day: MealPlanDay) => void;
+}) {
+  const selectedDay = activeDay ?? days[0];
+  const plannedDay = selectedDay ? normalizePlanDay(selectedDay) : null;
+  const slots = plannedDay ? [
+    { label: 'Breakfast', slot: plannedDay.breakfast },
+    { label: 'Lunch', slot: plannedDay.lunch },
+    { label: 'Dinner', slot: plannedDay.dinner },
+  ] : [];
+
+  if (!selectedDay || !plannedDay) return null;
 
   return (
-    <Pressable onPress={onPress} style={styles.planDayCard} accessibilityRole="button">
-      <View style={styles.planDayTopline}>
-        <Text style={[type.labelMd, { color: palette.onSurface }]}>{day.day}</Text>
-        <Text style={[type.labelSm, { color: palette.primary }]}>{totalCalories} cal</Text>
+    <Card variant="recessed">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRail}>
+        {days.map((day) => {
+          const selected = day.id === selectedDay.id;
+          return (
+            <Pressable
+              key={day.id}
+              onPress={() => onSelectDay(day)}
+              style={[styles.weekDayButton, selected && styles.weekDayButtonActive]}
+              accessibilityRole="button"
+            >
+              <Text style={[type.labelSm, { color: selected ? palette.onPrimary : palette.onSurfaceVariant }]}>
+                {day.day.toUpperCase()}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <View style={styles.timelineList}>
+        {slots.map(({ label, slot }) => (
+          <PlanMealRow key={`${selectedDay.id}-${label}`} label={label} slot={slot} onPress={() => onOpenMeal(label, slot)} />
+        ))}
       </View>
-      <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.xs }]} numberOfLines={2}>
-        {plannedDay.dinner.name}
-      </Text>
-      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-        {slots.length} meals planned
-      </Text>
-      <Text style={[type.labelSm, { color: palette.secondary, marginTop: spacing.xs }]}>P {totalProtein}g total</Text>
-    </Pressable>
+      <View style={styles.planPreviewFooter}>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, flex: 1 }]} numberOfLines={2}>
+          {sumPlanCalories(plannedDay)} cal planned / {plannedDay.prep}
+        </Text>
+        <Pressable onPress={() => onOpenDay(selectedDay)} accessibilityRole="button">
+          <Text style={[type.labelMd, { color: palette.primary }]}>Edit day</Text>
+        </Pressable>
+      </View>
+    </Card>
   );
 }
 
@@ -484,6 +550,7 @@ function PlanMealRow({
       style={[styles.planMealRow, compact && styles.planMealRowCompact]}
       accessibilityRole={onPress ? 'button' : undefined}
     >
+      <Image source={{ uri: slot.imageUrl }} style={compact ? styles.planMealImageCompact : styles.planMealImage} />
       <View style={styles.mealSlotLabel}>
         <Text style={[type.labelSm, { color: palette.primary }]}>{label}</Text>
       </View>
@@ -492,7 +559,7 @@ function PlanMealRow({
           {slot.name}
         </Text>
         <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]} numberOfLines={compact ? 1 : 2}>
-          {slot.calories} cal / P {slot.proteinG}g / {slot.note}
+          {slot.calories} cal / P {slot.proteinG}g / {slot.prepTimeMinutes} min
         </Text>
         {!compact && substitution ? (
           <Text style={[type.labelSm, { color: palette.secondary, marginTop: 2 }]}>{substitution}</Text>
@@ -502,7 +569,7 @@ function PlanMealRow({
   );
 }
 
-function PlanMealDetail({ label, slot }: { label: string; slot: MealPlanSlot }) {
+function PlanMealDetail({ label, slot, onBack }: { label: string; slot: MealPlanSlot; onBack: () => void }) {
   const prepSteps = slot.prepSteps && slot.prepSteps.length > 0
     ? slot.prepSteps
     : ['Prepare the main protein or base first.', 'Plate with the planned sides and adjust seasoning.'];
@@ -510,11 +577,32 @@ function PlanMealDetail({ label, slot }: { label: string; slot: MealPlanSlot }) 
 
   return (
     <View style={styles.planMealDetail}>
+      <Image source={{ uri: slot.imageUrl }} style={styles.prepHeroImage} />
+      <View style={styles.prepHeroActions}>
+        <Pressable onPress={onBack} style={styles.prepHeroButton} accessibilityRole="button">
+          <Icon name="close" size={18} color={palette.onSurface} />
+        </Pressable>
+      </View>
       <SectionLabel>{label} prep</SectionLabel>
-      <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]}>{slot.name}</Text>
-      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-        {slot.calories} cal / {slot.proteinG}g protein / {slot.note}
-      </Text>
+      <Text style={[type.titleLg, { color: palette.onSurface, marginTop: 2 }]}>{slot.name}</Text>
+      <View style={styles.prepMetaRow}>
+        <Text style={[type.labelSm, { color: palette.primary }]}>{slot.prepTimeMinutes} min</Text>
+        <Text style={[type.labelSm, { color: palette.secondary }]}>{slot.difficulty}</Text>
+        <Text style={[type.labelSm, { color: palette.tertiary }]}>{slot.calories} kcal</Text>
+      </View>
+      <Card variant="recessed" style={styles.prepGuideBlock}>
+        <View style={styles.planDetailHeader}>
+          <Text style={[type.titleMd, { color: palette.onSurface }]}>Ingredients</Text>
+          <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{slot.servings} servings</Text>
+        </View>
+        {slot.ingredients.map((ingredient) => (
+          <View key={`${slot.recipeId}-${ingredient}`} style={styles.ingredientRow}>
+            <View style={styles.emptyCheckBox} />
+            <Text style={[type.bodySm, { color: palette.onSurface }]}>{ingredient}</Text>
+          </View>
+        ))}
+      </Card>
+      <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.md }]}>Instructions</Text>
       <View style={styles.prepList}>
         {prepSteps.map((step, index) => (
           <View key={`${slot.name}-prep-${index}`} style={styles.prepStep}>
@@ -528,6 +616,20 @@ function PlanMealDetail({ label, slot }: { label: string; slot: MealPlanSlot }) 
           {substitutions.join(' / ')}
         </Text>
       ) : null}
+      <View style={styles.nutritionPillRow}>
+        <NutritionPill label="Protein" value={`${slot.proteinG}g`} color={palette.primary} />
+        <NutritionPill label="Carbs" value={`${slot.carbsG}g`} color={palette.secondary} />
+        <NutritionPill label="Fat" value={`${slot.fatG}g`} color={palette.tertiary} />
+      </View>
+    </View>
+  );
+}
+
+function NutritionPill({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <View style={styles.nutritionPill}>
+      <Text style={[type.titleMd, { color }]}>{value}</Text>
+      <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{label}</Text>
     </View>
   );
 }
@@ -566,19 +668,28 @@ function normalizePlanDay(day: MealPlanDay) {
     dinner: normalizePlanSlot(legacyDay.dinner, 'Dinner'),
     snacks: Array.isArray(legacyDay.snacks) && legacyDay.snacks.length > 0
       ? legacyDay.snacks
-      : [{ name: 'Goal-based snack', calories: 250, proteinG: 18, note: 'Fill the gap without blurring meals' }],
+      : [normalizePlanSlot(undefined, 'Goal-based snack')],
     prep: legacyDay.prep ?? 'Prep the anchor ingredients first, then swap meals around appetite.',
   };
 }
 
 function normalizePlanSlot(value: string | MealPlanSlot | undefined, fallback: string): MealPlanSlot {
   if (value && typeof value === 'object') return value;
+  const name = value ?? fallback;
   return {
-    name: value ?? fallback,
+    name,
     calories: 450,
     proteinG: 30,
+    carbsG: 47,
+    fatG: 13,
     note: 'Legacy plan item',
-    prepSteps: ['Prepare the meal base.', 'Plate and season before serving.'],
+    recipeId: name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+    imageUrl: 'https://images.unsplash.com/photo-1546069901-d5bfd2cbfb1f?w=600&auto=format&fit=crop',
+    ingredients: ['protein base', 'carb base', 'vegetables', 'sauce'],
+    prepTimeMinutes: 25,
+    difficulty: 'Easy',
+    servings: 2,
+    prepSteps: ['Prepare the meal base.', 'Cook the protein or main ingredient.', 'Plate and season before serving.'],
   };
 }
 
@@ -693,6 +804,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   mealCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   mealImage: { width: 72, height: 72, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
   presetRow: {
     flexDirection: 'row',
@@ -704,6 +823,24 @@ const styles = StyleSheet.create({
   },
   presetImage: { width: 58, height: 58, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
   mealSlotList: { gap: spacing.sm, marginTop: spacing.sm },
+  weekRail: { gap: spacing.sm, paddingBottom: spacing.sm },
+  weekDayButton: {
+    minWidth: 52,
+    height: 46,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+    paddingHorizontal: spacing.sm,
+  },
+  weekDayButtonActive: { backgroundColor: palette.primary },
+  timelineList: { gap: spacing.sm },
+  planPreviewFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
   planCarousel: { gap: spacing.sm, paddingRight: spacing.md },
   planDayCard: {
     width: 190,
@@ -724,26 +861,76 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  deletePlanButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   planMealRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radii.md,
     backgroundColor: palette.surfaceContainerHigh,
   },
   planMealRowCompact: { padding: spacing.xs + 2 },
+  planMealImage: { width: 54, height: 54, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
+  planMealImageCompact: { width: 40, height: 40, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHighest },
   mealSlotLabel: { width: 72 },
   planMealDetail: {
-    marginTop: spacing.md,
     borderRadius: radii.md,
+    gap: spacing.sm,
+  },
+  prepHeroImage: {
+    width: '100%',
+    height: 210,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  prepHeroActions: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+  },
+  prepHeroButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: palette.surfaceContainerHighest,
-    padding: spacing.md,
+  },
+  prepMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  prepGuideBlock: { marginTop: spacing.sm },
+  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  emptyCheckBox: {
+    width: 18,
+    height: 18,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: palette.outline,
   },
   prepList: { gap: spacing.sm, marginTop: spacing.sm },
   prepStep: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
+  },
+  nutritionPillRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  nutritionPill: {
+    flex: 1,
+    minHeight: 74,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
   },
   planActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
 });

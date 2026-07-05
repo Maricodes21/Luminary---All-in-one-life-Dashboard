@@ -3,13 +3,14 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BodyProfile } from '@/lib/nutrition';
 import { parseExpenseNotification } from '@/lib/expenseNotifications';
-import { buildMealPlanDay, buildWorkoutDays } from '@/lib/planning';
+import { buildMealPlanWeek, buildWorkoutDays } from '@/lib/planning';
 
 type SyncAction = 'create' | 'update' | 'delete';
 type SyncEntity =
   | 'habit'
   | 'journal'
   | 'meal'
+  | 'meal_plan'
   | 'workout'
   | 'workout_plan'
   | 'expense'
@@ -73,8 +74,15 @@ export type MealPlanSlot = {
   name: string;
   calories: number;
   proteinG: number;
+  carbsG: number;
+  fatG: number;
   note: string;
-  recipeId?: string;
+  recipeId: string;
+  imageUrl: string;
+  ingredients: string[];
+  prepTimeMinutes: number;
+  difficulty: 'Easy' | 'Steady' | 'Prep';
+  servings: number;
   substitutions?: string[];
   prepSteps?: string[];
 };
@@ -167,7 +175,10 @@ type ProductionState = {
   deleteJournalEntry: (id: string) => void;
   updateBodyProfile: (profile: Partial<BodyProfile>) => void;
   addMeal: (meal: Omit<MealLog, 'id' | 'mealDate'> & { mealDate?: string }) => void;
+  deleteMeal: (id: string) => void;
   generateMealPlan: () => void;
+  deleteMealPlanDay: (id: string) => void;
+  clearMealPlan: () => void;
   createWorkoutPlan: (category: WorkoutPlan['category'], level: WorkoutPlan['level']) => void;
   completeWorkout: (workout: Omit<LocalWorkoutLog, 'id' | 'workoutDate'> & { workoutDate?: string }) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'transactionDate' | 'source'> & Partial<Pick<Expense, 'transactionDate' | 'source'>>) => void;
@@ -286,15 +297,36 @@ export const useProductionStore = create<ProductionState>()(
           const item = { ...meal, id: id('meal'), mealDate: meal.mealDate ?? today() };
           return { meals: [item, ...state.meals], syncQueue: [...state.syncQueue, enqueue('meal', 'create', item)] };
         }),
+      deleteMeal: (mealId) =>
+        set((state) => ({
+          meals: state.meals.filter((meal) => meal.id !== mealId),
+          syncQueue: [...state.syncQueue, enqueue('meal', 'delete', { id: mealId })],
+        })),
       generateMealPlan: () =>
         set((state) => {
-          const mealPlan = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((dayName, index) => ({
-            id: `plan_${dayName.toLowerCase()}`,
-            day: dayName,
-            ...buildMealPlanDay(state.bodyProfile.goal, index),
-          }));
-          return { mealPlan };
+          const mealPlan = buildMealPlanWeek(state.bodyProfile.goal, today()).map((planDay, index) => {
+            const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][index];
+            return {
+              id: `plan_${day.toLowerCase()}`,
+              day,
+              ...planDay,
+            };
+          });
+          return {
+            mealPlan,
+            syncQueue: [...state.syncQueue, enqueue('meal_plan', 'create', { weekOf: today(), days: mealPlan })],
+          };
         }),
+      deleteMealPlanDay: (planDayId) =>
+        set((state) => ({
+          mealPlan: state.mealPlan.filter((day) => day.id !== planDayId),
+          syncQueue: [...state.syncQueue, enqueue('meal_plan', 'delete', { id: planDayId })],
+        })),
+      clearMealPlan: () =>
+        set((state) => ({
+          mealPlan: [],
+          syncQueue: [...state.syncQueue, enqueue('meal_plan', 'delete', { weekOf: today(), ids: state.mealPlan.map((day) => day.id) })],
+        })),
       createWorkoutPlan: (category, level) =>
         set((state) => {
           const plan = {

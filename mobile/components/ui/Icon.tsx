@@ -36,7 +36,8 @@ export type IconName =
   | 'receipt'
   | 'trend'
   | 'water'
-  | 'book';
+  | 'book'
+  | 'trash';
 
 export type IconProps = {
   name: IconName;
@@ -233,6 +234,16 @@ const paths: Record<IconName, () => React.ReactNode> = {
   book: () => (
     <Path
       d="M5 5.5A2.5 2.5 0 0 1 7.5 3H20v16H7.5A2.5 2.5 0 0 0 5 21V5.5zM5 5.5V21M9 7h7M9 11h6"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  ),
+  trash: () => (
+    <Path
+      d="M5 7h14M10 11v6M14 11v6M8 7l1-3h6l1 3M7 7l1 14h8l1-14"
       stroke="currentColor"
       strokeWidth={2}
       fill="none"
