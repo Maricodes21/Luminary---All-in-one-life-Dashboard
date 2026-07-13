@@ -12,6 +12,7 @@
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
     "test:content": "node --test scripts/run-content-tests.cjs",
+    "test:meals": "node --test scripts/run-meals-tests.cjs",
     "doctor": "npx expo-doctor",
     "deps:check": "npx expo install --check",
     "start:clear": "expo start --clear"
