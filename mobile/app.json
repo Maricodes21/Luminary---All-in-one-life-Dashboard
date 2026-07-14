@@ -29,13 +29,20 @@
       },
       "permissions": [
         "ACTIVITY_RECOGNITION",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "CAMERA"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Luminary to scan meals and barcodes you choose."
+        }
+      ],
       [
         "expo-notifications",
         {

@@ -18,4 +18,7 @@ require.extensions['.ts'] = function loadTs(module, filename) {
   module._compile(output.outputText, filename);
 };
 
-require(path.resolve(__dirname, '../lib/meals/index.test.ts'));
+const testDirectory = path.resolve(__dirname, '../lib/meals');
+for (const filename of fs.readdirSync(testDirectory).filter((name) => name.endsWith('.test.ts')).sort()) {
+  require(path.join(testDirectory, filename));
+}

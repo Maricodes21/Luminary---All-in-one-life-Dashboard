@@ -101,6 +101,7 @@ export class OllamaMealAIProvider implements MealAIProvider {
         model: this.model,
         stream: false,
         format: 'json',
+        ...(this.config.mode === 'local' ? { options: { num_ctx: 8192 } } : {}),
         messages: [
           {
             role: 'user',

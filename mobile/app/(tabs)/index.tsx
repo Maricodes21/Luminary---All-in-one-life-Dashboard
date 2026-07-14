@@ -12,10 +12,11 @@ import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { Chip } from '@/components/ui/Chip';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductionStore } from '@/stores/useProductionStore';
+import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { habitCategories, habitSuggestions, type HabitSuggestion } from '@/lib/modulePresets';
-import { calculateNutritionTargets } from '@/lib/nutrition';
+import { localDateKey } from '@/lib/meals/dates';
 import { getDailyFocusNote } from '@/lib/dailyFocus';
 import { getHabitIconName } from '@/lib/habitIcons';
 
@@ -39,25 +40,24 @@ export default function HomeScreen() {
   const [customHabitName, setCustomHabitName] = useState('');
   const [habitSheetOpen, setHabitSheetOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('Morning');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateKey(new Date());
   const habits = useProductionStore((s) =>
     s.habits.filter((habit) => !habit.archivedAt).sort((a, b) => a.position - b.position),
   );
-  const meals = useProductionStore((s) => s.meals);
-  const mealPlan = useProductionStore((s) => s.mealPlan);
+  const mealsUser = useMealsStore(activeMealsUser);
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
   const expenses = useProductionStore((s) => s.expenses);
-  const bodyProfile = useProductionStore((s) => s.bodyProfile);
   const profileSettings = useProductionStore((s) => s.profileSettings);
   const addHabit = useProductionStore((s) => s.addHabit);
   const archiveHabit = useProductionStore((s) => s.archiveHabit);
   const toggleHabitCompletion = useProductionStore((s) => s.toggleHabitCompletion);
   const syncQueue = useProductionStore((s) => s.syncQueue);
   const completedToday = habits.filter((habit) => habit.completedOn.includes(today)).length;
-  const todayMeals = meals.filter((meal) => meal.mealDate === today);
-  const nutritionTargets = calculateNutritionTargets(bodyProfile);
-  const proteinLogged = todayMeals.reduce((sum, meal) => sum + meal.proteinG, 0);
-  const proteinRemaining = Math.max(0, nutritionTargets.proteinG - proteinLogged);
+  const todayMeals = mealsUser?.meals.filter((meal) => meal.localDate === today) ?? [];
+  const nutritionTarget = mealsUser?.targets[today];
+  const proteinLogged = todayMeals.reduce((sum, meal) => sum + (meal.nutrition.proteinG ?? 0), 0);
+  const proteinRemaining = Math.max(0, (nutritionTarget?.proteinG ?? 0) - proteinLogged);
+  const queuedUpdates = syncQueue.length + (mealsUser?.syncQueue.length ?? 0);
   const ritualDoneToday = habits.length > 0 && completedToday === habits.length;
   const todaySpend = expenses
     .filter((expense) => expense.transactionDate === today)
@@ -248,7 +248,7 @@ export default function HomeScreen() {
             <QuickActionTile
               icon="meals"
               label="Meals"
-              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealPlan[0]?.breakfast?.name ?? 'Plan your first plate'}
+              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealsUser?.plans[0]?.entries[0]?.name ?? 'Plan your first plate'}
               accent={palette.secondary}
               onPress={() => router.push('/(tabs)/meals')}
             />
@@ -270,8 +270,8 @@ export default function HomeScreen() {
               icon="sparkles"
               label="Sync"
               detail={
-                syncQueue.length > 0
-                  ? `${syncQueue.length} update${syncQueue.length === 1 ? '' : 's'} waiting`
+                queuedUpdates > 0
+                  ? `${queuedUpdates} update${queuedUpdates === 1 ? '' : 's'} waiting`
                   : 'Local rhythm is current'
               }
               accent={palette.primary}

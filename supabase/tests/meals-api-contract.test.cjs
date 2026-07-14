@@ -33,7 +33,7 @@ test('publishes the complete meals action contract', async () => {
   ]);
 });
 
-test('ranks merged provider results deterministically', async () => {
+test('ranks localized branded records before generic records deterministically', async () => {
   const [, { rankFoodResults }] = await modules;
   const results = [
     {
@@ -59,7 +59,7 @@ test('ranks merged provider results deterministically', async () => {
   const forward = rankFoodResults(results, 'apple').map((item) => item.providerId);
   const reversed = rankFoodResults([...results].reverse(), 'apple').map((item) => item.providerId);
 
-  assert.deepEqual(forward, ['usda:1', 'off:2', 'usda:2']);
+  assert.deepEqual(forward, ['off:2', 'usda:1', 'usda:2']);
   assert.deepEqual(reversed, forward);
 });
 
@@ -439,6 +439,74 @@ test('uses AI only for weak searches and gracefully degrades every AI action', a
   }
 });
 
+test('reuses locale-scoped AI query interpretations without another model call', async () => {
+  const [, , , , , , , { createMealsApiHandler }] = await modules;
+  const cache = new Map();
+  let interpretationCalls = 0;
+  const handler = createMealsApiHandler({
+    authenticate: async () => ({ id: 'user-a' }),
+    foodProviders: [{
+      id: 'usda',
+      enabled: true,
+      search: async ({ query }) => [{
+        provider: 'usda', providerId: 'usda:42', name: query === 'bar' ? 'Snack bar' : 'Oat snack bar', serving: { calories: 180 },
+      }],
+      lookupBarcode: async () => [],
+    }],
+    aiProvider: {
+      available: true,
+      paid: false,
+      model: 'test',
+      interpretQuery: async () => {
+        interpretationCalls += 1;
+        return { normalizedTerms: ['oat snack bar'], providerIds: ['usda:42'] };
+      },
+      run: async () => ({}),
+    },
+    queryCache: {
+      get: async (locale, queryHash) => cache.get(`${locale}:${queryHash}`) ?? null,
+      set: async (locale, queryHash, value) => { cache.set(`${locale}:${queryHash}`, value); },
+    },
+  });
+  const request = () => new Request('https://example.test/meals-api', {
+    method: 'POST',
+    headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'search-foods', input: { query: 'bar', locale: 'en-ZA' } }),
+  });
+
+  const first = await (await handler(request())).json();
+  const second = await (await handler(request())).json();
+
+  assert.equal(first.data.interpretation.cached, false);
+  assert.equal(second.data.interpretation.cached, true);
+  assert.equal(interpretationCalls, 1);
+});
+
+test('an invalid client locale cannot crash ambiguous food search', async () => {
+  const [, , , , , , , { createMealsApiHandler }] = await modules;
+  const handler = createMealsApiHandler({
+    authenticate: async () => ({ id: 'user-a' }),
+    foodProviders: [{
+      id: 'usda', enabled: true,
+      search: async () => [{ provider: 'usda', providerId: 'usda:1', name: 'Snack bar', serving: { calories: 100 } }],
+      lookupBarcode: async () => [],
+    }],
+    aiProvider: {
+      available: true, paid: false, model: 'test',
+      interpretQuery: async () => ({ normalizedTerms: [], providerIds: [] }),
+      run: async () => ({}),
+    },
+  });
+
+  const response = await handler(new Request('https://example.test/meals-api', {
+    method: 'POST',
+    headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'search-foods', input: { query: 'bar', locale: 'not_a_locale' } }),
+  }));
+
+  assert.equal(response.status, 200);
+});
+
 test('blocks paid AI at the hard budget limit and emits telemetry', async () => {
   const [, , , , , , , { createMealsApiHandler }] = await modules;
   let aiCalls = 0;
@@ -601,4 +669,34 @@ test('backs per-user usage, monthly spend, and terminal telemetry with ai_jobs',
   assert.equal(telemetryRequest.init.headers.apikey, 'sb_secret_test');
   assert.equal(JSON.parse(telemetryRequest.init.body).status, 'succeeded');
   assert.equal(JSON.parse(telemetryRequest.init.body).user_id, 'user-a');
+});
+
+test('persists only hashed query interpretations in the service-only cache', async () => {
+  const { createSupabaseRuntimeServices } = await runtimeModule;
+  const requests = [];
+  const services = createSupabaseRuntimeServices(
+    {
+      supabaseUrl: 'https://project.supabase.co',
+      publishableKey: 'sb_publishable_test',
+      secretKey: 'sb_secret_test',
+    },
+    {
+      fetch: async (url, init = {}) => {
+        requests.push({ url: String(url), init });
+        if ((init.method ?? 'GET') === 'GET') {
+          return Response.json([{ normalized_terms: ['rolled oats'], provider_ids: ['usda:1'] }]);
+        }
+        return new Response(null, { status: 201 });
+      },
+    },
+  );
+
+  await services.queryCache.set('en-ZA', 'abc123', { normalizedTerms: ['rolled oats'], providerIds: ['usda:1'] });
+  const cached = await services.queryCache.get('en-ZA', 'abc123');
+
+  assert.deepEqual(cached, { normalizedTerms: ['rolled oats'], providerIds: ['usda:1'] });
+  const stored = JSON.parse(requests[0].init.body);
+  assert.equal(stored.query_hash, 'abc123');
+  assert.equal('query' in stored, false);
+  assert.match(requests[1].url, /food_query_cache/);
 });

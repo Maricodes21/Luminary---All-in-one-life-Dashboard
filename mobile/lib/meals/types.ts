@@ -1,5 +1,26 @@
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
+export type NutritionProfile = {
+  dateOfBirth: string;
+  biologicalSex: 'female' | 'male';
+  activityLevel: 'low' | 'moderate' | 'high';
+  goal: 'lose' | 'maintain' | 'gain';
+  heightCm: number;
+  weightKg: number;
+  updatedAt: string;
+  dietaryPreferences?: string[];
+  foodAllergies?: string[];
+  dislikedIngredients?: string[];
+  maxPrepMinutes?: number;
+};
+
+export type BodyMeasurement = {
+  id: string;
+  measuredAt: string;
+  weightKg: number;
+  heightCm?: number | null;
+};
+
 export type MealSource = 'manual' | 'curated' | 'usda' | 'open_food_facts' | 'community' | 'commercial' | 'ai_vision';
 
 export type NutritionValues = {
@@ -33,6 +54,32 @@ export type DailyNutritionTarget = {
   carbsG: number;
   fatG: number;
   calculatedAt: string;
+};
+
+export type MealMutation = {
+  id: string;
+  action: 'create' | 'update' | 'delete';
+  entity: 'meal' | 'profile' | 'measurement' | 'target' | 'plan' | 'plan_entry' | 'feedback';
+  payload: unknown;
+  createdAt: string;
+};
+
+export type SuggestionFeedbackAction = 'accepted' | 'dismissed' | 'saved' | 'substituted';
+
+export type MealUndo = {
+  kind: 'meal';
+  record: MealLogRecord;
+  createdAt: string;
+};
+
+export type MealsUserData = {
+  profile: NutritionProfile | null;
+  measurements: BodyMeasurement[];
+  targets: Record<string, DailyNutritionTarget>;
+  meals: MealLogRecord[];
+  plans: MealPlan[];
+  syncQueue: MealMutation[];
+  undo: MealUndo | null;
 };
 
 export type FoodServing = {
@@ -69,6 +116,7 @@ export type RecipeStep = {
   id: string;
   text: string;
   durationMinutes?: number | null;
+  cue?: string;
 };
 
 export type Recipe = {
@@ -84,6 +132,8 @@ export type Recipe = {
   steps: RecipeStep[];
   substitutions: string[];
   dietaryTags: string[];
+  prepMinutes?: number;
+  cookMinutes?: number;
 };
 
 export type MealPlanEntry = {
@@ -98,6 +148,16 @@ export type MealPlanEntry = {
   providerId?: string;
   nutrition?: NutritionValues | null;
   note?: string;
+  imageUri?: string;
+  recipeSnapshot?: Recipe;
+};
+
+export type MealPlan = {
+  id: string;
+  weekOf: string;
+  title: string;
+  entries: MealPlanEntry[];
+  createdAt: string;
 };
 
 export type DailySuggestion = {

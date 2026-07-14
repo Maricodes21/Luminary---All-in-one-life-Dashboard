@@ -1,947 +1,399 @@
-import { useMemo, useState, type ComponentProps } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable, TextInput, Image } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { palette, spacing, radii, type } from '@luminary/design-system';
+import { palette, radii, spacing, type } from '@luminary/design-system';
+
+import { CalorieRing } from '@/components/meals/CalorieRing';
+import { MealCard } from '@/components/meals/MealCard';
+import { MealsSegmentedControl, type MealsMode } from '@/components/meals/MealsSegmentedControl';
 import { Card } from '@/components/ui/Card';
-import { ProgressBar } from '@/components/ui/ProgressBar';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { Icon } from '@/components/ui/Icon';
-import { ActionSheet } from '@/components/ui/ActionSheet';
-import { QuickActionTile } from '@/components/ui/QuickActionTile';
-import { Chip } from '@/components/ui/Chip';
-import { calculateNutritionTargets, type BodyGoal } from '@/lib/nutrition';
-import { useProductionStore, type MealLog, type MealPlanDay, type MealPlanSlot } from '@/stores/useProductionStore';
-import { mealPresets, type MealPreset } from '@/lib/modulePresets';
-import { getAllLibraryMeals, getSubstitutionsForMeal } from '@/lib/contentLibrary';
-import { coerceMealPlanSlot } from '@/lib/planning';
+import { localDateKey, mealWindowFor } from '@/lib/meals/dates';
+import { rankDailySuggestionCandidates } from '@/lib/meals/aiRecommendationGateway';
+import { recipeCatalog } from '@/lib/meals/catalog';
+import { recommendForNow } from '@/lib/meals/recommendations';
+import { makeUuid } from '@/lib/meals/state';
+import { calculateMealTotals, calculateRemaining } from '@/lib/meals/totals';
+import type { MealLogRecord, MealPlan, MealPlanEntry } from '@/lib/meals/types';
+import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
-  const bodyProfile = useProductionStore((s) => s.bodyProfile);
-  const updateBodyProfile = useProductionStore((s) => s.updateBodyProfile);
-  const meals = useProductionStore((s) => s.meals);
-  const mealPlan = useProductionStore((s) => s.mealPlan);
-  const addMeal = useProductionStore((s) => s.addMeal);
-  const deleteMeal = useProductionStore((s) => s.deleteMeal);
-  const generateMealPlan = useProductionStore((s) => s.generateMealPlan);
-  const deleteMealPlanDay = useProductionStore((s) => s.deleteMealPlanDay);
-  const clearMealPlan = useProductionStore((s) => s.clearMealPlan);
-  const [logSheetOpen, setLogSheetOpen] = useState(false);
-  const [plannerOpen, setPlannerOpen] = useState(false);
-  const [selectedPlanDay, setSelectedPlanDay] = useState<MealPlanDay | null>(null);
-  const [selectedPlanMeal, setSelectedPlanMeal] = useState<{ label: string; slot: MealPlanSlot } | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [mealName, setMealName] = useState('');
-  const [calories, setCalories] = useState('');
-  const [selectedType, setSelectedType] = useState<MealPreset['mealType']>('snack');
+  const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
+  const [mode, setMode] = useState<MealsMode>(params.mode === 'plan' ? 'plan' : 'today');
+  const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
+  const [staleDismissed, setStaleDismissed] = useState(false);
+  const user = useMealsStore(activeMealsUser);
+  const ensureTarget = useMealsStore((state) => state.ensureTarget);
+  const deleteMeal = useMealsStore((state) => state.deleteMeal);
+  const addMeal = useMealsStore((state) => state.addMeal);
+  const undoMealDeletion = useMealsStore((state) => state.undoMealDeletion);
+  const deletePlanDay = useMealsStore((state) => state.deletePlanDay);
+  const deletePlan = useMealsStore((state) => state.deletePlan);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const targets = calculateNutritionTargets(bodyProfile);
-  const todayMeals = meals.filter((meal) => meal.mealDate === today);
-  const totals = todayMeals.reduce(
-    (sum, meal) => ({
-      calories: sum.calories + meal.calories,
-      proteinG: sum.proteinG + meal.proteinG,
-      carbsG: sum.carbsG + meal.carbsG,
-      fatG: sum.fatG + meal.fatG,
-    }),
-    { calories: 0, proteinG: 0, carbsG: 0, fatG: 0 },
-  );
-  const proteinRemaining = Math.max(0, targets.proteinG - totals.proteinG);
-  const dinnerIdeas = useMemo(
-    () => mealPresets.filter((meal) => meal.mealType === 'dinner').slice(0, 3),
-    [],
-  );
-  const activePlanDay = selectedPlanDay ?? mealPlan[0] ?? null;
-  const activePlannedDay = activePlanDay ? normalizePlanDay(activePlanDay) : null;
+  useEffect(() => {
+    if (user?.profile) ensureTarget();
+  }, [ensureTarget, user?.profile]);
 
-  const filteredPresets = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return mealPresets;
-    return mealPresets.filter(
-      (meal) =>
-        meal.name.toLowerCase().includes(term) ||
-        meal.mealType.includes(term) ||
-        meal.ingredients?.some((ingredient) => ingredient.toLowerCase().includes(term)),
-    );
-  }, [searchTerm]);
+  useEffect(() => {
+    if (params.mode === 'plan') setMode('plan');
+  }, [params.mode]);
 
-  const onAddPreset = (preset: MealPreset) => {
-    addMeal(preset);
-    setLogSheetOpen(false);
-  };
+  const today = localDateKey(new Date());
+  const todayMeals = useMemo(() => user?.meals.filter((meal) => meal.localDate === today) ?? [], [today, user?.meals]);
+  const totals = useMemo(() => calculateMealTotals(todayMeals), [todayMeals]);
+  const target = user?.targets[today] ?? null;
+  const remaining = target ? calculateRemaining(target, totals) : null;
+  const plan = user?.plans[0] ?? null;
+  const dates = useMemo(() => weekDates(plan?.weekOf ?? today), [plan?.weekOf, today]);
+  const profileStale = user?.profile ? Date.now() - new Date(user.profile.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000 : false;
 
-  const onAddManualMeal = () => {
-    const parsedCalories = Number(calories);
-    if (!mealName.trim() || !Number.isFinite(parsedCalories) || parsedCalories <= 0) return;
-    addMeal({
-      name: mealName.trim(),
-      mealType: selectedType,
-      calories: parsedCalories,
-      proteinG: Math.round((parsedCalories * 0.25) / 4),
-      carbsG: Math.round((parsedCalories * 0.45) / 4),
-      fatG: Math.round((parsedCalories * 0.3) / 9),
-      prep: 'Manual entry. You can adjust macros after logging.',
-    });
-    setMealName('');
-    setCalories('');
-    setLogSheetOpen(false);
-  };
-
-  const onCreatePlan = () => {
-    generateMealPlan();
-    setSelectedPlanDay(null);
-    setSelectedPlanMeal(null);
-    setPlannerOpen(true);
-  };
-
-  const onOpenPlanDay = (day: MealPlanDay) => {
-    setSelectedPlanDay(day);
-    setSelectedPlanMeal(null);
-    setPlannerOpen(true);
-  };
-
-  const onClearPlan = () => {
-    clearMealPlan();
-    setSelectedPlanDay(null);
-    setSelectedPlanMeal(null);
-  };
-
-  const onDeleteActivePlanDay = (dayId: string) => {
-    deleteMealPlanDay(dayId);
-    setSelectedPlanDay(null);
-    setSelectedPlanMeal(null);
-  };
-
-  const onClosePlanner = () => {
-    setPlannerOpen(false);
-    setSelectedPlanMeal(null);
+  const confirmMealDelete = (meal: MealLogRecord) => {
+    Alert.alert('Delete meal?', `${meal.name} will be removed from today.`, [
+      { text: 'Keep', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteMeal(meal.id) },
+    ]);
   };
 
   return (
-    <>
+    <View style={styles.root}>
       <ScrollView
-        style={styles.root}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: 120 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerRow}>
-          <View>
+        <View style={styles.header}>
+          <View style={styles.headerCopy}>
             <SectionLabel>Meals</SectionLabel>
-            <Text style={[type.displaySm, { color: palette.onSurface, marginTop: spacing.xs }]}>
-              Fuel, without the noise
-            </Text>
+            <Text style={[type.headlineLg, { color: palette.onSurface, marginTop: 2 }]}>Your day, fed well</Text>
           </View>
-          <Pressable onPress={() => setLogSheetOpen(true)} style={styles.headerAction} accessibilityRole="button">
+          <Pressable onPress={() => router.push('/meals/search')} style={styles.primaryIconButton} accessibilityRole="button" accessibilityLabel="Log a meal">
             <Icon name="plus" color={palette.onPrimary} size={20} />
           </Pressable>
         </View>
 
-        <Card style={{ marginTop: spacing.lg }}>
-          <View style={styles.targetHeader}>
-            <CalorieRing value={totals.calories} target={targets.calories} />
-            <View style={styles.targetDetails}>
-              <Macro label="Protein" value={totals.proteinG} target={targets.proteinG} color={palette.primary} />
-              <Macro label="Carbs" value={totals.carbsG} target={targets.carbsG} color={palette.secondary} />
-              <Macro label="Fat" value={totals.fatG} target={targets.fatG} color={palette.tertiary} />
-            </View>
-            <View style={styles.goalStack}>
-              {(['lose', 'maintain', 'gain'] as BodyGoal[]).map((goal) => (
-                <Pressable
-                  key={goal}
-                  onPress={() => updateBodyProfile({ goal })}
-                  style={[styles.goalButton, bodyProfile.goal === goal && styles.goalButtonActive]}
-                >
-                  <Text
-                    style={[
-                      type.labelSm,
-                      { color: bodyProfile.goal === goal ? palette.onPrimary : palette.onSurfaceVariant },
-                    ]}
-                  >
-                    {goal}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        </Card>
+        <MealsSegmentedControl value={mode} onChange={setMode} />
 
-        {proteinRemaining >= 20 ? (
-          <Card variant="recessed" style={styles.spacedSm}>
-            <View style={styles.suggestionHeader}>
-              <Icon name="meals" size={20} color={palette.primary} />
-              <View style={{ flex: 1 }}>
-                <SectionLabel>Suggestion</SectionLabel>
-                <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]}>
-                  {proteinRemaining}g short on protein. Three dinner ideas.
-                </Text>
-                <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]} numberOfLines={2}>
-                  {dinnerIdeas.map((meal) => meal.name).join(' / ')}
-                </Text>
-              </View>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.suggestionCarousel}
-            >
-              {dinnerIdeas.map((preset) => (
-                <MealSuggestionCard key={preset.name} preset={preset} onPress={() => onAddPreset(preset)} />
-              ))}
-            </ScrollView>
-          </Card>
-        ) : null}
-
-        <View style={styles.spaced}>
-          <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Log a meal</Text>
-          <View style={styles.logActions}>
-            <QuickActionTile
-              icon="search"
-              label="Search foods and meals"
-              detail="Fastest for staples, recents, and known foods"
-              accent={palette.primary}
-              onPress={() => setLogSheetOpen(true)}
-              style={styles.searchTile}
-            />
-            <View style={styles.secondaryActionRow}>
-              <SmallAction icon="camera" label="Scan meal" onPress={() => setLogSheetOpen(true)} />
-              <SmallAction icon="barcode" label="Barcode" onPress={() => setLogSheetOpen(true)} accent={palette.tertiary} />
-              <SmallAction icon="plus" label="Manual entry" onPress={() => setLogSheetOpen(true)} accent={palette.secondary} />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.spaced}>
-          <View style={styles.sectionHeader}>
-            <Text style={[type.headlineMd, { color: palette.onSurface }]}>Today</Text>
-            <Pressable onPress={() => setLogSheetOpen(true)}>
-              <Text style={[type.labelMd, { color: palette.primary }]}>Quick add</Text>
-            </Pressable>
-          </View>
-          {todayMeals.length > 0 ? (
-            todayMeals.map((meal) => <MealCard key={meal.id} meal={meal} onDelete={() => deleteMeal(meal.id)} />)
-          ) : (
-            <Card variant="recessed">
-              <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                No meals logged yet. Start with a preset, search, scan, or manual entry.
-              </Text>
-            </Card>
-          )}
-        </View>
-
-        <View style={styles.spaced}>
-          <View style={styles.sectionHeader}>
-            <Text style={[type.headlineMd, { color: palette.onSurface }]}>Weekly plan</Text>
-            <Pressable
-              onPress={mealPlan.length ? onClearPlan : onCreatePlan}
-              accessibilityRole="button"
-            >
-              <Text style={[type.labelMd, { color: mealPlan.length ? palette.error : palette.primary }]}>
-                {mealPlan.length ? 'Clear' : 'Create'}
-              </Text>
-            </Pressable>
-          </View>
-          {mealPlan.length > 0 ? (
-            <WeeklyPlanPreview
-              days={mealPlan}
-              activeDay={activePlanDay}
-              onSelectDay={setSelectedPlanDay}
-              onOpenMeal={(label, slot) => {
-                setSelectedPlanMeal({ label, slot });
-                setPlannerOpen(true);
-              }}
-              onOpenDay={onOpenPlanDay}
-            />
-          ) : (
-            <Card variant="recessed">
-              <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                Generate a flexible week, then swap meals around your goal and appetite.
-              </Text>
-            </Card>
-          )}
-        </View>
+        {mode === 'today' ? (
+          <TodayMode
+            user={user}
+            meals={todayMeals}
+            target={target}
+            totals={totals}
+            remainingCalories={remaining?.calories ?? null}
+            profileStale={profileStale && !staleDismissed}
+            onDismissStale={() => setStaleDismissed(true)}
+            onEditMeal={(meal) => router.push({ pathname: '/meals/manual', params: { id: meal.id } })}
+            onDeleteMeal={confirmMealDelete}
+            onOpenSearch={() => router.push('/meals/search')}
+            onOpenCamera={() => router.push('/meals/camera')}
+            onOpenBarcode={() => router.push({ pathname: '/meals/camera', params: { mode: 'barcode' } })}
+            onOpenManual={() => router.push('/meals/manual')}
+            onOpenProfile={() => router.push('/meals/profile')}
+            onOpenRecipe={(recipeId) => router.push(`/meals/recipe/${recipeId}`)}
+            onLogRecipe={(recipeId) => {
+              const recipe = recipeCatalog.find((item) => item.id === recipeId);
+              if (!recipe) return;
+              const now = new Date();
+              addMeal({ id: makeUuid(), name: recipe.name, localDate: localDateKey(now), consumedAt: now.toISOString(), timezone: currentTimezone(), mealType: mealWindowFor(now), servingQuantity: 1, servingUnit: 'serving', nutrition: recipe.nutrition, source: 'curated', providerId: recipe.providerId, imageUri: recipe.image.kind === 'exact' ? recipe.image.uri : undefined });
+            }}
+          />
+        ) : (
+          <PlanMode
+            plan={plan}
+            selectedDate={selectedDate}
+            dates={dates}
+            onSelectDate={setSelectedDate}
+            onOpenRecipe={(entry) => router.push(`/meals/recipe/${entry.recipeId ?? 'missing'}?entryId=${entry.id}`)}
+            onCreatePlan={() => router.push('/meals/plan-builder')}
+            onEditEntry={(entry) => router.push(`/meals/substitute/${entry.id}`)}
+            onEditDay={() => plan && router.push({ pathname: '/meals/edit-day', params: { planId: plan.id, localDate: selectedDate } })}
+            onClearDay={() => plan && confirmClearDay(plan, selectedDate, deletePlanDay)}
+            onDeletePlan={() => plan && confirmDeletePlan(plan, deletePlan)}
+          />
+        )}
       </ScrollView>
 
-      <ActionSheet visible={logSheetOpen} onClose={() => setLogSheetOpen(false)} eyebrow="Meal logger" title="Add food fast">
-        <View style={styles.searchBox}>
-          <Icon name="search" size={18} color={palette.onSurfaceVariant} />
-          <TextInput
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholder="Search foods or meals"
-            placeholderTextColor={palette.onSurfaceVariant}
-            style={styles.searchInput}
-          />
+      {user?.undo?.kind === 'meal' ? (
+        <View style={[styles.undo, { bottom: insets.bottom + 82 }]}>
+          <Text style={[type.bodySm, styles.undoText]} numberOfLines={1}>{user.undo.record.name} deleted</Text>
+          <Pressable onPress={undoMealDeletion} style={styles.undoButton} accessibilityRole="button">
+            <Icon name="undo" size={16} color={palette.primary} />
+            <Text style={[type.labelSm, { color: palette.primary }]}>Undo</Text>
+          </Pressable>
         </View>
-        <SectionLabel>Quick add</SectionLabel>
-        {filteredPresets.map((preset) => (
-          <MealPresetRow key={preset.name} preset={preset} onPress={() => onAddPreset(preset)} />
-        ))}
-        <Card variant="featured">
-          <SectionLabel>Manual entry</SectionLabel>
-          <TextInput
-            value={mealName}
-            onChangeText={setMealName}
-            placeholder="Meal name"
-            placeholderTextColor={palette.onSurfaceVariant}
-            style={styles.input}
-          />
-          <TextInput
-            value={calories}
-            onChangeText={setCalories}
-            placeholder="Calories"
-            placeholderTextColor={palette.onSurfaceVariant}
-            keyboardType="numeric"
-            style={styles.input}
-          />
-          <View style={styles.typeRow}>
-            {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((mealType) => (
-              <Chip
-                key={mealType}
-                label={mealType}
-                selected={selectedType === mealType}
-                onPress={() => setSelectedType(mealType)}
-              />
-            ))}
-          </View>
-          <Pressable onPress={onAddManualMeal} style={styles.primaryButton}>
-            <Text style={[type.labelMd, { color: palette.onPrimary }]}>Log meal</Text>
-          </Pressable>
-        </Card>
-      </ActionSheet>
+      ) : null}
+    </View>
+  );
+}
 
-      <ActionSheet visible={plannerOpen} onClose={onClosePlanner} eyebrow="Weekly planner" title="Generate, swap, prep">
-        {mealPlan.length === 0 ? (
-          <Pressable onPress={onCreatePlan} style={styles.primaryButton}>
-            <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create weekly plan</Text>
-          </Pressable>
-        ) : selectedPlanMeal ? (
-          <PlanMealDetail
-            label={selectedPlanMeal.label}
-            slot={selectedPlanMeal.slot}
-            onBack={() => setSelectedPlanMeal(null)}
-          />
-        ) : activePlanDay && activePlannedDay ? (
-          <Card variant="featured">
-            <View style={styles.planDetailHeader}>
-              <View>
-                <SectionLabel>{activePlanDay.day}</SectionLabel>
-                <Text style={[type.titleLg, { color: palette.onSurface, marginTop: 2 }]}>Day preview</Text>
-              </View>
-              <Text style={[type.labelMd, { color: palette.primary }]}>
-                {sumPlanCalories(activePlannedDay)} cal
-              </Text>
-            </View>
-            <Pressable onPress={() => onDeleteActivePlanDay(activePlanDay.id)} style={styles.deletePlanButton} accessibilityRole="button">
-              <Icon name="trash" size={16} color={palette.error} />
-              <Text style={[type.labelSm, { color: palette.error }]}>Delete this day</Text>
-            </Pressable>
-            <View style={styles.mealSlotList}>
-              <PlanMealRow label="Breakfast" slot={activePlannedDay.breakfast} onPress={() => setSelectedPlanMeal({ label: 'Breakfast', slot: activePlannedDay.breakfast })} />
-              <PlanMealRow label="Lunch" slot={activePlannedDay.lunch} onPress={() => setSelectedPlanMeal({ label: 'Lunch', slot: activePlannedDay.lunch })} />
-              <PlanMealRow label="Dinner" slot={activePlannedDay.dinner} onPress={() => setSelectedPlanMeal({ label: 'Dinner', slot: activePlannedDay.dinner })} />
-              {activePlannedDay.snacks.map((snack, snackIndex) => {
-                const label = activePlannedDay.snacks.length > 1 ? `Snack ${snackIndex + 1}` : 'Snack';
-                return (
-                  <PlanMealRow
-                    key={`${snack.name}-${snackIndex}`}
-                    label={label}
-                    slot={snack}
-                    onPress={() => setSelectedPlanMeal({ label, slot: snack })}
-                  />
-                );
-              })}
-            </View>
-            <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.md }]}>
-              {activePlannedDay.prep}
+function TodayMode({ user, meals, target, totals, remainingCalories, profileStale, onDismissStale, onEditMeal, onDeleteMeal, onOpenSearch, onOpenCamera, onOpenBarcode, onOpenManual, onOpenProfile, onOpenRecipe, onLogRecipe }: {
+  user: ReturnType<typeof activeMealsUser>;
+  meals: MealLogRecord[];
+  target: ReturnType<typeof useMealsStore.getState>['users'][string]['targets'][string] | null;
+  totals: ReturnType<typeof calculateMealTotals>;
+  remainingCalories: number | null;
+  profileStale: boolean;
+  onDismissStale: () => void;
+  onEditMeal: (meal: MealLogRecord) => void;
+  onDeleteMeal: (meal: MealLogRecord) => void;
+  onOpenSearch: () => void;
+  onOpenCamera: () => void;
+  onOpenBarcode: () => void;
+  onOpenManual: () => void;
+  onOpenProfile: () => void;
+  onOpenRecipe: (recipeId: string) => void;
+  onLogRecipe: (recipeId: string) => void;
+}) {
+  return (
+    <>
+      <Card style={styles.nutritionCard}>
+        <CalorieRing consumed={totals.calories} target={target?.calories ?? null} />
+        <View style={styles.macroColumn}>
+          <Macro label="Protein" value={totals.proteinG} target={target?.proteinG ?? null} />
+          <Macro label="Carbs" value={totals.carbsG} target={target?.carbsG ?? null} />
+          <Macro label="Fat" value={totals.fatG} target={target?.fatG ?? null} />
+          <Pressable onPress={onOpenProfile} accessibilityRole="button">
+            <Text style={[type.bodySm, { color: palette.primary, marginTop: spacing.sm }]}>
+              {user?.profile ? `Based on ${user.profile.weightKg} kg  /  updated ${formatShortDate(user.profile.updatedAt)}` : 'Set your nutrition profile'}
             </Text>
-          </Card>
-        ) : null}
-      </ActionSheet>
+          </Pressable>
+        </View>
+      </Card>
+
+      {profileStale ? (
+        <View style={styles.reminder}>
+          <Pressable onPress={onOpenProfile} style={styles.reminderCopy} accessibilityRole="button">
+            <Icon name="trend" size={20} color={palette.secondary} />
+            <Text style={[type.bodySm, { color: palette.onSurface, flex: 1 }]}>Has your weight changed? Refresh your targets when it feels useful.</Text>
+          </Pressable>
+          <Pressable onPress={onDismissStale} style={styles.dismiss} accessibilityLabel="Dismiss weight reminder"><Icon name="close" size={16} color={palette.onSurfaceVariant} /></Pressable>
+        </View>
+      ) : null}
+
+      <SmartSuggestion user={user} target={target} remainingCalories={remainingCalories} meals={meals} onOpenRecipe={onOpenRecipe} onLogRecipe={onLogRecipe} />
+
+      <View style={styles.section}>
+        <Text style={[type.headlineMd, { color: palette.onSurface }]}>Log a meal</Text>
+        <View style={styles.actionsRow}>
+          <MealAction icon="search" label="Search" onPress={onOpenSearch} />
+          <MealAction icon="camera" label="Camera" onPress={onOpenCamera} />
+          <MealAction icon="barcode" label="Barcode" onPress={onOpenBarcode} />
+          <MealAction icon="edit" label="Manual entry" onPress={onOpenManual} />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={[type.headlineMd, { color: palette.onSurface }]}>Logged today</Text>
+          <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{meals.length} {meals.length === 1 ? 'meal' : 'meals'}</Text>
+        </View>
+        <View style={styles.cardList}>
+          {meals.map((meal) => (
+            <MealCard key={meal.id} title={meal.name} imageUri={meal.imageUri} nutrition={meal.nutrition} detail={`${titleCase(meal.mealType)}  /  ${formatTime(meal.consumedAt)}`} onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal)} />
+          ))}
+          {!meals.length ? <EmptyState title="Nothing logged yet" detail="Search the full food library, scan a meal, or add exactly what you know." /> : null}
+        </View>
+      </View>
     </>
   );
 }
 
-function Macro({ label, value, target, color }: { label: string; value: number; target: number; color: string }) {
+function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe, onLogRecipe }: { user: ReturnType<typeof activeMealsUser>; target: NonNullable<ReturnType<typeof activeMealsUser>>['targets'][string] | null; remainingCalories: number | null; meals: MealLogRecord[]; onOpenRecipe: (recipeId: string) => void; onLogRecipe: (recipeId: string) => void }) {
+  const recordFeedback = useMealsStore((state) => state.recordSuggestionFeedback);
+  const [rankedIds, setRankedIds] = useState<string[]>([]);
+  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const profile = user?.profile ?? null;
+  const recentRecipeIds = useMemo(() => user?.plans.flatMap((plan) => plan.entries.map((entry) => entry.recipeId).filter((id): id is string => !!id)).slice(-10) ?? [], [user?.plans]);
+  const recommendation = useMemo(() => profile && target && remainingCalories != null && remainingCalories >= 100
+    ? recommendForNow({ recipes: recipeCatalog, profile, target, meals, now: new Date(), recentRecipeIds })
+    : null, [meals, profile, recentRecipeIds, remainingCalories, target]);
+  const candidateKey = recommendation?.candidates.map((recipe) => recipe.id).join('|') ?? '';
+  useEffect(() => {
+    if (!recommendation || !target || !profile || remainingCalories == null) return;
+    let cancelled = false;
+    void rankDailySuggestionCandidates(recommendation.candidates, {
+      remainingCalories,
+      targetProteinG: target.proteinG,
+      loggedMealTypes: meals.map((meal) => meal.mealType),
+      recentRecipeIds,
+      maxPrepMinutes: profile.maxPrepMinutes,
+    }).then((ranked) => { if (!cancelled) setRankedIds(ranked.map((recipe) => recipe.id)); });
+    return () => { cancelled = true; };
+  }, [candidateKey, meals, profile, recentRecipeIds, recommendation, remainingCalories, target]);
+  if (!recommendation?.primary) return null;
+  const ranked = rankedIds.map((id) => recommendation.candidates.find((recipe) => recipe.id === id)).filter((recipe): recipe is (typeof recipeCatalog)[number] => !!recipe);
+  const primary = [...ranked, ...recommendation.candidates].find((recipe) => !dismissedIds.includes(recipe.id)) ?? null;
+  if (!primary) return null;
+  const suggested = [primary, ...(recommendation.snack && recommendation.snack.id !== primary.id && !dismissedIds.includes(recommendation.snack.id) ? [recommendation.snack] : [])];
+  const rationale = primary.id === recommendation.primary.id
+    ? recommendation.rationale
+    : `${primary.name} is the best verified fit after considering your recent choices, preparation time, and today's remaining nutrition.`;
   return (
-    <View style={{ marginTop: spacing.md }}>
-      <View style={styles.macroRow}>
-        <Text style={[type.labelMd, { color: palette.onSurface }]}>{label}</Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
-          {value}g / {target}g
-        </Text>
+    <View style={styles.suggestionBlock}>
+      <View style={styles.suggestion}>
+        <Icon name="sparkles" size={20} color={palette.tertiary} />
+        <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>For right now</SectionLabel><Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{rationale}</Text></View>
       </View>
-      <ProgressBar value={value} max={target || 1} color={color} style={{ marginTop: spacing.xs }} />
+      {suggested.map((recipe) => <View key={recipe.id} style={styles.suggestedRecipe}><MealCard title={recipe.name} imageUri={recipe.image.kind === 'exact' ? recipe.image.uri : undefined} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} /><View style={styles.suggestionActions}><Pressable onPress={() => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); }} style={styles.skipSuggestion} accessibilityRole="button" hitSlop={4}><Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>Not for me</Text></Pressable><Pressable onPress={() => { recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); }} style={styles.logSuggestion} accessibilityRole="button" hitSlop={4}><Text style={[type.labelSm, { color: palette.onPrimary }]}>Log meal</Text></Pressable></View></View>)}
     </View>
   );
 }
 
-function CalorieRing({ value, target }: { value: number; target: number }) {
-  const caloriesLeft = Math.max(0, target - value);
-  const percent = target > 0 ? Math.min(100, Math.round((value / target) * 100)) : 0;
-  return (
-    <View style={styles.calorieRing}>
-      <Text
-        style={[type.displaySm, { color: palette.onSurface, textAlign: 'center' }]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        {caloriesLeft}
-      </Text>
-      <Text style={[type.labelSm, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>cal left</Text>
-      <View style={styles.calorieMeter}>
-        <View style={[styles.calorieMeterFill, { width: `${percent}%` }]} />
-      </View>
-    </View>
-  );
-}
-
-function SmallAction({
-  icon,
-  label,
-  onPress,
-  accent = palette.primary,
-}: {
-  icon: ComponentProps<typeof Icon>['name'];
-  label: string;
-  onPress: () => void;
-  accent?: string;
+function PlanMode({ plan, selectedDate, dates, onSelectDate, onOpenRecipe, onCreatePlan, onEditEntry, onEditDay, onClearDay, onDeletePlan }: {
+  plan: MealPlan | null;
+  selectedDate: string;
+  dates: string[];
+  onSelectDate: (date: string) => void;
+  onOpenRecipe: (entry: MealPlanEntry) => void;
+  onCreatePlan: () => void;
+  onEditEntry: (entry: MealPlanEntry) => void;
+  onEditDay: () => void;
+  onClearDay: () => void;
+  onDeletePlan: () => void;
 }) {
+  const entries = plan?.entries.filter((entry) => entry.localDate === selectedDate) ?? [];
   return (
-    <Pressable onPress={onPress} style={styles.smallAction} accessibilityRole="button">
-      <Icon name={icon} size={17} color={accent} />
-      <Text style={[type.labelSm, { color: palette.onSurface }]} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-function MealCard({ meal, onDelete }: { meal: MealLog; onDelete: () => void }) {
-  const preset = mealPresets.find((item) => item.name === meal.name) ?? mealPresets[0];
-  return (
-    <Card padding="sm" radius="md" style={{ marginBottom: spacing.sm }}>
-      <View style={styles.mealCardRow}>
-        <MealThumb uri={preset.imageUrl} variant="logged" />
-        <View style={styles.mealTextStack}>
-          <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{meal.mealType}</Text>
-          <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]} numberOfLines={1}>{meal.name}</Text>
-          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]} numberOfLines={1}>
-            P {meal.proteinG}g / C {meal.carbsG}g / F {meal.fatG}g
-          </Text>
-          {meal.source ? (
-            <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{formatMealSource(meal.source)}</Text>
-          ) : null}
+    <>
+      <View style={styles.planHeader}>
+        <View style={{ flex: 1 }}>
+          <SectionLabel>Weekly planner</SectionLabel>
+          <Text style={[type.headlineMd, { color: palette.onSurface, marginTop: 2 }]}>{plan?.title ?? 'Build a week around you'}</Text>
         </View>
-        <Text style={[type.titleMd, { color: palette.onSurface, textAlign: 'right' }]} numberOfLines={1}>
-          {meal.calories} cal
-        </Text>
-        <Pressable onPress={onDelete} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={`Delete ${meal.name}`}>
-          <Icon name="trash" size={17} color={palette.error} />
-        </Pressable>
-      </View>
-    </Card>
-  );
-}
-
-function MealPresetRow({ preset, onPress }: { preset: MealPreset; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.presetRow} accessibilityRole="button">
-      <MealThumb uri={preset.imageUrl} variant="preset" />
-      <View style={styles.planMealText}>
-        <Text style={[type.titleMd, { color: palette.onSurface }]}>{preset.name}</Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-          Found: {preset.calories} cal, {preset.proteinG}g protein. Adjust if needed.
-        </Text>
-        <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{formatMealSource(preset.source)}</Text>
-      </View>
-      <Icon name="plus" size={18} color={palette.primary} />
-    </Pressable>
-  );
-}
-
-function MealSuggestionCard({ preset, onPress }: { preset: MealPreset; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={styles.suggestionMealCard} accessibilityRole="button">
-      <MealThumb uri={preset.imageUrl} variant="suggestion" />
-      <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>{preset.mealType}</Text>
-      <Text style={[type.titleMd, { color: palette.onSurface, marginTop: 2 }]} numberOfLines={2}>
-        {preset.name}
-      </Text>
-      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-        {preset.calories} cal / P {preset.proteinG}g
-      </Text>
-      <Text style={[type.labelSm, { color: palette.primary, marginTop: spacing.xs }]}>Tap to log</Text>
-    </Pressable>
-  );
-}
-
-function WeeklyPlanPreview({
-  days,
-  activeDay,
-  onSelectDay,
-  onOpenMeal,
-  onOpenDay,
-}: {
-  days: MealPlanDay[];
-  activeDay: MealPlanDay | null;
-  onSelectDay: (day: MealPlanDay) => void;
-  onOpenMeal: (label: string, slot: MealPlanSlot) => void;
-  onOpenDay: (day: MealPlanDay) => void;
-}) {
-  const selectedDay = activeDay ?? days[0];
-  const plannedDay = selectedDay ? normalizePlanDay(selectedDay) : null;
-  const slots = plannedDay ? [
-    { label: 'Breakfast', slot: plannedDay.breakfast },
-    { label: 'Lunch', slot: plannedDay.lunch },
-    { label: 'Dinner', slot: plannedDay.dinner },
-  ] : [];
-
-  if (!selectedDay || !plannedDay) return null;
-
-  return (
-    <View style={styles.weeklyPlanSurface}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.weekRail}>
-        {days.map((day) => {
-          const selected = day.id === selectedDay.id;
-          return (
-            <Pressable
-              key={day.id}
-              onPress={() => onSelectDay(day)}
-              style={[styles.weekDayButton, selected && styles.weekDayButtonActive]}
-              accessibilityRole="button"
-            >
-              <Text style={[type.labelSm, { color: selected ? palette.onPrimary : palette.onSurfaceVariant }]}>
-                {day.day.toUpperCase()}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-      <View style={styles.timelineList}>
-        {slots.map(({ label, slot }) => (
-          <PlanMealRow key={`${selectedDay.id}-${label}`} label={label} slot={slot} onPress={() => onOpenMeal(label, slot)} />
-        ))}
-      </View>
-      <View style={styles.planPreviewFooter}>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, flex: 1 }]} numberOfLines={2}>
-          {sumPlanCalories(plannedDay)} cal planned / {plannedDay.prep}
-        </Text>
-        <Pressable onPress={() => onOpenDay(selectedDay)} accessibilityRole="button">
-          <Text style={[type.labelMd, { color: palette.primary }]}>Edit day</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
-function PlanMealRow({
-  label,
-  slot,
-  compact = false,
-  onPress,
-}: {
-  label: string;
-  slot: MealPlanSlot;
-  compact?: boolean;
-  onPress?: () => void;
-}) {
-  const substitution = getSubstitutionHint(slot.name);
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.planMealRow, compact && styles.planMealRowCompact]}
-      accessibilityRole={onPress ? 'button' : undefined}
-    >
-      <MealThumb uri={slot.imageUrl} variant={compact ? 'planCompact' : 'plan'} />
-      <View style={styles.mealSlotLabel}>
-        <Text style={[type.labelSm, { color: palette.primary }]}>{label}</Text>
-      </View>
-      <View style={styles.planMealText}>
-        <Text style={[compact ? type.bodySm : type.titleMd, { color: palette.onSurface }]} numberOfLines={compact ? 1 : 2}>
-          {slot.name}
-        </Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]} numberOfLines={compact ? 1 : 2}>
-          {slot.calories} cal / P {slot.proteinG}g / {slot.prepTimeMinutes} min
-        </Text>
-        {!compact && substitution ? (
-          <Text style={[type.labelSm, { color: palette.secondary, marginTop: 2 }]} numberOfLines={1}>{substitution}</Text>
+        {plan ? (
+          <View style={styles.planHeaderActions}>
+            <Pressable onPress={onEditDay} style={styles.textButton} accessibilityLabel="Edit day"><Text style={[type.labelSm, { color: palette.primary }]}>Edit</Text></Pressable>
+            <Pressable onPress={onClearDay} style={styles.textButton} accessibilityLabel="Clear day"><Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>Clear</Text></Pressable>
+            <Pressable onPress={onDeletePlan} style={styles.iconAction} accessibilityLabel="Delete full plan"><Icon name="trash" size={17} color={palette.error} /></Pressable>
+          </View>
         ) : null}
       </View>
+
+      {plan ? (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip}>
+            {dates.map((date) => {
+              const active = date === selectedDate;
+              const parsed = new Date(`${date}T12:00:00`);
+              return (
+                <Pressable key={date} onPress={() => onSelectDate(date)} style={[styles.dateButton, active && styles.dateButtonActive]}>
+                  <Text style={[type.labelSm, { color: active ? palette.onPrimary : palette.onSurfaceVariant }]}>{parsed.toLocaleDateString(undefined, { weekday: 'short' })}</Text>
+                  <Text style={[type.titleMd, { color: active ? palette.onPrimary : palette.onSurface }]}>{parsed.getDate()}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <View style={styles.timeline}>
+            {entries.map((entry) => (
+              <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
+            ))}
+            {!entries.length ? <EmptyState title="This day is open" detail="Use Edit to add a meal, or leave the space for something spontaneous." /> : null}
+          </View>
+        </>
+      ) : (
+        <View style={styles.planEmpty}>
+          <Icon name="calendar" size={28} color={palette.primary} />
+          <Text style={[type.titleLg, { color: palette.onSurface }]}>A flexible plan, not a rigid template</Text>
+          <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>Meals are selected from validated recipes around your target, timing, and preferences. Every card opens a complete prep guide.</Text>
+          <Pressable onPress={onCreatePlan} style={styles.primaryButton}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Create my week</Text></Pressable>
+        </View>
+      )}
+    </>
+  );
+}
+
+function Macro({ label, value, target }: { label: string; value: number; target: number | null }) {
+  return (
+    <View style={styles.macroRow}>
+      <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{label}</Text>
+      <Text style={[type.titleMd, { color: palette.onSurface }]}>{Math.round(value)}{target == null ? 'g' : ` / ${target}g`}</Text>
+    </View>
+  );
+}
+
+function MealAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={styles.mealAction} accessibilityRole="button">
+      <Icon name={icon} size={20} color={palette.primary} />
+      <Text style={[type.labelSm, { color: palette.onSurface, textAlign: 'center' }]} numberOfLines={2}>{label}</Text>
     </Pressable>
   );
 }
 
-function PlanMealDetail({ label, slot, onBack }: { label: string; slot: MealPlanSlot; onBack: () => void }) {
-  const prepSteps = slot.prepSteps && slot.prepSteps.length > 0
-    ? slot.prepSteps
-    : ['Prepare the main protein or base first.', 'Plate with the planned sides and adjust seasoning.'];
-  const substitutions = Array.isArray(slot.substitutions) && slot.substitutions.length > 0
-    ? slot.substitutions
-    : [getSubstitutionHint(slot.name)].filter(Boolean);
-
+function EmptyState({ title, detail }: { title: string; detail: string }) {
   return (
-    <View style={styles.planMealDetail}>
-      <MealThumb uri={slot.imageUrl} variant="hero" />
-      <View style={styles.prepHeroActions}>
-        <Pressable onPress={onBack} style={styles.prepHeroButton} accessibilityRole="button">
-          <Icon name="close" size={18} color={palette.onSurface} />
-        </Pressable>
-      </View>
-      <SectionLabel>{label} prep</SectionLabel>
-      <Text style={[type.titleLg, { color: palette.onSurface, marginTop: 2 }]}>{slot.name}</Text>
-      <View style={styles.prepMetaRow}>
-        <Text style={[type.labelSm, { color: palette.primary }]}>{slot.prepTimeMinutes} min</Text>
-        <Text style={[type.labelSm, { color: palette.secondary }]}>{slot.difficulty}</Text>
-        <Text style={[type.labelSm, { color: palette.tertiary }]}>{slot.calories} kcal</Text>
-      </View>
-      <Card variant="recessed" style={styles.prepGuideBlock}>
-        <View style={styles.planDetailHeader}>
-          <Text style={[type.titleMd, { color: palette.onSurface }]}>Ingredients</Text>
-          <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{slot.servings} servings</Text>
-        </View>
-        {slot.ingredients.map((ingredient) => (
-          <View key={`${slot.recipeId}-${ingredient}`} style={styles.ingredientRow}>
-            <View style={styles.emptyCheckBox} />
-            <Text style={[type.bodySm, { color: palette.onSurface }]}>{ingredient}</Text>
-          </View>
-        ))}
-      </Card>
-      <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.md }]}>Instructions</Text>
-      <View style={styles.prepList}>
-        {prepSteps.map((step, index) => (
-          <View key={`${slot.name}-prep-${index}`} style={styles.prepStep}>
-            <Text style={[type.labelSm, { color: palette.primary }]}>{index + 1}</Text>
-            <Text style={[type.bodySm, { color: palette.onSurface, flex: 1 }]}>{step}</Text>
-          </View>
-        ))}
-      </View>
-      {substitutions.length > 0 ? (
-        <Text style={[type.labelSm, { color: palette.secondary, marginTop: spacing.sm }]}>
-          {substitutions.join(' / ')}
-        </Text>
-      ) : null}
-      <View style={styles.nutritionPillRow}>
-        <NutritionPill label="Protein" value={`${slot.proteinG}g`} color={palette.primary} />
-        <NutritionPill label="Carbs" value={`${slot.carbsG}g`} color={palette.secondary} />
-        <NutritionPill label="Fat" value={`${slot.fatG}g`} color={palette.tertiary} />
-      </View>
+    <View style={styles.empty}>
+      <Text style={[type.titleMd, { color: palette.onSurface }]}>{title}</Text>
+      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>{detail}</Text>
     </View>
   );
 }
 
-function NutritionPill({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={styles.nutritionPill}>
-      <Text style={[type.titleMd, { color }]}>{value}</Text>
-      <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{label}</Text>
-    </View>
-  );
+function confirmClearDay(plan: MealPlan, localDate: string, clear: (planId: string, date: string) => void) {
+  Alert.alert('Clear this day?', 'The rest of your weekly plan will stay intact.', [
+    { text: 'Keep', style: 'cancel' },
+    { text: 'Clear day', style: 'destructive', onPress: () => clear(plan.id, localDate) },
+  ]);
 }
 
-function MealThumb({
-  uri,
-  variant,
-}: {
-  uri: string | undefined;
-  variant: 'logged' | 'preset' | 'suggestion' | 'plan' | 'planCompact' | 'hero';
-}) {
-  const [failed, setFailed] = useState(false);
-  const imageStyle = mealImageStyle(variant);
-  const iconSize = variant === 'hero' ? 34 : 18;
-
-  if (!uri || failed) {
-    return (
-      <View style={[imageStyle, styles.imageFallback]}>
-        <Icon name="meals" size={iconSize} color={palette.primary} />
-      </View>
-    );
-  }
-
-  return <Image source={{ uri }} style={imageStyle} onError={() => setFailed(true)} />;
+function confirmDeletePlan(plan: MealPlan, remove: (planId: string) => void) {
+  Alert.alert('Delete full plan?', 'This removes every day in this plan. Your logged meals will not change.', [
+    { text: 'Keep', style: 'cancel' },
+    { text: 'Delete plan', style: 'destructive', onPress: () => remove(plan.id) },
+  ]);
 }
 
-function mealImageStyle(variant: 'logged' | 'preset' | 'suggestion' | 'plan' | 'planCompact' | 'hero') {
-  if (variant === 'hero') return styles.prepHeroImage;
-  if (variant === 'suggestion') return styles.suggestionMealImage;
-  if (variant === 'preset') return styles.presetImage;
-  if (variant === 'planCompact') return styles.planMealImageCompact;
-  if (variant === 'plan') return styles.planMealImage;
-  return styles.mealImage;
+function weekDates(weekOf: string) {
+  const start = new Date(`${weekOf}T12:00:00`);
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(start);
+    date.setDate(start.getDate() + index);
+    return localDateKey(date);
+  });
 }
 
-function getSubstitutionHint(mealName: string) {
-  const libraryMeal = getAllLibraryMeals().find((meal) => meal.name.toLowerCase() === mealName.toLowerCase());
-  if (!libraryMeal) return null;
-  const substitution = getSubstitutionsForMeal(libraryMeal.id)[0];
-  return substitution ? `Swap ${substitution.replace} for ${substitution.with}` : null;
-}
-
-function formatMealSource(source: MealPreset['source'] | MealLog['source'] | undefined) {
-  if (source === 'usda') return 'USDA nutrition';
-  if (source === 'open_food_facts') return 'Open Food Facts';
-  if (source === 'themealdb') return 'Recipe source';
-  if (source === 'manual') return 'Manual';
-  return 'Curated';
-}
-
-function sumPlanCalories(day: ReturnType<typeof normalizePlanDay>) {
-  return [day.breakfast, day.lunch, day.dinner, ...day.snacks].reduce((sum, slot) => sum + slot.calories, 0);
-}
-
-function normalizePlanDay(day: MealPlanDay) {
-  const legacyDay = day as unknown as {
-    breakfast?: string | MealPlanSlot;
-    lunch?: string | MealPlanSlot;
-    dinner?: string | MealPlanSlot;
-    snacks?: (string | Partial<MealPlanSlot>)[];
-    prep?: string;
-  };
-
-  return {
-    breakfast: normalizePlanSlot(legacyDay.breakfast, 'Breakfast'),
-    lunch: normalizePlanSlot(legacyDay.lunch, 'Lunch'),
-    dinner: normalizePlanSlot(legacyDay.dinner, 'Dinner'),
-    snacks: Array.isArray(legacyDay.snacks) && legacyDay.snacks.length > 0
-      ? legacyDay.snacks.map((snack, index) => normalizePlanSlot(snack, `Snack ${index + 1}`))
-      : [normalizePlanSlot(undefined, 'Goal-based snack')],
-    prep: legacyDay.prep ?? 'Prep the anchor ingredients first, then swap meals around appetite.',
-  };
-}
-
-function normalizePlanSlot(value: string | Partial<MealPlanSlot> | undefined, fallback: string): MealPlanSlot {
-  return coerceMealPlanSlot(value, fallback);
-}
+function formatShortDate(value: string) { return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+function formatTime(value: string) { return new Date(value).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
+function titleCase(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function currentTimezone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
-  content: { paddingHorizontal: spacing.md },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  headerAction: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.primary,
-  },
-  spaced: { marginTop: spacing.xl },
-  spacedSm: { marginTop: spacing.md },
-  targetHeader: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.md, alignItems: 'flex-start' },
-  targetDetails: { flex: 1, minWidth: 0 },
-  calorieRing: {
-    width: 104,
-    minHeight: 104,
-    borderRadius: 52,
-    borderWidth: 8,
-    borderColor: palette.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.sm,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  calorieMeter: {
-    width: 54,
-    height: 4,
-    borderRadius: radii.pill,
-    overflow: 'hidden',
-    backgroundColor: palette.surfaceContainerHighest,
-    marginTop: spacing.xs,
-  },
-  calorieMeterFill: {
-    height: '100%',
-    borderRadius: radii.pill,
-    backgroundColor: palette.primary,
-  },
-  goalStack: { flexBasis: '100%', flexDirection: 'row', gap: spacing.sm, minWidth: 0 },
-  goalButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  goalButtonActive: { backgroundColor: palette.primary },
-  macroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  logActions: { gap: spacing.sm },
-  searchTile: { flexBasis: '100%' },
-  secondaryActionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  smallAction: {
-    flex: 1,
-    minWidth: 96,
-    minHeight: 44,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHigh,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  suggestionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  suggestionCarousel: { gap: spacing.sm, paddingTop: spacing.md, paddingRight: spacing.md },
-  suggestionMealCard: {
-    width: 188,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHigh,
-    padding: spacing.sm,
-  },
-  suggestionMealImage: {
-    width: '100%',
-    height: 92,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHighest,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: spacing.sm,
-  },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-  },
-  searchInput: { flex: 1, color: palette.onSurface, paddingVertical: spacing.md },
-  input: {
-    color: palette.onSurface,
-    backgroundColor: palette.surfaceContainerHighest,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
-  },
-  typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  primaryButton: {
-    backgroundColor: palette.primary,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    marginTop: spacing.md,
-  },
-  mealCardRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  mealTextStack: { flex: 1, minWidth: 0 },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  mealImage: { width: 56, height: 56, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
-  imageFallback: { alignItems: 'center', justifyContent: 'center' },
-  presetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-  },
-  presetImage: { width: 58, height: 58, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
-  mealSlotList: { gap: spacing.sm, marginTop: spacing.sm },
-  weekRail: { gap: spacing.sm, paddingBottom: spacing.sm },
-  weeklyPlanSurface: { gap: spacing.sm },
-  weekDayButton: {
-    minWidth: 52,
-    height: 46,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHigh,
-    paddingHorizontal: spacing.sm,
-  },
-  weekDayButtonActive: { backgroundColor: palette.primary },
-  timelineList: { gap: spacing.sm },
-  planPreviewFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.md,
-  },
-  planDetailHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  deletePlanButton: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  planMealRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  planMealRowCompact: { padding: spacing.xs + 2 },
-  planMealImage: { width: 56, height: 56, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
-  planMealImageCompact: { width: 40, height: 40, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHighest },
-  mealSlotLabel: { width: 72 },
-  planMealText: { flex: 1, minWidth: 0 },
-  planMealDetail: {
-    borderRadius: radii.md,
-    gap: spacing.sm,
-  },
-  prepHeroImage: {
-    width: '100%',
-    height: 210,
-    borderRadius: radii.lg,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  prepHeroActions: {
-    position: 'absolute',
-    top: spacing.sm,
-    left: spacing.sm,
-  },
-  prepHeroButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHighest,
-  },
-  prepMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  prepGuideBlock: { marginTop: spacing.sm },
-  ingredientRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
-  emptyCheckBox: {
-    width: 18,
-    height: 18,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: palette.outline,
-  },
-  prepList: { gap: spacing.sm, marginTop: spacing.sm },
-  prepStep: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  nutritionPillRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  nutritionPill: {
-    flex: 1,
-    minHeight: 74,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  planActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
+  content: { paddingHorizontal: spacing.md, gap: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerCopy: { flex: 1, minWidth: 0 },
+  primaryIconButton: { width: 44, height: 44, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
+  nutritionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  macroColumn: { flex: 1, minWidth: 0, gap: spacing.sm },
+  macroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.sm },
+  reminder: { flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.sm },
+  reminderCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dismiss: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  suggestion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, padding: spacing.md },
+  suggestionBlock: { gap: spacing.sm },
+  suggestedRecipe: { gap: spacing.xs },
+  suggestionActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.sm },
+  skipSuggestion: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  logSuggestion: { minHeight: 46, alignSelf: 'flex-end', alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary, borderRadius: radii.sm, paddingHorizontal: spacing.md },
+  section: { gap: spacing.sm },
+  sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  actionsRow: { flexDirection: 'row', gap: spacing.sm },
+  mealAction: { flex: 1, minWidth: 0, height: 68, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm },
+  cardList: { gap: spacing.sm },
+  empty: { backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.md },
+  undo: { position: 'absolute', left: spacing.md, right: spacing.md, minHeight: 48, flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surfaceBright, borderRadius: radii.sm, paddingHorizontal: spacing.md },
+  undoText: { color: palette.onSurface, flex: 1 },
+  undoButton: { height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm },
+  planHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: spacing.sm },
+  planHeaderActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.xs },
+  textButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm },
+  iconAction: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  dateStrip: { gap: spacing.sm, paddingRight: spacing.md },
+  dateButton: { width: 54, height: 60, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm },
+  dateButtonActive: { backgroundColor: palette.primary },
+  timeline: { gap: spacing.sm },
+  planEmpty: { minHeight: 300, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
+  primaryButton: { minHeight: 48, minWidth: 180, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: palette.primary, paddingHorizontal: spacing.lg },
 });

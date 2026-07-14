@@ -148,6 +148,19 @@ test('food search results reject AI nutrition without a provider record id', () 
   assert.equal(parsed.success, false);
 });
 
+test('food search results reject negative nutrition values', () => {
+  const parsed = foodSearchResultSchema.safeParse({
+    id: 'bad_result',
+    name: 'Impossible meal',
+    source: 'usda',
+    providerId: 'usda:bad',
+    servings: [],
+    nutrition: { calories: -1, proteinG: null, carbsG: null, fatG: null },
+  });
+
+  assert.equal(parsed.success, false);
+});
+
 test('interpreted food queries reject AI nutrition without a provider record id', () => {
   const parsed = interpretedFoodQuerySchema.safeParse({
     rawQuery: 'a bowl of yogurt with berries',

@@ -5,12 +5,15 @@ export const DEFAULT_PILOT_QUOTAS: Readonly<Record<MealAIJobType, number>> = {
   suggestion_ranking: 12,
   meal_vision: 3,
   plan_generation: 2,
-  recipe_generation: 8,
-  recipe_image: 2,
+  recipe_generation: 5,
+  recipe_image: 5,
 };
+
+const WEEKLY_FEATURES = new Set<MealAIJobType>(['plan_generation', 'recipe_generation', 'recipe_image']);
 
 export interface PilotQuotaStore {
   getDailyUsage(userId: string, feature: MealAIJobType): Promise<number>;
+  getWeeklyUsage?(userId: string, feature: MealAIJobType): Promise<number>;
 }
 
 export interface PilotQuotaDecision {
@@ -33,7 +36,8 @@ export class PilotQuotaGuard {
 
   async check(userId: string, feature: MealAIJobType): Promise<PilotQuotaDecision> {
     const limit = Math.max(0, Math.floor(this.limits[feature] ?? 0));
-    const used = Math.max(0, Math.floor(await this.store.getDailyUsage(userId, feature)));
+    const weekly = WEEKLY_FEATURES.has(feature) && this.store.getWeeklyUsage;
+    const used = Math.max(0, Math.floor(weekly ? await this.store.getWeeklyUsage!(userId, feature) : await this.store.getDailyUsage(userId, feature)));
     return {
       allowed: used < limit,
       limit,

@@ -39,6 +39,7 @@ const monthlyBudget = Number(env.MEALS_AI_MONTHLY_BUDGET_USD ?? 25);
 const handler = createMealsApiHandler({
   authenticate: runtime.authenticate,
   foodProviders: [
+    runtime.communityFoodProvider,
     new OpenFoodFactsProvider(),
     new UsdaFoodProvider({ apiKey: env.USDA_API_KEY }),
     new DisabledCommercialFoodProvider(),
@@ -51,6 +52,7 @@ const handler = createMealsApiHandler({
   }),
   telemetry: runtime.telemetry,
   submissionStore: runtime.submissionStore,
+  queryCache: runtime.queryCache,
 });
 
 export default { fetch: handler };

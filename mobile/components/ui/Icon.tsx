@@ -37,7 +37,11 @@ export type IconName =
   | 'trend'
   | 'water'
   | 'book'
-  | 'trash';
+  | 'trash'
+  | 'back'
+  | 'edit'
+  | 'undo'
+  | 'heart';
 
 export type IconProps = {
   name: IconName;
@@ -250,6 +254,18 @@ const paths: Record<IconName, () => React.ReactNode> = {
       strokeLinecap="round"
       strokeLinejoin="round"
     />
+  ),
+  back: () => (
+    <Path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  edit: () => (
+    <Path d="M5 19l1-4L16 5l3 3L9 18l-4 1zM14 7l3 3" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  undo: () => (
+    <Path d="M9 7L4 12l5 5M5 12h8a6 6 0 0 1 6 6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  ),
+  heart: () => (
+    <Path d="M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.8-7 10-7 10z" stroke="currentColor" strokeWidth={2} fill="none" strokeLinejoin="round" />
   ),
 };
 

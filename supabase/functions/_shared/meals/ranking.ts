@@ -1,8 +1,9 @@
 import type { FoodSearchResult } from './types.ts';
 
 const PROVIDER_WEIGHT: Record<string, number> = {
-  usda: 30,
-  open_food_facts: 20,
+  open_food_facts: 40,
+  community: 30,
+  usda: 20,
   commercial: 0,
 };
 

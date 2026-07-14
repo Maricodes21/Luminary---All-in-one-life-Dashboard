@@ -19,7 +19,7 @@ export type MealAIJobType =
   | 'recipe_generation'
   | 'recipe_image';
 
-export type FoodProviderId = 'open_food_facts' | 'usda' | 'commercial';
+export type FoodProviderId = 'open_food_facts' | 'usda' | 'community' | 'commercial';
 
 export interface FoodServing {
   label?: string;
@@ -58,6 +58,11 @@ export interface FoodSearchProvider {
 export interface QueryInterpretation {
   normalizedTerms: string[];
   providerIds: string[];
+}
+
+export interface QueryInterpretationCache {
+  get(locale: string, queryHash: string): Promise<QueryInterpretation | null>;
+  set(locale: string, queryHash: string, interpretation: QueryInterpretation): Promise<void>;
 }
 
 export interface MealAIProvider {

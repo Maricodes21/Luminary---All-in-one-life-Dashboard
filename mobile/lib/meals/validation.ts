@@ -8,10 +8,10 @@ export const mealTypeSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
 export const mealSourceSchema = z.enum(['manual', 'curated', 'usda', 'open_food_facts', 'community', 'commercial', 'ai_vision']);
 
 export const nutritionValuesSchema = z.object({
-  calories: z.number(),
-  proteinG: z.number().nullable(),
-  carbsG: z.number().nullable(),
-  fatG: z.number().nullable(),
+  calories: z.number().finite().nonnegative(),
+  proteinG: z.number().finite().nonnegative().nullable(),
+  carbsG: z.number().finite().nonnegative().nullable(),
+  fatG: z.number().finite().nonnegative().nullable(),
 });
 
 export const mealLogRecordSchema = z.object({
@@ -70,12 +70,14 @@ export const recipeIngredientSchema = z.object({
   quantity: z.number().nullable().optional(),
   unit: z.string().nullable().optional(),
   note: z.string().optional(),
+  imageUri: z.string().optional(),
 });
 
 export const recipeStepSchema = z.object({
   id: z.string(),
   text: z.string(),
   durationMinutes: z.number().nullable().optional(),
+  cue: z.string().optional(),
 });
 
 export const recipeSchema = z.object({
@@ -91,6 +93,8 @@ export const recipeSchema = z.object({
   steps: z.array(recipeStepSchema).default([]),
   substitutions: z.array(z.string()).default([]),
   dietaryTags: z.array(z.string()).default([]),
+  prepMinutes: z.number().nonnegative().optional(),
+  cookMinutes: z.number().nonnegative().optional(),
 });
 
 export const mealPlanEntrySchema = z.object({
@@ -105,6 +109,8 @@ export const mealPlanEntrySchema = z.object({
   providerId: z.string().optional(),
   nutrition: nutritionValuesSchema.nullable().optional(),
   note: z.string().optional(),
+  imageUri: z.string().optional(),
+  recipeSnapshot: recipeSchema.optional(),
 });
 
 export const dailySuggestionSchema = z.object({

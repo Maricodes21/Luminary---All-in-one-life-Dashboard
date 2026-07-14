@@ -31,6 +31,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { palette } from '@luminary/design-system';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useMealsBootstrap } from '@/hooks/useMealsBootstrap';
+import { useMealsStore } from '@/stores/useMealsStore';
+import { clearMealPhotoCache } from '@/lib/meals/photos';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -66,6 +69,7 @@ export default function RootLayout() {
   } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
+  useMealsBootstrap();
 
   useEffect(() => {
     const timeout = setTimeout(() => setFontWaitExpired(true), 3000);
@@ -94,6 +98,8 @@ export default function RootLayout() {
       if (cancelled) return;
 
       if (!nextSession?.user) {
+        useMealsStore.getState().clearPrivateCache();
+        void clearMealPhotoCache().catch(() => {});
         setSession(null);
         setOnboardingComplete(false);
         setDisplayName(null);
@@ -111,6 +117,7 @@ export default function RootLayout() {
       }
 
       if (!cancelled) {
+        useMealsStore.getState().setActiveUser(nextSession.user.id);
         setSession(nextSession);
         setOnboardingComplete(profile?.onboarding_complete ?? false);
         setDisplayName(profile?.display_name ?? null);
@@ -154,6 +161,7 @@ export default function RootLayout() {
     const inOnboarding = segments[0] === 'onboarding';
     const inRitual = segments[0] === 'ritual';
     const inSettings = segments[0] === 'settings';
+    const inMeals = segments[0] === 'meals';
 
     if (!session) {
       if (!inOnboarding) router.replace('/onboarding/welcome');
@@ -166,7 +174,7 @@ export default function RootLayout() {
     }
 
     // Allow authenticated users in tabs or the ritual modal — don't redirect either.
-    if (!inTabs && !inRitual && !inSettings) {
+    if (!inTabs && !inRitual && !inSettings && !inMeals) {
       router.replace('/(tabs)');
     }
   }, [hydrated, appReady, segments, router, session, onboardingComplete]);
@@ -191,6 +199,7 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
             />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="+not-found" />
           </Stack>
