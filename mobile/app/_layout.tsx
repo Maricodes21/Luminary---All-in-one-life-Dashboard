@@ -3,7 +3,7 @@
  *
  * Auth routing logic:
  *   no session              → /onboarding/welcome
- *   session + incomplete    → /onboarding/welcome  (resume from start)
+ *   session + incomplete    → last persisted onboarding step
  *   session + complete      → /(tabs)
  *
  * The gate runs once hydration is complete (supabase session restored from
@@ -34,6 +34,9 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useMealsBootstrap } from '@/hooks/useMealsBootstrap';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { clearMealPhotoCache } from '@/lib/meals/photos';
+import { loadCachedOnboardingStatus, saveCachedOnboardingStatus } from '@/lib/authProfileCache';
+import { resolveProfileRestore, routeForAuthState } from '@/lib/authRouting';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -60,13 +63,15 @@ export default function RootLayout() {
 
   const {
     session,
-    onboardingComplete,
-    setSession,
-    setDisplayName,
-    setOnboardingComplete,
+    onboardingStatus,
+    authResolving,
+    beginSessionResolution,
+    setAuthSnapshot,
     setHydrated,
     hydrated,
   } = useAuthStore();
+  const onboardingStoreHydrated = useOnboardingStore((state) => state.hasHydrated);
+  const onboardingResumeStep = useOnboardingStore((state) => state.currentStep);
   const router = useRouter();
   const segments = useSegments();
   useMealsBootstrap();
@@ -87,24 +92,29 @@ export default function RootLayout() {
   // Subscribe to Supabase auth state and mirror into the store.
   useEffect(() => {
     let cancelled = false;
+    let resolutionVersion = 0;
     const hydrationTimeout = setTimeout(() => {
       if (!cancelled) {
         console.warn('[auth] Session restore timed out; continuing without a restored session.');
+        const current = useAuthStore.getState();
+        if (current.authResolving) setAuthSnapshot(current.session, 'unknown', current.displayName);
         setHydrated(true);
       }
     }, 5000);
 
     async function syncSessionProfile(nextSession: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) {
       if (cancelled) return;
+      const currentResolution = ++resolutionVersion;
+      beginSessionResolution(nextSession);
 
       if (!nextSession?.user) {
         useMealsStore.getState().clearPrivateCache();
         void clearMealPhotoCache().catch(() => {});
-        setSession(null);
-        setOnboardingComplete(false);
-        setDisplayName(null);
+        setAuthSnapshot(null, 'incomplete', null);
         return;
       }
+
+      const cachedStatus = await loadCachedOnboardingStatus(nextSession.user.id).catch(() => null);
 
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -116,11 +126,17 @@ export default function RootLayout() {
         console.warn('[auth] Profile restore failed', error.message);
       }
 
-      if (!cancelled) {
+      if (!cancelled && currentResolution === resolutionVersion) {
+        const restoredStatus = resolveProfileRestore({
+          remoteComplete: typeof profile?.onboarding_complete === 'boolean' ? profile.onboarding_complete : null,
+          profileError: !!error,
+          cachedStatus,
+        });
         useMealsStore.getState().setActiveUser(nextSession.user.id);
-        setSession(nextSession);
-        setOnboardingComplete(profile?.onboarding_complete ?? false);
-        setDisplayName(profile?.display_name ?? null);
+        setAuthSnapshot(nextSession, restoredStatus, profile?.display_name ?? null);
+        if (restoredStatus !== 'unknown') {
+          void saveCachedOnboardingStatus(nextSession.user.id, restoredStatus).catch(() => {});
+        }
       }
     }
 
@@ -132,6 +148,7 @@ export default function RootLayout() {
       })
       .catch((error) => {
         console.warn('[auth] Session restore failed', error);
+        setAuthSnapshot(null, 'unknown', null);
       })
       .finally(() => {
         if (!cancelled) {
@@ -149,38 +166,27 @@ export default function RootLayout() {
       clearTimeout(hydrationTimeout);
       listener.subscription.unsubscribe();
     };
-  }, [setSession, setDisplayName, setOnboardingComplete, setHydrated]);
+  }, [beginSessionResolution, setAuthSnapshot, setHydrated]);
 
   // Route guard — runs after hydration and font load.
   useEffect(() => {
-    if (!hydrated || !appReady) return;
+    if (!hydrated || !appReady || !onboardingStoreHydrated || authResolving) return;
 
     SplashScreen.hideAsync().catch(() => {});
 
-    const inTabs = segments[0] === '(tabs)';
-    const inOnboarding = segments[0] === 'onboarding';
-    const inRitual = segments[0] === 'ritual';
-    const inSettings = segments[0] === 'settings';
-    const inMeals = segments[0] === 'meals';
+    const destination = routeForAuthState({
+      hasSession: !!session,
+      onboardingStatus,
+      firstSegment: segments[0],
+      resumeStep: onboardingResumeStep,
+    });
 
-    if (!session) {
-      if (!inOnboarding) router.replace('/onboarding/welcome');
-      return;
-    }
+    if (destination) router.replace(destination);
 
-    if (!onboardingComplete) {
-      if (!inOnboarding) router.replace('/onboarding/welcome');
-      return;
-    }
-
-    // Allow authenticated users in tabs or the ritual modal — don't redirect either.
-    if (!inTabs && !inRitual && !inSettings && !inMeals) {
-      router.replace('/(tabs)');
-    }
-  }, [hydrated, appReady, segments, router, session, onboardingComplete]);
+  }, [hydrated, appReady, onboardingStoreHydrated, authResolving, segments, router, session, onboardingStatus, onboardingResumeStep]);
 
   // Hold render until fonts + hydration are both done to avoid flash.
-  if (!appReady || !hydrated) return null;
+  if (!appReady || !hydrated || !onboardingStoreHydrated) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.surface }}>
@@ -200,6 +206,7 @@ export default function RootLayout() {
             />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="spotify-callback" options={{ animation: 'fade' }} />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="+not-found" />
           </Stack>

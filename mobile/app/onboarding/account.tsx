@@ -63,7 +63,6 @@ export default function AccountScreen() {
       setError(authError.message);
       return;
     }
-    router.replace('/(tabs)');
   }
 
   return (
