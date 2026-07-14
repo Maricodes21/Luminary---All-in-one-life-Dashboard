@@ -13,7 +13,7 @@
 -- ────────────────────────────────────────────────────────────────────────────
 
 create table public.friend_cards (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   card_date date not null default current_date,
   body text not null,
@@ -35,7 +35,7 @@ create policy "friend_cards are self-scoped" on public.friend_cards
 create type budget_category as enum ('Needs', 'Wants', 'Savings', 'Emergencies');
 
 create table public.budget_transactions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   amount numeric not null,
   category budget_category not null,
@@ -51,7 +51,7 @@ create policy "budget_transactions are self-scoped" on public.budget_transaction
 
 
 create table public.budget_goals (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   name text not null,
   target_amount numeric not null,
@@ -65,7 +65,7 @@ create policy "budget_goals are self-scoped" on public.budget_goals
 
 
 create table public.budget_bills (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   name text not null,
   amount numeric not null,
@@ -83,7 +83,7 @@ create policy "budget_bills are self-scoped" on public.budget_bills
 -- ────────────────────────────────────────────────────────────────────────────
 
 create table public.health_workouts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   workout_date date not null default current_date,
   workout_type text not null check (workout_type in ('gym', 'home')),
@@ -103,7 +103,7 @@ create policy "health_workouts are self-scoped" on public.health_workouts
 -- ────────────────────────────────────────────────────────────────────────────
 
 create table public.meals (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   meal_date date not null default current_date,
   name text not null,

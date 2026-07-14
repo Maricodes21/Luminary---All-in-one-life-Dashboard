@@ -1,0 +1,115 @@
+{
+  "version": "nutrition5k-overhead-v1",
+  "source": {
+    "name": "Nutrition5k",
+    "url": "https://github.com/google-research-datasets/Nutrition5k",
+    "license": "CC BY 4.0"
+  },
+  "promptVersion": "meal-vision-v1",
+  "models": [
+    { "role": "baseline", "id": "gemma4:31b-cloud", "usageTier": "medium" },
+    { "role": "challenger", "id": "qwen3.5:cloud", "usageTier": "medium" }
+  ],
+  "samples": [
+    {
+      "id": "dish_1560455030",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1560455030/rgb.png",
+      "expected": ["cherry tomatoes", "cucumber", "baby carrots"]
+    },
+    {
+      "id": "dish_1559844951",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1559844951/rgb.png",
+      "expected": ["almonds", "roasted potatoes"]
+    },
+    {
+      "id": "dish_1561739238",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1561739238/rgb.png",
+      "expected": ["egg whites", "hash browns", "berries", "sweet potato"]
+    },
+    {
+      "id": "dish_1562691032",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1562691032/rgb.png",
+      "expected": ["berries", "pineapple", "scrambled eggs", "roasted potatoes", "broccoli"]
+    },
+    {
+      "id": "dish_1563822597",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1563822597/rgb.png",
+      "expected": ["broccoli", "caesar salad", "squash", "zucchini"]
+    },
+    {
+      "id": "dish_1565119669",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1565119669/rgb.png",
+      "expected": ["mixed greens", "zucchini", "squash"]
+    },
+    {
+      "id": "dish_1558724031",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1558724031/rgb.png",
+      "expected": ["cherry tomatoes", "cantaloupe", "almonds", "cauliflower"]
+    },
+    {
+      "id": "dish_1565033110",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1565033110/rgb.png",
+      "expected": ["broccoli", "mixed greens"]
+    },
+    {
+      "id": "dish_1558720236",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1558720236/rgb.png",
+      "expected": ["apple", "carrot", "cauliflower", "almonds"]
+    },
+    {
+      "id": "dish_1563468269",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1563468269/rgb.png",
+      "expected": ["berries", "watermelon", "pineapple"]
+    },
+    {
+      "id": "dish_1558380557",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1558380557/rgb.png",
+      "expected": ["grapes", "almonds", "sausage"]
+    },
+    {
+      "id": "dish_1558724959",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1558724959/rgb.png",
+      "expected": ["brussels sprouts", "carrot", "almonds", "apple"]
+    },
+    {
+      "id": "dish_1559751801",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1559751801/rgb.png",
+      "expected": ["berries", "sweet potato", "eggs", "sausage"]
+    },
+    {
+      "id": "dish_1565383026",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1565383026/rgb.png",
+      "expected": ["spinach", "cucumber", "olives"]
+    },
+    {
+      "id": "dish_1566849923",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1566849923/rgb.png",
+      "expected": ["cherry tomatoes", "carrot"]
+    },
+    {
+      "id": "dish_1563824339",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1563824339/rgb.png",
+      "expected": ["onions", "cherry tomatoes", "olives", "bell pepper"]
+    },
+    {
+      "id": "dish_1559844506",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1559844506/rgb.png",
+      "expected": ["mandarin oranges", "grapes", "strawberries"]
+    },
+    {
+      "id": "dish_1560360055",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1560360055/rgb.png",
+      "expected": ["sausage", "scrambled eggs"]
+    },
+    {
+      "id": "dish_1566849327",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1566849327/rgb.png",
+      "expected": ["parmesan cheese", "mixed greens", "avocado", "olives", "chicken"]
+    },
+    {
+      "id": "dish_1558546663",
+      "imageUrl": "https://storage.googleapis.com/nutrition5k_dataset/nutrition5k_dataset/imagery/realsense_overhead/dish_1558546663/rgb.png",
+      "expected": ["spinach", "almonds", "apple"]
+    }
+  ]
+}

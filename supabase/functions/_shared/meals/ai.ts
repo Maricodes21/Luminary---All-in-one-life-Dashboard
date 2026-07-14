@@ -1,5 +1,6 @@
 import { sanitizeQueryInterpretation } from './query.ts';
 import type { MealAIProvider, MealsAction, QueryInterpretation } from './types.ts';
+import { buildMealVisionPrompt } from './vision.ts';
 
 export const DEFAULT_MEAL_AI_MODEL = 'gemma4:31b-cloud';
 export const LOCAL_MEAL_AI_MODEL = 'gemma4:12b';
@@ -139,12 +140,16 @@ export class OllamaMealAIProvider implements MealAIProvider {
 
   async run(action: MealsAction, input: Record<string, unknown>): Promise<unknown> {
     const image = typeof input.imageBase64 === 'string' ? [input.imageBase64] : undefined;
-    const prompt = [
-      `Complete the meals action ${JSON.stringify(action)} using only supplied catalog facts.`,
-      'Return JSON. Never invent nutrition, calories, macros, brands, or barcodes.',
-      'Prefer existing recipe or provider IDs whenever they are supplied.',
-      `Input: ${JSON.stringify(input)}`,
-    ].join('\n');
+    const { imageBase64: _imageBase64, ...promptInput } = input;
+    const prompt =
+      action === 'analyze-meal-photo'
+        ? buildMealVisionPrompt(typeof input.locale === 'string' ? input.locale : 'en-ZA')
+        : [
+            `Complete the meals action ${JSON.stringify(action)} using only supplied catalog facts.`,
+            'Return JSON. Never invent nutrition, calories, macros, brands, or barcodes.',
+            'Prefer existing recipe or provider IDs whenever they are supplied.',
+            `Input: ${JSON.stringify(promptInput)}`,
+          ].join('\n');
     return stripInventedFacts(await this.chat(prompt, image));
   }
 }

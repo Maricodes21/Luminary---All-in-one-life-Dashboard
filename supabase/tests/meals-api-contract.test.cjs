@@ -267,6 +267,34 @@ test('Ollama action output strips factual nutrition fields in any naming style',
   });
 });
 
+test('meal vision sends image bytes once and uses the benchmarked ingredient schema', async () => {
+  const [, , , , { OllamaMealAIProvider, createMealAIConfig }] = await modules;
+  let requestBody;
+  const provider = new OllamaMealAIProvider({
+    config: createMealAIConfig({
+      MEALS_AI_MODE: 'local',
+      OLLAMA_LOCAL_URL: 'http://ollama.test',
+    }),
+    fetch: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return Response.json({ message: { content: '{"ingredients":["tomato"]}' } });
+    },
+  });
+
+  assert.deepEqual(
+    await provider.run('analyze-meal-photo', {
+      imageBase64: 'base64-image-payload',
+      mimeType: 'image/jpeg',
+      locale: 'en-ZA',
+    }),
+    { ingredients: ['tomato'] },
+  );
+  assert.deepEqual(requestBody.messages[0].images, ['base64-image-payload']);
+  assert.doesNotMatch(requestBody.messages[0].content, /base64-image-payload/);
+  assert.match(requestBody.messages[0].content, /"ingredients"/);
+  assert.match(requestBody.messages[0].content, /meal-vision-v1/);
+});
+
 test('enforces pilot quotas per user and feature', async () => {
   const [, , , , , { PilotQuotaGuard }] = await modules;
   const usage = new Map([
@@ -445,14 +473,21 @@ test('reuses locale-scoped AI query interpretations without another model call',
   let interpretationCalls = 0;
   const handler = createMealsApiHandler({
     authenticate: async () => ({ id: 'user-a' }),
-    foodProviders: [{
-      id: 'usda',
-      enabled: true,
-      search: async ({ query }) => [{
-        provider: 'usda', providerId: 'usda:42', name: query === 'bar' ? 'Snack bar' : 'Oat snack bar', serving: { calories: 180 },
-      }],
-      lookupBarcode: async () => [],
-    }],
+    foodProviders: [
+      {
+        id: 'usda',
+        enabled: true,
+        search: async ({ query }) => [
+          {
+            provider: 'usda',
+            providerId: 'usda:42',
+            name: query === 'bar' ? 'Snack bar' : 'Oat snack bar',
+            serving: { calories: 180 },
+          },
+        ],
+        lookupBarcode: async () => [],
+      },
+    ],
     aiProvider: {
       available: true,
       paid: false,
@@ -465,14 +500,17 @@ test('reuses locale-scoped AI query interpretations without another model call',
     },
     queryCache: {
       get: async (locale, queryHash) => cache.get(`${locale}:${queryHash}`) ?? null,
-      set: async (locale, queryHash, value) => { cache.set(`${locale}:${queryHash}`, value); },
+      set: async (locale, queryHash, value) => {
+        cache.set(`${locale}:${queryHash}`, value);
+      },
     },
   });
-  const request = () => new Request('https://example.test/meals-api', {
-    method: 'POST',
-    headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
-    body: JSON.stringify({ action: 'search-foods', input: { query: 'bar', locale: 'en-ZA' } }),
-  });
+  const request = () =>
+    new Request('https://example.test/meals-api', {
+      method: 'POST',
+      headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'search-foods', input: { query: 'bar', locale: 'en-ZA' } }),
+    });
 
   const first = await (await handler(request())).json();
   const second = await (await handler(request())).json();
@@ -486,23 +524,35 @@ test('an invalid client locale cannot crash ambiguous food search', async () => 
   const [, , , , , , , { createMealsApiHandler }] = await modules;
   const handler = createMealsApiHandler({
     authenticate: async () => ({ id: 'user-a' }),
-    foodProviders: [{
-      id: 'usda', enabled: true,
-      search: async () => [{ provider: 'usda', providerId: 'usda:1', name: 'Snack bar', serving: { calories: 100 } }],
-      lookupBarcode: async () => [],
-    }],
+    foodProviders: [
+      {
+        id: 'usda',
+        enabled: true,
+        search: async () => [
+          { provider: 'usda', providerId: 'usda:1', name: 'Snack bar', serving: { calories: 100 } },
+        ],
+        lookupBarcode: async () => [],
+      },
+    ],
     aiProvider: {
-      available: true, paid: false, model: 'test',
+      available: true,
+      paid: false,
+      model: 'test',
       interpretQuery: async () => ({ normalizedTerms: [], providerIds: [] }),
       run: async () => ({}),
     },
   });
 
-  const response = await handler(new Request('https://example.test/meals-api', {
-    method: 'POST',
-    headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
-    body: JSON.stringify({ action: 'search-foods', input: { query: 'bar', locale: 'not_a_locale' } }),
-  }));
+  const response = await handler(
+    new Request('https://example.test/meals-api', {
+      method: 'POST',
+      headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        action: 'search-foods',
+        input: { query: 'bar', locale: 'not_a_locale' },
+      }),
+    }),
+  );
 
   assert.equal(response.status, 200);
 });
@@ -691,7 +741,10 @@ test('persists only hashed query interpretations in the service-only cache', asy
     },
   );
 
-  await services.queryCache.set('en-ZA', 'abc123', { normalizedTerms: ['rolled oats'], providerIds: ['usda:1'] });
+  await services.queryCache.set('en-ZA', 'abc123', {
+    normalizedTerms: ['rolled oats'],
+    providerIds: ['usda:1'],
+  });
   const cached = await services.queryCache.get('en-ZA', 'abc123');
 
   assert.deepEqual(cached, { normalizedTerms: ['rolled oats'], providerIds: ['usda:1'] });

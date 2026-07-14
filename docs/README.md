@@ -6,6 +6,10 @@ Reference assets, historical originals, mockups, and living implementation plans
 
 - `design-touchup-implementation-plan.md` - active plan for `codex/design-touchup`.
 
+## Benchmarks
+
+- `benchmarks/meal-vision-2026-07-14.md` - Gemma/Qwen meal-photo evaluation and routing decision.
+
 ## Current Documentation
 
 The canonical living docs live at the repo root:
@@ -30,15 +34,15 @@ The handover materials Mari delivered to kick off the project. Treat these as re
 
 PNG screenshots and Stitch HTML exports for the original major surfaces.
 
-| File | Surface |
-|---|---|
-| `_overview.png` | Stitch project overview thumbnail |
-| `home_dashboard.png/html` | Home tab |
-| `guided_journal.png/html` | Mood check-in screen |
-| `journal_full.png/html` | Journal entries list with mood trend chart |
-| `physical_health.png/html` | Health tab |
-| `meal_planner.png/html` | Meals tab |
-| `budget_tracker.png/html` | Money tab |
+| File                       | Surface                                    |
+| -------------------------- | ------------------------------------------ |
+| `_overview.png`            | Stitch project overview thumbnail          |
+| `home_dashboard.png/html`  | Home tab                                   |
+| `guided_journal.png/html`  | Mood check-in screen                       |
+| `journal_full.png/html`    | Journal entries list with mood trend chart |
+| `physical_health.png/html` | Health tab                                 |
+| `meal_planner.png/html`    | Meals tab                                  |
+| `budget_tracker.png/html`  | Money tab                                  |
 
 When implementing a screen in `mobile/`, use this order:
 

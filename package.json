@@ -15,6 +15,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "supabase:start": "cd supabase && supabase start",
     "supabase:db:reset": "cd supabase && supabase db reset",
+    "test:meals:backend": "node --test supabase/tests/personalized-meals-schema.test.cjs supabase/tests/supabase-hardening-schema.test.cjs supabase/tests/supabase-role-privileges-schema.test.cjs supabase/tests/supabase-meals-performance-schema.test.cjs supabase/tests/meals-api-contract.test.cjs supabase/tests/meal-vision-benchmark.test.cjs",
+    "benchmark:meal-vision": "node supabase/benchmarks/meal-vision/run.cjs",
     "mobile:android:open": "npm run android:open --workspace=mobile",
     "mobile:clear": "npm run start:clear --workspace=mobile"
   },

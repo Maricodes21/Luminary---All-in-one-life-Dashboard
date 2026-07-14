@@ -25,7 +25,7 @@ alter table public.health_workouts
   check (workout_type in ('calisthenics', 'cardio', 'cycling', 'gym'));
 
 create table if not exists public.health_metrics (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   metric_date date not null default current_date,
   source text not null default 'manual'
@@ -44,7 +44,7 @@ create policy "health_metrics are self-scoped" on public.health_metrics
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.workout_plans (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   week_of date not null default current_date,
   category text not null check (category in ('calisthenics', 'cardio', 'cycling', 'gym')),
@@ -59,7 +59,7 @@ create policy "workout_plans are self-scoped" on public.workout_plans
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.meal_plans (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   week_of date not null default current_date,
   calorie_target int not null,
@@ -76,7 +76,7 @@ create policy "meal_plans are self-scoped" on public.meal_plans
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.expense_notification_prompts (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   merchant text,
   amount numeric,
@@ -94,7 +94,7 @@ create policy "expense_notification_prompts are self-scoped" on public.expense_n
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.transaction_imports (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   source text not null check (source in ('csv', 'bank_link')),
   status text not null default 'pending' check (status in ('pending', 'processed', 'failed')),
@@ -107,7 +107,7 @@ create policy "transaction_imports are self-scoped" on public.transaction_import
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 create table if not exists public.integration_consents (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   integration text not null check (integration in ('spotify', 'health_connect', 'bank_notifications', 'bank_link')),
   granted_at timestamptz not null default now(),

@@ -29,7 +29,7 @@ alter table public.meals
 create index if not exists meals_consumed_idx on public.meals(user_id, consumed_at desc);
 
 create table if not exists public.body_measurements (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   weight_kg numeric not null check (weight_kg between 20 and 500),
   height_cm numeric check (height_cm between 80 and 260),
@@ -45,7 +45,7 @@ create policy "body measurements are self-scoped" on public.body_measurements
   with check ((select auth.uid()) = user_id);
 
 create table if not exists public.daily_nutrition_targets (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   local_date date not null,
   calories int not null check (calories > 0),
@@ -72,7 +72,7 @@ create index if not exists food_items_search_idx on public.food_items using gin 
 create unique index if not exists food_items_barcode_idx on public.food_items(barcode) where barcode is not null;
 
 create table if not exists public.food_servings (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   food_item_id text not null references public.food_items on delete cascade,
   label text not null,
   quantity numeric not null check (quantity > 0),
@@ -89,7 +89,7 @@ alter table public.food_servings enable row level security;
 create policy "food servings are readable" on public.food_servings for select to authenticated using (true);
 
 create table if not exists public.food_provider_records (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   food_item_id text not null references public.food_items on delete cascade,
   provider text not null,
   provider_id text not null,
@@ -103,7 +103,7 @@ alter table public.food_provider_records enable row level security;
 create policy "food provider records are readable" on public.food_provider_records for select to authenticated using (true);
 
 create table if not exists public.food_submissions (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   proposed_name text not null,
   brand text,
@@ -157,7 +157,7 @@ create policy "validated recipes are readable" on public.recipes
   for select to authenticated using (validation_status = 'validated');
 
 create table if not exists public.recipe_ingredients (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   recipe_id text not null references public.recipes on delete cascade,
   food_item_id text references public.food_items on delete set null,
   name text not null,
@@ -167,10 +167,19 @@ create table if not exists public.recipe_ingredients (
   optional boolean not null default false
 );
 alter table public.recipe_ingredients enable row level security;
-create policy "recipe ingredients are readable" on public.recipe_ingredients for select to authenticated using (true);
+create policy "recipe ingredients are readable" on public.recipe_ingredients
+  for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.recipes recipe
+      where recipe.id = recipe_ingredients.recipe_id
+        and recipe.validation_status = 'validated'
+    )
+  );
 
 create table if not exists public.recipe_steps (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   recipe_id text not null references public.recipes on delete cascade,
   position int not null,
   instruction text not null,
@@ -179,10 +188,19 @@ create table if not exists public.recipe_steps (
   unique(recipe_id, position)
 );
 alter table public.recipe_steps enable row level security;
-create policy "recipe steps are readable" on public.recipe_steps for select to authenticated using (true);
+create policy "recipe steps are readable" on public.recipe_steps
+  for select to authenticated
+  using (
+    exists (
+      select 1
+      from public.recipes recipe
+      where recipe.id = recipe_steps.recipe_id
+        and recipe.validation_status = 'validated'
+    )
+  );
 
 create table if not exists public.meal_plan_entries (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   plan_id uuid not null references public.meal_plans on delete cascade,
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   local_date date not null,
@@ -199,8 +217,24 @@ create index if not exists meal_plan_entries_user_idx on public.meal_plan_entrie
 alter table public.meal_plan_entries enable row level security;
 create policy "meal plan entries are self-scoped" on public.meal_plan_entries
   for all to authenticated
-  using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
+  using (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1
+      from public.meal_plans plan
+      where plan.id = meal_plan_entries.plan_id
+        and plan.user_id = (select auth.uid())
+    )
+  )
+  with check (
+    (select auth.uid()) = user_id
+    and exists (
+      select 1
+      from public.meal_plans plan
+      where plan.id = meal_plan_entries.plan_id
+        and plan.user_id = (select auth.uid())
+    )
+  );
 
 -- Preserve existing JSON plans as editable entries. Recipe snapshots remain
 -- authoritative until the corresponding catalog recipe is available.
@@ -240,7 +274,7 @@ where jsonb_typeof(snack.value) = 'object'
 on conflict do nothing;
 
 create table if not exists public.suggestion_feedback (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   local_date date not null,
   candidate_id text not null,
@@ -256,7 +290,7 @@ create policy "suggestion feedback is self-scoped" on public.suggestion_feedback
   with check ((select auth.uid()) = user_id);
 
 create table if not exists public.ai_jobs (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   job_type text not null check (job_type in ('query_interpretation', 'suggestion_ranking', 'meal_vision', 'plan_generation', 'recipe_generation', 'recipe_image')),
   provider text not null,
@@ -277,7 +311,7 @@ create policy "ai jobs are self-readable" on public.ai_jobs
 
 -- Service-only cache for AI query normalization. Raw user queries are never stored.
 create table if not exists public.food_query_cache (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   locale text not null,
   query_hash text not null,
   normalized_terms text[] not null default '{}',
@@ -289,7 +323,11 @@ create table if not exists public.food_query_cache (
 );
 create index if not exists food_query_cache_expiry_idx on public.food_query_cache(expires_at);
 alter table public.food_query_cache enable row level security;
+create policy "food query cache is service managed" on public.food_query_cache
+  for all to service_role using (true) with check (true);
+revoke all on public.food_query_cache from anon, authenticated;
 
+grant select, insert, update, delete on public.meals to authenticated;
 grant select, insert, update, delete on public.body_measurements to authenticated;
 grant select, insert, update, delete on public.daily_nutrition_targets to authenticated;
 grant select on public.food_servings, public.food_provider_records to authenticated;
@@ -304,3 +342,36 @@ grant all on public.body_measurements, public.daily_nutrition_targets, public.fo
   public.food_provider_records, public.food_submissions, public.recipes, public.recipe_ingredients,
   public.recipe_steps, public.meal_plan_entries, public.suggestion_feedback, public.ai_jobs to service_role;
 grant all on public.food_query_cache to service_role;
+
+do $$
+declare
+  unprotected_tables text;
+  policyless_tables text;
+begin
+  select string_agg(quote_ident(c.relname), ', ')
+  into unprotected_tables
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relkind = 'r'
+    and not c.relrowsecurity;
+
+  if unprotected_tables is not null then
+    raise exception 'RLS audit failed: tables without RLS enabled: %', unprotected_tables;
+  end if;
+
+  select string_agg(quote_ident(c.relname), ', ')
+  into policyless_tables
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relkind = 'r'
+    and c.relrowsecurity
+    and not exists (select 1 from pg_policy p where p.polrelid = c.oid);
+
+  if policyless_tables is not null then
+    raise exception 'RLS audit failed: tables with RLS but no policies: %', policyless_tables;
+  end if;
+
+  raise notice 'RLS audit passed.';
+end$$;
