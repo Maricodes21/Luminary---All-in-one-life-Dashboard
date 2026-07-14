@@ -31,38 +31,51 @@ export default function AccountScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function signUp() {
-    if (!email || !password) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
       setError('We need an email and password here.');
       return;
     }
     setLoading(true);
     setError(null);
 
-    const { error: authError } = await supabase.auth.signUp({ email, password });
+    const { error: authError } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+    });
     setLoading(false);
 
     if (authError) {
-      setError(authError.message);
+      const accountExists =
+        authError.code === 'user_already_exists' || /already registered/i.test(authError.message);
+      setError(
+        accountExists ? 'This email already has an account. Sign in below.' : authError.message,
+      );
       return;
     }
     router.push('/onboarding/profile');
   }
 
   async function signIn() {
-    if (!email || !password) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
       setError('We need an email and password here.');
       return;
     }
     setLoading(true);
     setError(null);
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password,
+    });
     setLoading(false);
 
     if (authError) {
       setError(authError.message);
       return;
     }
+    router.replace('/onboarding/profile');
   }
 
   return (
@@ -72,10 +85,7 @@ export default function AccountScreen() {
     >
       <OnboardingProgress step="account" />
       <ScrollView
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + spacing.xl },
-        ]}
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xl }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -112,9 +122,7 @@ export default function AccountScreen() {
             </View>
           </View>
 
-          {error ? (
-            <Text style={[t.bodySm, styles.errorText]}>{error}</Text>
-          ) : null}
+          {error ? <Text style={[t.bodySm, styles.errorText]}>{error}</Text> : null}
         </View>
 
         <View style={styles.actions}>
