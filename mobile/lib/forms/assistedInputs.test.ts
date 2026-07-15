@@ -40,7 +40,15 @@ test('shared assisted controls preserve their source contracts', () => {
   assert.match(numberField, /max\?:\s*number/);
   assert.match(numberField, /step\?:\s*number/);
   assert.match(numberField, /stepNumber/);
+  assert.match(numberField, /clampNumber/);
+  assert.match(numberField, /onBlur=\{commitValue\}/);
+  assert.doesNotMatch(numberField, /accessibilityRole="adjustable"/);
   assert.match(selectField, /ActionSheet/);
+  assert.match(multiChoiceField, /ScrollView/);
+  assert.match(multiChoiceField, /horizontal/);
+  assert.match(multiChoiceField, /height:\s*44/);
+  assert.match(autocompleteField, /ScrollView/);
+  assert.match(autocompleteField, /height:\s*120/);
 
   for (const source of [dateField, choiceGroup, multiChoiceField, selectField, numberField, autocompleteField]) {
     assert.match(source, /accessibility(?:Label|Role)/);

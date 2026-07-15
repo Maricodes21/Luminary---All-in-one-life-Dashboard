@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { uniqueChoices } from '@/lib/forms/assistedInputs';
 import { Chip } from './Chip';
@@ -24,12 +24,19 @@ export function MultiChoiceField({ label, value, suggestions, onChange, allowCus
   return (
     <View style={styles.root} accessibilityLabel={label}>
       <Text style={[type.labelSm, styles.label]}>{label}</Text>
-      <View style={styles.choices}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.choices}
+        contentContainerStyle={styles.choiceContent}
+        accessibilityRole="list"
+        accessibilityLabel={`${label} choices`}
+      >
         {choices.map((choice) => {
           const selected = value.some((item) => item.toLowerCase() === choice.toLowerCase());
           return <Chip key={choice.toLowerCase()} label={choice} selected={selected} onPress={() => toggle(choice)} />;
         })}
-      </View>
+      </ScrollView>
       {allowCustom ? (
         <View style={styles.customRow}>
           <TextInput
@@ -54,7 +61,8 @@ export function MultiChoiceField({ label, value, suggestions, onChange, allowCus
 const styles = StyleSheet.create({
   root: { gap: spacing.xs },
   label: { color: palette.onSurfaceVariant },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  choices: { height: 44 },
+  choiceContent: { alignItems: 'center', gap: spacing.sm, paddingRight: spacing.xs },
   customRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   customInput: {
     flex: 1,

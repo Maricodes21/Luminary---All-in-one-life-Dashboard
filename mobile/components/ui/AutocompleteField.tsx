@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { suggestFromHistory } from '@/lib/forms/assistedInputs';
 
@@ -24,15 +24,20 @@ export function AutocompleteField({ label, value, onChangeText, suggestions, onS
         style={[type.bodyMd, styles.input, multiline && styles.multiline]}
         accessibilityLabel={label ?? placeholder ?? 'Search suggestions'}
       />
-      {matches.length ? (
-        <View style={styles.suggestions} accessibilityRole="list" accessibilityLabel={`${label ?? 'Input'} suggestions`}>
-          {matches.map((suggestion) => (
-            <Pressable key={suggestion.toLowerCase()} onPress={() => select(suggestion)} style={styles.suggestion} accessibilityRole="button" accessibilityLabel={suggestion}>
-              <Text style={[type.bodySm, styles.suggestionText]}>{suggestion}</Text>
-            </Pressable>
-          ))}
-        </View>
-      ) : null}
+      <ScrollView
+        style={styles.suggestions}
+        contentContainerStyle={styles.suggestionContent}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        accessibilityRole="list"
+        accessibilityLabel={`${label ?? 'Input'} suggestions`}
+      >
+        {matches.map((suggestion) => (
+          <Pressable key={suggestion.toLowerCase()} onPress={() => select(suggestion)} style={styles.suggestion} accessibilityRole="button" accessibilityLabel={suggestion}>
+            <Text style={[type.bodySm, styles.suggestionText]}>{suggestion}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -42,7 +47,8 @@ const styles = StyleSheet.create({
   label: { color: palette.onSurfaceVariant },
   input: { minHeight: 48, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: palette.outlineVariant, borderRadius: radii.sm, color: palette.onSurface, backgroundColor: palette.surfaceContainerLow },
   multiline: { minHeight: 108, paddingTop: spacing.md, textAlignVertical: 'top' },
-  suggestions: { overflow: 'hidden', borderWidth: 1, borderColor: palette.outlineVariant, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerLow },
+  suggestions: { height: 120, borderWidth: 1, borderColor: palette.outlineVariant, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerLow },
+  suggestionContent: { gap: spacing.xs, paddingVertical: spacing.xs },
   suggestion: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md },
   suggestionText: { color: palette.onSurface },
 });

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
-import { stepNumber } from '@/lib/forms/assistedInputs';
+import { clampNumber, stepNumber } from '@/lib/forms/assistedInputs';
 import { Icon } from './Icon';
 
 export type NumberFieldProps = { label: string; value: string; onChangeText: (value: string) => void; unit?: string; min?: number; max?: number; step?: number; showStepper?: boolean; placeholder?: string };
@@ -12,11 +12,16 @@ export function NumberField({ label, value, onChangeText, unit, min, max, step =
   const currentValue = Number.isFinite(parsedValue) ? parsedValue : (min ?? 0);
 
   const adjust = (direction: -1 | 1) => onChangeText(String(stepNumber(currentValue, step, direction, lowerBound, upperBound)));
+  const commitValue = () => {
+    const trimmedValue = value.trim();
+    const nextValue = Number(trimmedValue);
+    if (trimmedValue && Number.isFinite(nextValue)) onChangeText(String(clampNumber(nextValue, lowerBound, upperBound)));
+  };
 
   return (
     <View style={styles.root}>
       <Text style={[type.labelSm, styles.label]}>{label}</Text>
-      <View style={styles.row} accessibilityRole="adjustable" accessibilityLabel={label}>
+      <View style={styles.row}>
         {showStepper ? (
           <Pressable onPress={() => adjust(-1)} style={styles.stepButton} accessibilityRole="button" accessibilityLabel={`Decrease ${label}`}>
             <Text style={[type.titleMd, styles.stepSymbol]}>-</Text>
@@ -28,6 +33,8 @@ export function NumberField({ label, value, onChangeText, unit, min, max, step =
           placeholder={placeholder}
           placeholderTextColor={palette.onSurfaceVariant}
           keyboardType="decimal-pad"
+          onBlur={commitValue}
+          onSubmitEditing={commitValue}
           style={[type.bodyMd, styles.input]}
           accessibilityLabel={label}
         />
