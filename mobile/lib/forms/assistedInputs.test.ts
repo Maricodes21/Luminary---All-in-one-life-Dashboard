@@ -71,11 +71,18 @@ test('onboarding, settings, and health adopt assisted inputs without replacing c
   const account = readAppSource('onboarding/account.tsx');
 
   assert.match(profile, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
-  assert.match(profile, /MultiChoiceField/);
+  assert.doesNotMatch(profile, /MultiChoiceField/);
   assert.match(profile, /value:\s*'she\/her'/);
   assert.match(profile, /value:\s*'he\/him'/);
   assert.match(profile, /value:\s*'they\/them'/);
   assert.match(profile, /value:\s*'Custom'/);
+  assert.match(profile, /useState<PronounChoice \| undefined>/);
+  assert.match(profile, /if \(!pronouns\) return undefined;/);
+  assert.match(profile, /value=\{pronounChoice \?\? ''\}/);
+  assert.match(profile, /setPronounChoice\(choice \|\| undefined\)/);
+  assert.match(profile, /pronounChoice === 'Custom'/);
+  assert.match(profile, /accessibilityLabel="Custom pronouns, optional"/);
+  assert.doesNotMatch(profile, /choices\[0\]/);
   assert.match(profile, /label:\s*\{/);
   assert.match(body, /import\s+\{\s*NumberField\s*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(body, /step=\{0\.5\}/);
