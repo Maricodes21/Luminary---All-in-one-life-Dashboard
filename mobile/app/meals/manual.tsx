@@ -12,7 +12,7 @@ import { makeUuid } from '@/lib/meals/state';
 import type { MealSource, MealType } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
-const servingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice', 'bowl', 'oz', 'lb'];
+const servingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice'];
 
 export default function ManualMealScreen() {
   const router = useRouter();

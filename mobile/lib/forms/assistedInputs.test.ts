@@ -129,12 +129,19 @@ test('meals use assisted profile and serving controls while leaving meal details
   const profile = readAppSource('meals/profile.tsx');
   const manual = readAppSource('meals/manual.tsx');
   const submitFood = readAppSource('meals/submit-food.tsx');
+  const expectedServingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice'];
 
   assert.match(profile, /import\s+\{[^}]*DateField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(profile, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(profile, /import\s+\{[^}]*MultiChoiceField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(profile, /import\s+\{[^}]*AutocompleteField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /import\s+\{[^}]*NumberField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(profile, /<DateField[\s\S]*?label="Date of birth"/);
+  assert.match(profile, /<View style=\{styles\.measurementFields\}>/);
+  assert.match(profile, /measurementFields:\s*\{ gap:\s*spacing\.md \}/);
+  assert.doesNotMatch(profile, /row:\s*\{ flexDirection:\s*'row'/);
+  assert.match(profile, /<NumberField[\s\S]*?label="Weight \(kg\)"[\s\S]*?min=\{20\}[\s\S]*?max=\{500\}[\s\S]*?step=\{0\.5\}/);
+  assert.match(profile, /<NumberField[\s\S]*?label="Height \(cm\)"[\s\S]*?min=\{80\}[\s\S]*?max=\{260\}[\s\S]*?step=\{1\}/);
   assert.match(profile, /<MultiChoiceField[\s\S]*?label="Dietary preferences"[\s\S]*?suggestions=\{dietChoices\}[\s\S]*?allowCustom/);
   assert.match(profile, /<MultiChoiceField[\s\S]*?label="Allergies"[\s\S]*?suggestions=\{allergyChoices\}[\s\S]*?allowCustom/);
   assert.match(profile, /<AutocompleteField[\s\S]*?label="Ingredients to avoid"[\s\S]*?suggestions=\{ingredientSuggestions\}/);
@@ -149,6 +156,10 @@ test('meals use assisted profile and serving controls while leaving meal details
     assert.match(source, /import\s+\{[^}]*SelectField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
     assert.match(source, /<NumberField[\s\S]*?label="Quantity"[\s\S]*?step=\{0\.25\}/);
     assert.match(source, /<SelectField[\s\S]*?label="Unit"[\s\S]*?options=\{servingUnits\}[\s\S]*?allowCustom/);
+    const servingUnitMatch = source.match(/const servingUnits = \[([^\]]+)\];/);
+    assert.ok(servingUnitMatch, 'serving unit options should be declared');
+    const servingUnitValues = [...servingUnitMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(([, value]) => value);
+    assert.deepEqual(servingUnitValues, expectedServingUnits);
   }
 
   assert.match(manual, /<Field label="Food or meal name"/);

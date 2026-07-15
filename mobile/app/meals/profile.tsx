@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { MealScreen } from '@/components/meals/MealScreen';
-import { AutocompleteField, ChoiceGroup, DateField, MultiChoiceField } from '@/components/ui';
+import { AutocompleteField, ChoiceGroup, DateField, MultiChoiceField, NumberField } from '@/components/ui';
 import { parseRequiredNumber } from '@/lib/meals/formNumbers';
 import type { NutritionProfile } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
@@ -89,9 +89,9 @@ export default function NutritionProfileScreen() {
       </View>
 
       <DateField label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} maximumDate={new Date()} />
-      <View style={styles.row}>
-        <View style={styles.flex}><Field label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="66" keyboardType="decimal-pad" /></View>
-        <View style={styles.flex}><Field label="Height (cm)" value={height} onChangeText={setHeight} placeholder="168" keyboardType="decimal-pad" /></View>
+      <View style={styles.measurementFields}>
+        <NumberField label="Weight (kg)" value={weight} onChangeText={setWeight} min={20} max={500} step={0.5} placeholder="66" />
+        <NumberField label="Height (cm)" value={height} onChangeText={setHeight} min={80} max={260} step={1} placeholder="168" />
       </View>
       <ChoiceGroup label="Biological sex" value={sex} options={sexOptions} onChange={setSex} />
       <ChoiceGroup label="Activity" value={activity} options={activityOptions} onChange={setActivity} />
@@ -116,10 +116,6 @@ export default function NutritionProfileScreen() {
   );
 }
 
-function Field({ label, ...props }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; keyboardType?: 'decimal-pad' | 'numbers-and-punctuation' }) {
-  return <View style={styles.field}><Text style={[type.labelMd, styles.label]}>{label}</Text><TextInput {...props} style={styles.input} placeholderTextColor={palette.onSurfaceVariant} /></View>;
-}
-
 function csv(value: string) {
   return value.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
 }
@@ -127,11 +123,7 @@ function csv(value: string) {
 const styles = StyleSheet.create({
   save: { height: 38, minWidth: 58, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary, borderRadius: radii.sm },
   intro: { backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.md },
-  row: { flexDirection: 'row', gap: spacing.sm },
-  flex: { flex: 1 },
-  field: { gap: spacing.xs },
-  label: { color: palette.onSurfaceVariant },
-  input: { minHeight: 50, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, paddingHorizontal: spacing.md, color: palette.onSurface, fontSize: 16 },
+  measurementFields: { gap: spacing.md },
   history: { gap: spacing.sm, backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.md },
   historyRow: { flexDirection: 'row', justifyContent: 'space-between' },
 });

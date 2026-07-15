@@ -8,7 +8,7 @@ import { NumberField, SelectField } from '@/components/ui';
 import { parseOptionalNonnegative, parseRequiredNumber } from '@/lib/meals/formNumbers';
 import { submitCommunityFood } from '@/lib/meals/search';
 
-const servingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice', 'bowl', 'oz', 'lb'];
+const servingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice'];
 
 export default function SubmitFoodScreen() {
   const router = useRouter();
