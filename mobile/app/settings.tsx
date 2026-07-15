@@ -3,8 +3,8 @@ import { ScrollView, View, Text, StyleSheet, Pressable, TextInput, Switch, Activ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { palette, spacing, radii, type } from '@luminary/design-system';
+import { ChoiceGroup } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
-import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -104,12 +104,12 @@ export default function SettingsScreen() {
       </Card>
 
       <Card>
-        <SectionLabel>Tone</SectionLabel>
-        <View style={styles.chipGrid}>
-          {tones.map((tone) => (
-            <Chip key={tone} label={tone} selected={toneProfile === tone} onPress={() => setToneProfile(tone)} />
-          ))}
-        </View>
+        <ChoiceGroup
+          label="Tone"
+          value={toneProfile}
+          options={tones.map((tone) => ({ value: tone, label: tone }))}
+          onChange={setToneProfile}
+        />
       </Card>
 
       <Card>
@@ -117,20 +117,19 @@ export default function SettingsScreen() {
         <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
           {formatTime(reminderHour, reminderMinute)}
         </Text>
-        <View style={styles.chipGrid}>
-          {hours.map((hour) => (
-            <Chip key={hour} label={`${hour}:00`} selected={reminderHour === hour} onPress={() => setReminderHour(hour)} />
-          ))}
-        </View>
-        <View style={styles.chipGrid}>
-          {minutes.map((minute) => (
-            <Chip
-              key={minute}
-              label={`:${String(minute).padStart(2, '0')}`}
-              selected={reminderMinute === minute}
-              onPress={() => setReminderMinute(minute)}
-            />
-          ))}
+        <View style={styles.reminderFields}>
+          <ChoiceGroup
+            label="Hour"
+            value={reminderHour}
+            options={hours.map((hour) => ({ value: hour, label: `${hour}:00` }))}
+            onChange={setReminderHour}
+          />
+          <ChoiceGroup
+            label="Minutes"
+            value={reminderMinute}
+            options={minutes.map((minute) => ({ value: minute, label: `:${String(minute).padStart(2, '0')}` }))}
+            onChange={setReminderMinute}
+          />
         </View>
       </Card>
 
@@ -234,7 +233,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginTop: spacing.sm,
   },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
+  reminderFields: { gap: spacing.md, marginTop: spacing.md },
   toggleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   primaryButton: {

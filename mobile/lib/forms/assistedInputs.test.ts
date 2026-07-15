@@ -21,9 +21,14 @@ test('choices and history suggestions are normalized', () => {
 });
 
 const componentDirectory = resolve(__dirname, '../../components/ui');
+const appDirectory = resolve(__dirname, '../../app');
 
 function readComponentSource(filename: string) {
   return readFileSync(resolve(componentDirectory, filename), 'utf8');
+}
+
+function readAppSource(filename: string) {
+  return readFileSync(resolve(appDirectory, filename), 'utf8');
 }
 
 test('shared assisted controls preserve their source contracts', () => {
@@ -56,4 +61,28 @@ test('shared assisted controls preserve their source contracts', () => {
   for (const source of [dateField, choiceGroup, multiChoiceField, selectField, numberField, autocompleteField]) {
     assert.match(source, /accessibility(?:Label|Role)/);
   }
+});
+
+test('onboarding, settings, and health adopt assisted inputs without replacing credential text fields', () => {
+  const profile = readAppSource('onboarding/profile.tsx');
+  const body = readAppSource('onboarding/body.tsx');
+  const settings = readAppSource('settings.tsx');
+  const health = readAppSource('(tabs)/health.tsx');
+  const account = readAppSource('onboarding/account.tsx');
+
+  assert.match(profile, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /MultiChoiceField/);
+  assert.match(profile, /value:\s*'she\/her'/);
+  assert.match(profile, /value:\s*'he\/him'/);
+  assert.match(profile, /value:\s*'they\/them'/);
+  assert.match(profile, /value:\s*'Custom'/);
+  assert.match(profile, /label:\s*\{/);
+  assert.match(body, /import\s+\{\s*NumberField\s*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(body, /step=\{0\.5\}/);
+  assert.match(body, /step=\{1\}/);
+  assert.match(settings, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(health, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.doesNotMatch(health, /function Choice\(/);
+  assert.match(account, /<TextInput[\s\S]*?value=\{email\}/);
+  assert.match(account, /<TextInput[\s\S]*?value=\{password\}/);
 });

@@ -16,8 +16,24 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
+import { ChoiceGroup, MultiChoiceField } from '@/components/ui';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { OnboardingProgress } from './_layout';
+
+const pronounOptions = [
+  { value: 'she/her', label: 'she/her' },
+  { value: 'he/him', label: 'he/him' },
+  { value: 'they/them', label: 'they/them' },
+  { value: 'Custom', label: 'Custom' },
+] as const;
+
+type PronounChoice = (typeof pronounOptions)[number]['value'];
+
+function getPronounChoice(pronouns: string): PronounChoice {
+  return pronounOptions.some((option) => option.value === pronouns)
+    ? (pronouns as PronounChoice)
+    : 'Custom';
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -27,6 +43,7 @@ export default function ProfileScreen() {
 
   const [name, setName] = useState(savedName ?? '');
   const [pronouns, setPronounsLocal] = useState(savedPronouns ?? '');
+  const [pronounChoice, setPronounChoice] = useState<PronounChoice>(() => getPronounChoice(savedPronouns ?? ''));
   const [error, setError] = useState<string | null>(null);
 
   function advance() {
@@ -72,18 +89,25 @@ export default function ProfileScreen() {
               ) : null}
             </View>
 
-            <View>
-              <Text style={[t.labelMd, styles.label]}>pronouns (optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={pronouns}
-                onChangeText={setPronounsLocal}
-                autoCapitalize="none"
-                placeholderTextColor={palette.onSurfaceVariant}
-                placeholder="e.g. she/her"
-                accessibilityLabel="Pronouns, optional"
+            <ChoiceGroup
+              label="Pronouns (optional)"
+              value={pronounChoice}
+              options={pronounOptions}
+              onChange={(choice) => {
+                setPronounChoice(choice);
+                setPronounsLocal(choice === 'Custom' ? '' : choice);
+              }}
+            />
+            {pronounChoice === 'Custom' ? (
+              <MultiChoiceField
+                label="Custom pronouns"
+                value={pronouns ? [pronouns] : []}
+                suggestions={[]}
+                onChange={(choices) => setPronounsLocal(choices[0] ?? '')}
+                allowCustom
+                customPlaceholder="e.g. xe/xem"
               />
-            </View>
+            ) : null}
           </View>
         </View>
 

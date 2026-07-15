@@ -8,7 +8,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
 import { ActionSheet } from '@/components/ui/ActionSheet';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
-import { Chip } from '@/components/ui/Chip';
+import { ChoiceGroup } from '@/components/ui';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
 import { exerciseAlternates, workoutExercises, type ExercisePreset } from '@/lib/modulePresets';
@@ -168,23 +168,25 @@ export default function HealthScreen() {
             <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
               Build a week from familiar movements, then swap exercises when equipment, energy, or recovery changes.
             </Text>
-            <SectionLabel style={{ marginTop: spacing.md }}>Category</SectionLabel>
-            <View style={styles.chipGrid}>
-              {categories.map((item) => (
-                <Choice key={item} label={item} active={category === item} onPress={() => setCategory(item)} />
-              ))}
-            </View>
-            <SectionLabel style={{ marginTop: spacing.md }}>Level</SectionLabel>
-            <View style={styles.chipGrid}>
-              {levels.map((item) => (
-                <Choice key={item} label={item} active={level === item} onPress={() => setLevel(item)} />
-              ))}
-            </View>
-            <SectionLabel style={{ marginTop: spacing.md }}>Time</SectionLabel>
-            <View style={styles.chipGrid}>
-              {timeOptions.map((item) => (
-                <Chip key={item} label={item} selected={timeAvailable === item} onPress={() => setTimeAvailable(item)} />
-              ))}
+            <View style={styles.choiceFields}>
+              <ChoiceGroup
+                label="Category"
+                value={category}
+                options={categories.map((item) => ({ value: item, label: formatLabel(item) }))}
+                onChange={setCategory}
+              />
+              <ChoiceGroup
+                label="Level"
+                value={level}
+                options={levels.map((item) => ({ value: item, label: formatLabel(item) }))}
+                onChange={setLevel}
+              />
+              <ChoiceGroup
+                label="Time"
+                value={timeAvailable}
+                options={timeOptions.map((item) => ({ value: item, label: item }))}
+                onChange={setTimeAvailable}
+              />
             </View>
             <Pressable onPress={onCreatePlan} style={styles.primaryButton}>
               <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create your plan for the week</Text>
@@ -312,14 +314,6 @@ function ExerciseRow({
   );
 }
 
-function Choice({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} style={[styles.choice, active && styles.choiceActive]}>
-      <Text style={[type.labelMd, { color: active ? palette.onPrimary : palette.onSurfaceVariant }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function formatNumber(value: number | null) {
   return value == null ? '--' : Intl.NumberFormat().format(value);
 }
@@ -397,14 +391,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  choice: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  choiceActive: { backgroundColor: palette.primary },
+  choiceFields: { gap: spacing.md, marginTop: spacing.md },
   primaryButton: {
     backgroundColor: palette.primary,
     borderRadius: radii.md,
