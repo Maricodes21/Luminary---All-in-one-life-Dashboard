@@ -24,7 +24,9 @@ export function SelectField({ label, value, options, onChange, allowCustom = fal
     <View style={styles.root}>
       <Text style={[type.labelSm, styles.label]}>{label}</Text>
       <Pressable onPress={() => setVisible(true)} style={styles.field} accessibilityRole="button" accessibilityLabel={`${label}: ${value || 'Select'}`}>
-        <Text style={[type.bodyMd, styles.value]}>{value || 'Select'}</Text>
+        <View style={styles.valueContainer}>
+          <Text style={[type.bodyMd, styles.value]} numberOfLines={1} ellipsizeMode="tail">{value || 'Select'}</Text>
+        </View>
         <Icon name="back" size={18} color={palette.onSurfaceVariant} />
       </Pressable>
       <ActionSheet visible={visible} title={label} onClose={() => setVisible(false)}>
@@ -70,7 +72,8 @@ export function SelectField({ label, value, options, onChange, allowCustom = fal
 const styles = StyleSheet.create({
   root: { gap: spacing.xs },
   label: { color: palette.onSurfaceVariant },
-  field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, borderWidth: 1, borderColor: palette.outlineVariant, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerLow },
+  field: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.md, borderWidth: 1, borderColor: palette.outlineVariant, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerLow },
+  valueContainer: { flex: 1, minWidth: 0 },
   value: { color: palette.onSurface },
   options: { gap: spacing.sm },
   option: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHigh },

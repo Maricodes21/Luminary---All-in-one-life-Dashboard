@@ -44,6 +44,9 @@ test('shared assisted controls preserve their source contracts', () => {
   assert.match(numberField, /onBlur=\{commitValue\}/);
   assert.doesNotMatch(numberField, /accessibilityRole="adjustable"/);
   assert.match(selectField, /ActionSheet/);
+  assert.match(selectField, /valueContainer:\s*\{ flex:\s*1, minWidth:\s*0 \}/);
+  assert.match(selectField, /numberOfLines=\{1\}/);
+  assert.match(selectField, /ellipsizeMode="tail"/);
   assert.match(multiChoiceField, /ScrollView/);
   assert.match(multiChoiceField, /horizontal/);
   assert.match(multiChoiceField, /height:\s*44/);
