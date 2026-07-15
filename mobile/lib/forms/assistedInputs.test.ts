@@ -124,3 +124,34 @@ test('money uses local history suggestions and non-stepping currency fields', ()
     assert.match(field, /showStepper=\{false\}/);
   }
 });
+
+test('meals use assisted profile and serving controls while leaving meal details open', () => {
+  const profile = readAppSource('meals/profile.tsx');
+  const manual = readAppSource('meals/manual.tsx');
+  const submitFood = readAppSource('meals/submit-food.tsx');
+
+  assert.match(profile, /import\s+\{[^}]*DateField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /import\s+\{[^}]*MultiChoiceField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /import\s+\{[^}]*AutocompleteField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(profile, /<DateField[\s\S]*?label="Date of birth"/);
+  assert.match(profile, /<MultiChoiceField[\s\S]*?label="Dietary preferences"[\s\S]*?suggestions=\{dietChoices\}[\s\S]*?allowCustom/);
+  assert.match(profile, /<MultiChoiceField[\s\S]*?label="Allergies"[\s\S]*?suggestions=\{allergyChoices\}[\s\S]*?allowCustom/);
+  assert.match(profile, /<AutocompleteField[\s\S]*?label="Ingredients to avoid"[\s\S]*?suggestions=\{ingredientSuggestions\}/);
+  assert.match(profile, /<ChoiceGroup[\s\S]*?label="Maximum prep time \(minutes\)"[\s\S]*?options=\{prepTimeOptions\}/);
+  for (const choice of ['vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'dairy-free', 'halal', 'fish', 'shellfish', 'peanut', 'tree nuts', 'dairy', 'egg', 'soy', 'wheat/gluten', 'sesame']) {
+    assert.match(profile, new RegExp(`['\"]${choice}['\"]`));
+  }
+  for (const choice of [15, 30, 45, 60, 90]) assert.match(profile, new RegExp(`\\b${choice}\\b`));
+
+  for (const source of [manual, submitFood]) {
+    assert.match(source, /import\s+\{[^}]*NumberField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+    assert.match(source, /import\s+\{[^}]*SelectField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+    assert.match(source, /<NumberField[\s\S]*?label="Quantity"[\s\S]*?step=\{0\.25\}/);
+    assert.match(source, /<SelectField[\s\S]*?label="Unit"[\s\S]*?options=\{servingUnits\}[\s\S]*?allowCustom/);
+  }
+
+  assert.match(manual, /<Field label="Food or meal name"/);
+  assert.match(manual, /<Field label="Notes"[\s\S]*?multiline/);
+  assert.match(submitFood, /<Field label="Food name"/);
+});

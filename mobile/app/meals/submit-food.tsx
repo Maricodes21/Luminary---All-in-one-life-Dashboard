@@ -4,8 +4,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { MealScreen } from '@/components/meals/MealScreen';
+import { NumberField, SelectField } from '@/components/ui';
 import { parseOptionalNonnegative, parseRequiredNumber } from '@/lib/meals/formNumbers';
 import { submitCommunityFood } from '@/lib/meals/search';
+
+const servingUnits = ['serving', 'g', 'kg', 'ml', 'l', 'cup', 'tbsp', 'tsp', 'piece', 'slice', 'bowl', 'oz', 'lb'];
 
 export default function SubmitFoodScreen() {
   const router = useRouter();
@@ -50,7 +53,7 @@ export default function SubmitFoodScreen() {
       <Field label="Food name" value={name} onChangeText={setName} placeholder="Product or food name" />
       <Field label="Brand" value={brand} onChangeText={setBrand} placeholder="Optional" />
       <Field label="Barcode" value={barcode} onChangeText={setBarcode} placeholder="Optional" keyboardType="number-pad" />
-      <View style={styles.row}><View style={styles.flex}><Field label="Quantity" value={quantity} onChangeText={setQuantity} placeholder="1" keyboardType="decimal-pad" /></View><View style={styles.flex}><Field label="Unit" value={unit} onChangeText={setUnit} placeholder="serving" /></View></View>
+      <View style={styles.row}><View style={styles.flex}><NumberField label="Quantity" value={quantity} onChangeText={setQuantity} min={0.001} max={100000} step={0.25} placeholder="1" /></View><View style={styles.flex}><SelectField label="Unit" value={unit} options={servingUnits} onChange={setUnit} allowCustom /></View></View>
       <Field label="Calories" value={calories} onChangeText={setCalories} placeholder="Required" keyboardType="decimal-pad" />
       <View style={styles.row}><View style={styles.flex}><Field label="Protein g" value={protein} onChangeText={setProtein} placeholder="--" keyboardType="decimal-pad" /></View><View style={styles.flex}><Field label="Carbs g" value={carbs} onChangeText={setCarbs} placeholder="--" keyboardType="decimal-pad" /></View><View style={styles.flex}><Field label="Fat g" value={fat} onChangeText={setFat} placeholder="--" keyboardType="decimal-pad" /></View></View>
       <Pressable onPress={submit} disabled={submitting} style={[styles.button, submitting && { opacity: 0.6 }]}><Text style={[type.labelMd, { color: palette.onPrimary }]}>{submitting ? 'Submitting...' : 'Submit for review'}</Text></Pressable>

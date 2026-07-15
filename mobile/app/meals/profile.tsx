@@ -4,13 +4,21 @@ import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { MealScreen } from '@/components/meals/MealScreen';
+import { AutocompleteField, ChoiceGroup, DateField, MultiChoiceField } from '@/components/ui';
 import { parseRequiredNumber } from '@/lib/meals/formNumbers';
 import type { NutritionProfile } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
-const goals = ['lose', 'maintain', 'gain'] as const;
-const activities = ['low', 'moderate', 'high'] as const;
-const sexes = ['female', 'male'] as const;
+const goals: NutritionProfile['goal'][] = ['lose', 'maintain', 'gain'];
+const activities: NutritionProfile['activityLevel'][] = ['low', 'moderate', 'high'];
+const sexes: NutritionProfile['biologicalSex'][] = ['female', 'male'];
+const goalOptions = goals.map((value) => ({ value, label: value }));
+const activityOptions = activities.map((value) => ({ value, label: value }));
+const sexOptions = sexes.map((value) => ({ value, label: value }));
+const dietChoices = ['vegetarian', 'vegan', 'pescatarian', 'gluten-free', 'dairy-free', 'halal'];
+const allergyChoices = ['fish', 'shellfish', 'peanut', 'tree nuts', 'dairy', 'egg', 'soy', 'wheat/gluten', 'sesame'];
+const ingredientSuggestions = ['mushroom', 'coriander', 'onion', 'garlic', 'tomato', 'chili', 'sesame'];
+const prepTimeOptions = [15, 30, 45, 60, 90].map((value) => ({ value, label: `${value} min` }));
 
 export default function NutritionProfileScreen() {
   const router = useRouter();
@@ -23,10 +31,10 @@ export default function NutritionProfileScreen() {
   const [sex, setSex] = useState<NutritionProfile['biologicalSex']>(current?.biologicalSex ?? 'female');
   const [activity, setActivity] = useState<NutritionProfile['activityLevel']>(current?.activityLevel ?? 'moderate');
   const [goal, setGoal] = useState<NutritionProfile['goal']>(current?.goal ?? 'maintain');
-  const [diet, setDiet] = useState((current?.dietaryPreferences ?? []).join(', '));
-  const [allergies, setAllergies] = useState((current?.foodAllergies ?? []).join(', '));
+  const [diet, setDiet] = useState(current?.dietaryPreferences ?? []);
+  const [allergies, setAllergies] = useState(current?.foodAllergies ?? []);
   const [dislikes, setDislikes] = useState((current?.dislikedIngredients ?? []).join(', '));
-  const [maxPrep, setMaxPrep] = useState(String(current?.maxPrepMinutes ?? 60));
+  const [maxPrep, setMaxPrep] = useState(current?.maxPrepMinutes ?? 60);
 
   useEffect(() => {
     if (!current) return;
@@ -36,10 +44,10 @@ export default function NutritionProfileScreen() {
     setSex(current.biologicalSex);
     setActivity(current.activityLevel);
     setGoal(current.goal);
-    setDiet((current.dietaryPreferences ?? []).join(', '));
-    setAllergies((current.foodAllergies ?? []).join(', '));
+    setDiet(current.dietaryPreferences ?? []);
+    setAllergies(current.foodAllergies ?? []);
     setDislikes((current.dislikedIngredients ?? []).join(', '));
-    setMaxPrep(String(current.maxPrepMinutes ?? 60));
+    setMaxPrep(current.maxPrepMinutes ?? 60);
   }, [current]);
 
   const save = () => {
@@ -53,7 +61,7 @@ export default function NutritionProfileScreen() {
       Alert.alert('Check your measurements', 'Enter a weight from 20-500 kg and a height from 80-260 cm.');
       return;
     }
-    const maxPrepMinutes = Number(maxPrep);
+    const maxPrepMinutes = maxPrep;
     if (!Number.isFinite(maxPrepMinutes) || maxPrepMinutes < 5 || maxPrepMinutes > 240) {
       Alert.alert('Check prep time', 'Choose a maximum from 5 to 240 minutes.');
       return;
@@ -66,8 +74,8 @@ export default function NutritionProfileScreen() {
       heightCm: heightCm.value,
       weightKg: weightKg.value,
       updatedAt: new Date().toISOString(),
-      dietaryPreferences: csv(diet),
-      foodAllergies: csv(allergies),
+      dietaryPreferences: diet,
+      foodAllergies: allergies,
       dislikedIngredients: csv(dislikes),
       maxPrepMinutes,
     });
@@ -80,18 +88,18 @@ export default function NutritionProfileScreen() {
         <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>Your current weight updates future targets and is added to your private measurement history. Previous daily targets stay unchanged.</Text>
       </View>
 
-      <Field label="Date of birth" value={dateOfBirth} onChangeText={setDateOfBirth} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+      <DateField label="Date of birth" value={dateOfBirth} onChange={setDateOfBirth} maximumDate={new Date()} />
       <View style={styles.row}>
         <View style={styles.flex}><Field label="Weight (kg)" value={weight} onChangeText={setWeight} placeholder="66" keyboardType="decimal-pad" /></View>
         <View style={styles.flex}><Field label="Height (cm)" value={height} onChangeText={setHeight} placeholder="168" keyboardType="decimal-pad" /></View>
       </View>
-      <Choice label="Biological sex" values={sexes} value={sex} onChange={setSex} />
-      <Choice label="Activity" values={activities} value={activity} onChange={setActivity} />
-      <Choice label="Goal" values={goals} value={goal} onChange={setGoal} />
-      <Field label="Dietary preferences" value={diet} onChangeText={setDiet} placeholder="vegan, gluten-free" />
-      <Field label="Allergies" value={allergies} onChangeText={setAllergies} placeholder="peanut, shellfish" />
-      <Field label="Ingredients to avoid" value={dislikes} onChangeText={setDislikes} placeholder="mushroom, coriander" />
-      <Field label="Maximum prep time (minutes)" value={maxPrep} onChangeText={setMaxPrep} placeholder="60" keyboardType="decimal-pad" />
+      <ChoiceGroup label="Biological sex" value={sex} options={sexOptions} onChange={setSex} />
+      <ChoiceGroup label="Activity" value={activity} options={activityOptions} onChange={setActivity} />
+      <ChoiceGroup label="Goal" value={goal} options={goalOptions} onChange={setGoal} />
+      <MultiChoiceField label="Dietary preferences" value={diet} suggestions={dietChoices} onChange={setDiet} allowCustom customPlaceholder="Add dietary preference" />
+      <MultiChoiceField label="Allergies" value={allergies} suggestions={allergyChoices} onChange={setAllergies} allowCustom customPlaceholder="Add allergy" />
+      <AutocompleteField label="Ingredients to avoid" value={dislikes} onChangeText={setDislikes} suggestions={ingredientSuggestions} placeholder="mushroom, coriander" />
+      <ChoiceGroup label="Maximum prep time (minutes)" value={maxPrep} options={prepTimeOptions} onChange={setMaxPrep} />
 
       {user?.measurements.length ? (
         <View style={styles.history}>
@@ -112,15 +120,6 @@ function Field({ label, ...props }: { label: string; value: string; onChangeText
   return <View style={styles.field}><Text style={[type.labelMd, styles.label]}>{label}</Text><TextInput {...props} style={styles.input} placeholderTextColor={palette.onSurfaceVariant} /></View>;
 }
 
-function Choice<T extends string>({ label, values, value, onChange }: { label: string; values: readonly T[]; value: T; onChange: (value: T) => void }) {
-  return (
-    <View style={styles.field}>
-      <Text style={[type.labelMd, styles.label]}>{label}</Text>
-      <View style={styles.choiceRow}>{values.map((item) => <Pressable key={item} onPress={() => onChange(item)} style={[styles.choice, item === value && styles.choiceActive]}><Text style={[type.labelSm, { color: item === value ? palette.onPrimary : palette.onSurfaceVariant }]}>{item}</Text></Pressable>)}</View>
-    </View>
-  );
-}
-
 function csv(value: string) {
   return value.split(',').map((item) => item.trim().toLowerCase()).filter(Boolean);
 }
@@ -133,9 +132,6 @@ const styles = StyleSheet.create({
   field: { gap: spacing.xs },
   label: { color: palette.onSurfaceVariant },
   input: { minHeight: 50, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, paddingHorizontal: spacing.md, color: palette.onSurface, fontSize: 16 },
-  choiceRow: { flexDirection: 'row', gap: spacing.sm },
-  choice: { flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainer, borderRadius: radii.sm },
-  choiceActive: { backgroundColor: palette.primary },
   history: { gap: spacing.sm, backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.md },
   historyRow: { flexDirection: 'row', justifyContent: 'space-between' },
 });
