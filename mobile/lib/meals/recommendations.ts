@@ -1,4 +1,4 @@
-import { ingredientMatchesAvoidance } from './allergens';
+import { ingredientMatchesAvoidance, ingredientMatchesCustomAvoidance } from './allergens';
 import type { CatalogRecipe } from './catalog';
 import { localDateKey, mealWindowFor } from './dates';
 import { calculateMealTotals } from './totals';
@@ -111,8 +111,10 @@ export function catalogSubstitutions(recipes: readonly CatalogRecipe[], entry: M
 export function isRecipeAllowed(recipe: CatalogRecipe, profile: NutritionProfile): boolean {
   const preferences = profile.dietaryPreferences ?? [];
   if (preferences.length && !preferences.every((preference) => recipe.dietaryTags.includes(preference))) return false;
-  const blocked = [...(profile.foodAllergies ?? []), ...(profile.dislikedIngredients ?? [])];
-  if (recipe.ingredients.some((ingredient) => ingredientMatchesAvoidance(ingredient.name, blocked))) return false;
+  const allergies = profile.foodAllergies ?? [];
+  const dislikes = profile.dislikedIngredients ?? [];
+  if (recipe.ingredients.some((ingredient) => ingredientMatchesAvoidance(ingredient.name, allergies))) return false;
+  if (recipe.ingredients.some((ingredient) => ingredientMatchesCustomAvoidance(ingredient.name, dislikes))) return false;
   return recipe.prepMinutes + recipe.cookMinutes <= (profile.maxPrepMinutes ?? 60);
 }
 

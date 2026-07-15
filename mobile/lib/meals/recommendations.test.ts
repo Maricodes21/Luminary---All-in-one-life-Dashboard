@@ -77,6 +77,64 @@ test('fish allergy blocks named fish and fish sauce', () => {
   assert.equal(isRecipeAllowed(recipeWith('starfruit'), fishProfile), true);
 });
 
+test('canonical allergy families block their named ingredient aliases', () => {
+  const cases = [
+    { family: 'fish', ingredient: 'salmon fillet' },
+    { family: 'shellfish', ingredient: 'grilled shrimp' },
+    { family: 'peanut', ingredient: 'groundnuts' },
+    { family: 'tree nuts', ingredient: 'walnut pieces' },
+    { family: 'dairy', ingredient: 'whole milk' },
+    { family: 'egg', ingredient: 'egg whites' },
+    { family: 'soy', ingredient: 'firm tofu' },
+    { family: 'wheat/gluten', ingredient: 'pearl barley' },
+    { family: 'sesame', ingredient: 'tahini' },
+  ];
+
+  for (const { family, ingredient } of cases) {
+    const allergyProfile = { ...profile, foodAllergies: [family] };
+    assert.equal(isRecipeAllowed(recipeWith(ingredient), allergyProfile), false, `${family} should block ${ingredient}`);
+  }
+});
+
+test('dairy allergy allows deterministic plant milk butter and cream compounds', () => {
+  const dairyProfile = { ...profile, foodAllergies: ['dairy'] };
+  const safeCompounds = [
+    'coconut milk',
+    'almond milk',
+    'oat milk',
+    'peanut butter',
+    'almond butter',
+    'cocoa butter',
+    'cashew cream',
+    'coconut cream',
+  ];
+
+  for (const ingredient of safeCompounds) {
+    assert.equal(isRecipeAllowed(recipeWith(ingredient), dairyProfile), true, `${ingredient} should not count as dairy`);
+  }
+});
+
+test('dairy allergy still blocks genuine dairy ingredients', () => {
+  const dairyProfile = { ...profile, foodAllergies: ['dairy'] };
+  for (const ingredient of ['whole milk', 'salted butter', 'cheddar cheese', 'Greek yogurt']) {
+    assert.equal(isRecipeAllowed(recipeWith(ingredient), dairyProfile), false, `${ingredient} should count as dairy`);
+  }
+});
+
+test('custom dislikes use exact phrase tokens without canonical family expansion', () => {
+  const cases = [
+    { dislike: 'milk', blocked: 'whole milk', allowed: 'cheddar cheese' },
+    { dislike: 'almond', blocked: 'almond flour', allowed: 'walnut pieces' },
+    { dislike: 'fish', blocked: 'fish sauce', allowed: 'salmon fillet' },
+  ];
+
+  for (const { dislike, blocked, allowed } of cases) {
+    const dislikeProfile = { ...profile, dislikedIngredients: [dislike] };
+    assert.equal(isRecipeAllowed(recipeWith(blocked), dislikeProfile), false, `${dislike} should block ${blocked}`);
+    assert.equal(isRecipeAllowed(recipeWith(allowed), dislikeProfile), true, `${dislike} should not widen to ${allowed}`);
+  }
+});
+
 test('logged canonical recipe identities are excluded', () => {
   const loggedRecipe = recipeCatalog[0];
   const now = new Date('2026-07-13T08:00:00+02:00');
@@ -89,4 +147,23 @@ test('logged canonical recipe identities are excluded', () => {
     recentRecipeIds: [],
   });
   assert.ok(result.candidates.every((recipe) => recipe.id !== loggedRecipe.id));
+});
+
+test('logged canonical snack identities are excluded from snack recommendations', () => {
+  const dinnerRecipe = recipeCatalog.find((recipe) => recipe.mealType === 'dinner');
+  const loggedSnack = recipeCatalog.find((recipe) => recipe.mealType === 'snack');
+  assert.ok(dinnerRecipe);
+  assert.ok(loggedSnack);
+
+  const result = recommendForNow({
+    recipes: [dinnerRecipe, loggedSnack],
+    profile: { ...profile, maxPrepMinutes: 120 },
+    target: { ...target, calories: 3000 },
+    meals: [loggedCatalogMeal(loggedSnack)],
+    now: new Date('2026-07-13T18:00:00+02:00'),
+    recentRecipeIds: [],
+  });
+
+  assert.equal(result.primary?.id, dinnerRecipe.id);
+  assert.equal(result.snack, null);
 });
