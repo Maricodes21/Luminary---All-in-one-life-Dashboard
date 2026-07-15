@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { CalorieRing } from '@/components/meals/CalorieRing';
+import { MacroProgress } from '@/components/meals/MacroProgress';
 import { MealCard } from '@/components/meals/MealCard';
 import { MealsSegmentedControl, type MealsMode } from '@/components/meals/MealsSegmentedControl';
 import { Card } from '@/components/ui/Card';
@@ -152,9 +153,9 @@ function TodayMode({ user, meals, target, totals, remainingCalories, profileStal
       <Card style={styles.nutritionCard}>
         <CalorieRing consumed={totals.calories} target={target?.calories ?? null} />
         <View style={styles.macroColumn}>
-          <Macro label="Protein" value={totals.proteinG} target={target?.proteinG ?? null} />
-          <Macro label="Carbs" value={totals.carbsG} target={target?.carbsG ?? null} />
-          <Macro label="Fat" value={totals.fatG} target={target?.fatG ?? null} />
+          <MacroProgress label="Protein" value={totals.proteinG} target={target?.proteinG ?? null} color={palette.primary} />
+          <MacroProgress label="Carbs" value={totals.carbsG} target={target?.carbsG ?? null} color={palette.tertiary} />
+          <MacroProgress label="Fat" value={totals.fatG} target={target?.fatG ?? null} color={palette.secondary} />
           <Pressable onPress={onOpenProfile} accessibilityRole="button">
             <Text style={[type.bodySm, { color: palette.primary, marginTop: spacing.sm }]}>
               {user?.profile ? `Based on ${user.profile.weightKg} kg  /  updated ${formatShortDate(user.profile.updatedAt)}` : 'Set your nutrition profile'}
@@ -205,6 +206,7 @@ function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe,
   const recordFeedback = useMealsStore((state) => state.recordSuggestionFeedback);
   const [rankedIds, setRankedIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
+  const [suggestionCursor, setSuggestionCursor] = useState(0);
   const profile = user?.profile ?? null;
   const recentRecipeIds = useMemo(() => user?.plans.flatMap((plan) => plan.entries.map((entry) => entry.recipeId).filter((id): id is string => !!id)).slice(-10) ?? [], [user?.plans]);
   const recommendation = useMemo(() => profile && target && remainingCalories != null && remainingCalories >= 100
@@ -223,21 +225,27 @@ function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe,
     }).then((ranked) => { if (!cancelled) setRankedIds(ranked.map((recipe) => recipe.id)); });
     return () => { cancelled = true; };
   }, [candidateKey, meals, profile, recentRecipeIds, recommendation, remainingCalories, target]);
+  useEffect(() => {
+    setSuggestionCursor(0);
+    setDismissedIds([]);
+  }, [candidateKey]);
   if (!recommendation?.primary) return null;
   const ranked = rankedIds.map((id) => recommendation.candidates.find((recipe) => recipe.id === id)).filter((recipe): recipe is (typeof recipeCatalog)[number] => !!recipe);
-  const primary = [...ranked, ...recommendation.candidates].find((recipe) => !dismissedIds.includes(recipe.id)) ?? null;
+  const available = [...ranked, ...recommendation.candidates].filter((recipe, index, recipes) => recipes.findIndex((item) => item.id === recipe.id) === index && !dismissedIds.includes(recipe.id));
+  const primary = available.length ? available[suggestionCursor % available.length] : null;
   if (!primary) return null;
   const suggested = [primary, ...(recommendation.snack && recommendation.snack.id !== primary.id && !dismissedIds.includes(recommendation.snack.id) ? [recommendation.snack] : [])];
-  const rationale = primary.id === recommendation.primary.id
-    ? recommendation.rationale
-    : `${primary.name} is the best verified fit after considering your recent choices, preparation time, and today's remaining nutrition.`;
   return (
     <View style={styles.suggestionBlock}>
       <View style={styles.suggestion}>
         <Icon name="sparkles" size={20} color={palette.tertiary} />
-        <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>For right now</SectionLabel><Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{rationale}</Text></View>
+        <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>Suggested for right now</SectionLabel></View>
       </View>
-      {suggested.map((recipe) => <View key={recipe.id} style={styles.suggestedRecipe}><MealCard title={recipe.name} imageUri={recipe.image.kind === 'exact' ? recipe.image.uri : undefined} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} /><View style={styles.suggestionActions}><Pressable onPress={() => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); }} style={styles.skipSuggestion} accessibilityRole="button" hitSlop={4}><Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>Not for me</Text></Pressable><Pressable onPress={() => { recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); }} style={styles.logSuggestion} accessibilityRole="button" hitSlop={4}><Text style={[type.labelSm, { color: palette.onPrimary }]}>Log meal</Text></Pressable></View></View>)}
+      {suggested.map((recipe) => <MealCard key={recipe.id} title={recipe.name} imageUri={recipe.image.kind === 'exact' ? recipe.image.uri : undefined} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
+        { icon: 'trash', label: `Not for me: ${recipe.name}`, tone: 'danger', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); setSuggestionCursor(0); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); } },
+        { icon: 'swap', label: `Show another ${recipe.mealType}`, onPress: () => setSuggestionCursor((current) => current + 1) },
+        { icon: 'plus', label: `Log ${recipe.name}`, tone: 'primary', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); } },
+      ]} />)}
     </View>
   );
 }
@@ -304,15 +312,6 @@ function PlanMode({ plan, selectedDate, dates, onSelectDate, onOpenRecipe, onCre
   );
 }
 
-function Macro({ label, value, target }: { label: string; value: number; target: number | null }) {
-  return (
-    <View style={styles.macroRow}>
-      <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{label}</Text>
-      <Text style={[type.titleMd, { color: palette.onSurface }]}>{Math.round(value)}{target == null ? 'g' : ` / ${target}g`}</Text>
-    </View>
-  );
-}
-
 function MealAction({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={styles.mealAction} accessibilityRole="button">
@@ -367,16 +366,11 @@ const styles = StyleSheet.create({
   primaryIconButton: { width: 44, height: 44, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
   nutritionCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   macroColumn: { flex: 1, minWidth: 0, gap: spacing.sm },
-  macroRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.sm },
   reminder: { flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.sm },
   reminderCopy: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dismiss: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   suggestion: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, padding: spacing.md },
   suggestionBlock: { gap: spacing.sm },
-  suggestedRecipe: { gap: spacing.xs },
-  suggestionActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.sm },
-  skipSuggestion: { minHeight: 46, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  logSuggestion: { minHeight: 46, alignSelf: 'flex-end', alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary, borderRadius: radii.sm, paddingHorizontal: spacing.md },
   section: { gap: spacing.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },

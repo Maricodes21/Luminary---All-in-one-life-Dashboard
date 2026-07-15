@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 const appDirectory = path.resolve(__dirname, '../../app');
+const componentsDirectory = path.resolve(__dirname, '../../components/meals');
 
 test('every Meals workflow has a concrete route file', () => {
   const routes = [
@@ -50,4 +51,32 @@ test('recipe detail can resolve an authoritative plan-entry snapshot', () => {
   const source = fs.readFileSync(path.join(appDirectory, 'meals/recipe/[id].tsx'), 'utf8');
   assert.match(source, /recipeSnapshot/);
   assert.match(source, /getRecipeById\(id\).*snapshot/s);
+});
+
+test('meal cards expose a compact action rail capped at three actions', () => {
+  const source = fs.readFileSync(path.join(componentsDirectory, 'MealCard.tsx'), 'utf8');
+
+  assert.match(source, /export type MealCardAction/);
+  assert.match(source, /actions\??:\s*MealCardAction\[\]/);
+  assert.match(source, /actions\.slice\(0,\s*3\)/);
+});
+
+test('daily suggestions keep actions inside cards without rationale copy', () => {
+  const source = fs.readFileSync(path.join(appDirectory, '(tabs)/meals.tsx'), 'utf8');
+
+  assert.doesNotMatch(source, /suggestionActions/);
+  assert.doesNotMatch(source, /recommendation\.rationale|const rationale/);
+  assert.match(source, /actions=\{/);
+});
+
+test('macro progress animates a clamped fill and honors reduced motion', () => {
+  const source = fs.readFileSync(path.join(componentsDirectory, 'MacroProgress.tsx'), 'utf8');
+
+  assert.match(source, /Math\.min\(1,\s*value\s*\/\s*target\)/);
+  assert.match(source, /new Animated\.Value/);
+  assert.match(source, /Animated\.timing/);
+  assert.match(source, /duration:\s*450/);
+  assert.match(source, /useNativeDriver:\s*false/);
+  assert.match(source, /AccessibilityInfo\.isReduceMotionEnabled\(\)/);
+  assert.match(source, /height:\s*6/);
 });

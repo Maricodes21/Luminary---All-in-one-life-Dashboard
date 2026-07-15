@@ -2,8 +2,15 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
-import { Icon } from '@/components/ui/Icon';
+import { Icon, type IconName } from '@/components/ui/Icon';
 import type { NutritionValues } from '@/lib/meals/types';
+
+export type MealCardAction = {
+  icon: IconName;
+  label: string;
+  tone?: 'default' | 'primary' | 'danger';
+  onPress: () => void;
+};
 
 type MealCardProps = {
   title: string;
@@ -13,10 +20,16 @@ type MealCardProps = {
   onPress?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  actions?: MealCardAction[];
 };
 
-export function MealCard({ title, imageUri, nutrition, detail, onPress, onEdit, onDelete }: MealCardProps) {
+export function MealCard({ title, imageUri, nutrition, detail, onPress, onEdit, onDelete, actions = [] }: MealCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
+  const suppliedActions = actions.slice(0, 3);
+  const visibleActions: MealCardAction[] = suppliedActions.length ? suppliedActions : [
+    ...(onEdit ? [{ icon: 'edit' as const, label: `Edit ${title}`, onPress: onEdit }] : []),
+    ...(onDelete ? [{ icon: 'trash' as const, label: `Delete ${title}`, onPress: onDelete, tone: 'danger' as const }] : []),
+  ];
 
   useEffect(() => setImageFailed(false), [imageUri]);
 
@@ -34,20 +47,20 @@ export function MealCard({ title, imageUri, nutrition, detail, onPress, onEdit, 
           <Text style={[type.labelSm, styles.nutrition]} numberOfLines={1}>{nutritionText(nutrition)}</Text>
         </View>
       </Pressable>
-      {onEdit || onDelete ? (
+      {visibleActions.length ? (
         <View style={styles.actions}>
-          {onEdit ? <IconButton icon="edit" label={`Edit ${title}`} onPress={onEdit} /> : null}
-          {onDelete ? <IconButton icon="trash" label={`Delete ${title}`} onPress={onDelete} tone="danger" /> : null}
+          {visibleActions.map((action) => <IconButton key={`${action.icon}-${action.label}`} action={action} />)}
         </View>
       ) : null}
     </View>
   );
 }
 
-function IconButton({ icon, label, onPress, tone }: { icon: 'edit' | 'trash'; label: string; onPress: () => void; tone?: 'danger' }) {
+function IconButton({ action }: { action: MealCardAction }) {
+  const color = action.tone === 'danger' ? palette.error : action.tone === 'primary' ? palette.primary : palette.onSurfaceVariant;
   return (
-    <Pressable onPress={onPress} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={label} hitSlop={8}>
-      <Icon name={icon} size={17} color={tone === 'danger' ? palette.error : palette.onSurfaceVariant} />
+    <Pressable onPress={action.onPress} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={action.label} hitSlop={6}>
+      <Icon name={action.icon} size={17} color={color} />
     </Pressable>
   );
 }
@@ -79,6 +92,6 @@ const styles = StyleSheet.create({
   title: { color: palette.onSurface },
   detail: { color: palette.onSurfaceVariant, marginTop: 2 },
   nutrition: { color: palette.primary, marginTop: spacing.xs },
-  actions: { width: 36, minHeight: 64, justifyContent: 'space-between', alignItems: 'center' },
-  iconButton: { width: 34, height: 30, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm },
+  actions: { width: 72, height: 72, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'center', justifyContent: 'flex-end', gap: 4 },
+  iconButton: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHigh },
 });
