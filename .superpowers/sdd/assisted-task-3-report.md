@@ -89,3 +89,31 @@ cmd.exe /d /s /c "npm run test:forms --workspace=mobile && npm run test:auth --w
 - A saved common pronoun maps to one ChoiceGroup value; a saved nonstandard string maps to Custom and preserves that one string in the custom text field.
 - Selecting a common option writes that exact string. Selecting Custom clears a prior common choice once and the dedicated input writes one deterministic custom string.
 - Display-name free text and the existing `setPronouns(pronouns.trim() || undefined)` payload conversion remain unchanged.
+
+## Important Task 3 Body Layout Follow-up
+
+### RED/GREEN Evidence
+
+1. RED: Added source coverage requiring a vertical `measurementFields` group and rejecting the former row layout.
+   - Command: `npm run test:forms --workspace=mobile`
+   - Result: exit 1; the onboarding adoption test failed because `mobile/app/onboarding/body.tsx` still used `styles.row` for the two NumberFields.
+2. GREEN: Replaced the row and its two half-width wrappers with one vertical `measurementFields` container.
+   - Command: `npm run test:forms --workspace=mobile`
+   - Result: exit 0; 5 tests passed, 0 failed.
+
+### Final Body Layout Checks
+
+```text
+cmd.exe /d /s /c "npm run test:forms --workspace=mobile && npm run test:auth --workspace=mobile && npm run type-check --workspace=mobile && npm run lint --workspace=mobile"
+```
+
+- `test:forms`: exit 0; 5 passed, 0 failed.
+- `test:auth`: exit 0; 7 passed, 0 failed.
+- `type-check`: exit 0.
+- `lint`: exit 0.
+- `git diff --check`: exit 0.
+
+### Body Layout Self-Review
+
+- Weight and height now each receive the full onboarding content width, including at 320-360dp.
+- Labels, `0.5 kg` and `1 cm` steps, local string values, and the existing positive-number submission conversion are unchanged.

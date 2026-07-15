@@ -87,6 +87,9 @@ test('onboarding, settings, and health adopt assisted inputs without replacing c
   assert.match(body, /import\s+\{\s*NumberField\s*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(body, /step=\{0\.5\}/);
   assert.match(body, /step=\{1\}/);
+  assert.match(body, /<View style=\{styles\.measurementFields\}>/);
+  assert.match(body, /measurementFields:\s*\{ gap:\s*spacing\.md \}/);
+  assert.doesNotMatch(body, /row:\s*\{ flexDirection:\s*'row'/);
   assert.match(settings, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.match(health, /import\s+\{[^}]*ChoiceGroup[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
   assert.doesNotMatch(health, /function Choice\(/);

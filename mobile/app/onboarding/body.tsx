@@ -51,27 +51,23 @@ export default function BodyScreen() {
             Used by the Health module when you're ready for it. Completely optional.
           </Text>
 
-          <View style={styles.row}>
-            <View style={styles.field}>
-              <NumberField
-                label="Weight"
-                value={weight}
-                onChangeText={setWeightLocal}
-                unit="kg"
-                step={0.5}
-                placeholder="70"
-              />
-            </View>
-            <View style={styles.field}>
-              <NumberField
-                label="Height"
-                value={height}
-                onChangeText={setHeightLocal}
-                unit="cm"
-                step={1}
-                placeholder="170"
-              />
-            </View>
+          <View style={styles.measurementFields}>
+            <NumberField
+              label="Weight"
+              value={weight}
+              onChangeText={setWeightLocal}
+              unit="kg"
+              step={0.5}
+              placeholder="70"
+            />
+            <NumberField
+              label="Height"
+              value={height}
+              onChangeText={setHeightLocal}
+              unit="cm"
+              step={1}
+              placeholder="170"
+            />
           </View>
         </View>
 
@@ -109,8 +105,7 @@ const styles = StyleSheet.create({
   },
   headline: { color: palette.onSurface },
   sub: { color: palette.onSurfaceVariant },
-  row: { flexDirection: 'row', gap: spacing.md },
-  field: { flex: 1 },
+  measurementFields: { gap: spacing.md },
   actions: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   primaryBtn: {
     backgroundColor: palette.primary,
