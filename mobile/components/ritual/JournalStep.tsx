@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { palette, spacing, radii, type } from '@luminary/design-system';
-import { Chip } from '@/components/ui/Chip';
+import { MultiChoiceField } from '@/components/ui';
 import { Icon } from '@/components/ui/Icon';
 import { writeJournalEntry } from '@/lib/ritual';
 import { useRitualStore } from '@/stores/useRitualStore';
@@ -37,14 +37,6 @@ export function JournalStep() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  function handleToggleTag(tag: string) {
-    if (journalTags.includes(tag)) {
-      setJournalTags(journalTags.filter((t) => t !== tag));
-    } else {
-      setJournalTags([...journalTags, tag]);
-    }
-  }
 
   async function handleCapture() {
     if (journalText.trim().length === 0) {
@@ -95,16 +87,14 @@ export function JournalStep() {
         accessibilityHint={prompt}
       />
 
-      <View style={styles.tagRow}>
-        {TAG_CHIPS.map((tag) => (
-          <Chip
-            key={tag}
-            label={tag}
-            selected={journalTags.includes(tag)}
-            onPress={() => handleToggleTag(tag)}
-          />
-        ))}
-      </View>
+      <MultiChoiceField
+        label="Tags"
+        value={journalTags}
+        suggestions={TAG_CHIPS}
+        onChange={setJournalTags}
+        allowCustom
+        customPlaceholder="Add a tag"
+      />
 
       {/* Voice note — stub only, no audio logic */}
       <Pressable
@@ -169,11 +159,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     color: palette.onSurface,
     minHeight: 120,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
   },
   voiceBtn: {
     flexDirection: 'row',

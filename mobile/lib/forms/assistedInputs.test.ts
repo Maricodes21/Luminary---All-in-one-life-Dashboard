@@ -96,3 +96,31 @@ test('onboarding, settings, and health adopt assisted inputs without replacing c
   assert.match(account, /<TextInput[\s\S]*?value=\{email\}/);
   assert.match(account, /<TextInput[\s\S]*?value=\{password\}/);
 });
+
+test('journal uses selectable tags with one custom tag input while keeping entry bodies open', () => {
+  const journal = readAppSource('(tabs)/journal.tsx');
+  const ritualJournal = readComponentSource('../ritual/JournalStep.tsx');
+
+  assert.match(journal, /import\s+\{[^}]*MultiChoiceField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(journal, /<MultiChoiceField[\s\S]*?label="Tags"[\s\S]*?allowCustom/);
+  assert.doesNotMatch(journal, /tagDraft\s*\.\s*split\(\s*['"]\s*,\s*['"]\s*\)/);
+  assert.match(journal, /<TextInput[\s\S]*?value=\{draft\}[\s\S]*?multiline/);
+  assert.match(ritualJournal, /import\s+\{[^}]*MultiChoiceField[^}]*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(ritualJournal, /<MultiChoiceField[\s\S]*?label="Tags"[\s\S]*?allowCustom/);
+  assert.match(ritualJournal, /<TextInput[\s\S]*?value=\{journalText\}[\s\S]*?multiline/);
+});
+
+test('money uses local history suggestions and non-stepping currency fields', () => {
+  const money = readAppSource('(tabs)/money.tsx');
+  const moneyNumberFields = [...money.matchAll(/<NumberField[\s\S]*?\/>/g)].map(([field]) => field);
+
+  assert.match(money, /import\s+\{\s*AutocompleteField\s*,\s*NumberField\s*\}\s+from\s+['"]@\/components\/ui['"]/);
+  assert.match(money, /suggestFromHistory\(\s*''\s*,\s*expenses\.map\(\(expense\)\s*=>\s*expense\.merchant\)/);
+  assert.match(money, /<AutocompleteField[\s\S]*?label="Merchant"[\s\S]*?suggestions=\{merchantSuggestions\}/);
+  assert.match(money, /<AutocompleteField[\s\S]*?label="Goal name"[\s\S]*?suggestions=\{savingGoalSuggestions\}/);
+  assert.ok(moneyNumberFields.length >= 6, 'all money amounts should use NumberField');
+  for (const field of moneyNumberFields) {
+    assert.match(field, /unit="R"/);
+    assert.match(field, /showStepper=\{false\}/);
+  }
+});

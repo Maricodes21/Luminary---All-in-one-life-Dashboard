@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
@@ -6,9 +6,9 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
-import { Chip } from '@/components/ui/Chip';
 import { useJournalEntries } from '@/hooks/useJournalEntries';
 import { EntryCard } from '@/components/journal/EntryCard';
+import { MultiChoiceField } from '@/components/ui';
 import { useProductionStore } from '@/stores/useProductionStore';
 import { journalPrompts, moodTags } from '@/lib/modulePresets';
 
@@ -18,7 +18,6 @@ export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<TabView>('timeline');
   const [draft, setDraft] = useState('');
-  const [tagDraft, setTagDraft] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState(journalPrompts[0]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const { data: remoteEntries, isLoading } = useJournalEntries();
@@ -26,26 +25,13 @@ export default function JournalScreen() {
   const addJournalEntry = useProductionStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useProductionStore((s) => s.deleteJournalEntry);
 
-  const tags = useMemo(() => {
-    const typedTags = tagDraft
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean);
-    return Array.from(new Set([...selectedTags, ...typedTags]));
-  }, [selectedTags, tagDraft]);
-
   const entriesNeeded = Math.max(0, 3 - localEntries.length);
 
   const onSave = () => {
     if (!draft.trim()) return;
-    addJournalEntry(draft.trim(), selectedPrompt, tags);
+    addJournalEntry(draft.trim(), selectedPrompt, selectedTags);
     setDraft('');
-    setTagDraft('');
     setSelectedTags([]);
-  };
-
-  const toggleTag = (tag: string) => {
-    setSelectedTags((current) => (current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag]));
   };
 
   return (
@@ -92,17 +78,13 @@ export default function JournalScreen() {
                 multiline
                 style={styles.entryInput}
               />
-              <View style={styles.tagGrid}>
-                {moodTags.map((tag) => (
-                  <Chip key={tag} label={tag} selected={selectedTags.includes(tag)} onPress={() => toggleTag(tag)} />
-                ))}
-              </View>
-              <TextInput
-                value={tagDraft}
-                onChangeText={setTagDraft}
-                placeholder="extra tags, separated quietly"
-                placeholderTextColor={palette.onSurfaceVariant}
-                style={styles.tagInput}
+              <MultiChoiceField
+                label="Tags"
+                value={selectedTags}
+                suggestions={moodTags}
+                onChange={setSelectedTags}
+                allowCustom
+                customPlaceholder="Add a tag"
               />
               <Pressable onPress={onSave} style={styles.primaryButton} accessibilityRole="button">
                 <Text style={[type.labelMd, { color: palette.onPrimary }]}>Save entry</Text>
@@ -230,14 +212,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginTop: spacing.sm,
     textAlignVertical: 'top',
-  },
-  tagGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
-  tagInput: {
-    color: palette.onSurface,
-    backgroundColor: palette.surfaceContainerHigh,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginTop: spacing.sm,
   },
   primaryButton: {
     marginTop: spacing.sm,

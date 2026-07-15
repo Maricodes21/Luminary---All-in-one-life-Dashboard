@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
@@ -9,12 +9,15 @@ import { Icon } from '@/components/ui/Icon';
 import { ActionSheet } from '@/components/ui/ActionSheet';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { Chip } from '@/components/ui/Chip';
+import { AutocompleteField, NumberField } from '@/components/ui';
 import { useWallet } from '@/hooks/useWallet';
 import { useProductionStore, type Expense, type ExpenseCategory } from '@/stores/useProductionStore';
 import { categoryMeta } from '@/lib/modulePresets';
 import { buildBudgetPlan } from '@/lib/contentLibrary';
+import { suggestFromHistory } from '@/lib/forms/assistedInputs';
 
 const categories: ExpenseCategory[] = ['Needs', 'Wants', 'Savings', 'Emergencies'];
+const savingGoalSuggestions = ['Emergency fund', 'Holiday', 'Home deposit', 'New phone', 'Education'];
 
 export default function MoneyScreen() {
   const insets = useSafeAreaInsets();
@@ -53,6 +56,10 @@ export default function MoneyScreen() {
       drafts[item] = String(budgets.find((budget) => budget.category === item)?.limit ?? 0);
       return drafts;
     }, {} as Record<ExpenseCategory, string>),
+  );
+  const merchantSuggestions = useMemo(
+    () => suggestFromHistory('', expenses.map((expense) => expense.merchant)),
+    [expenses],
   );
 
   const remoteTotal = transactions.reduce((acc, transaction) => acc + transaction.amount, 0);
@@ -314,20 +321,21 @@ export default function MoneyScreen() {
       </ScrollView>
 
       <ActionSheet visible={quickAddOpen} onClose={() => setQuickAddOpen(false)} eyebrow="Quick capture" title="Log an expense">
-        <TextInput
+        <NumberField
+          label="Amount"
           value={amount}
           onChangeText={setAmount}
+          unit="R"
+          min={0}
+          showStepper={false}
           placeholder="0.00"
-          placeholderTextColor={palette.onSurfaceVariant}
-          keyboardType="numeric"
-          style={styles.amountInput}
         />
-        <TextInput
+        <AutocompleteField
+          label="Merchant"
           value={merchant}
           onChangeText={setMerchant}
+          suggestions={merchantSuggestions}
           placeholder="Merchant"
-          placeholderTextColor={palette.onSurfaceVariant}
-          style={styles.input}
         />
         <View style={styles.chipGrid}>
           {categories.map((item) => (
@@ -357,20 +365,21 @@ export default function MoneyScreen() {
       </ActionSheet>
 
       <ActionSheet visible={goalOpen} onClose={() => setGoalOpen(false)} eyebrow="Saving goal" title="Add a target">
-        <TextInput
+        <AutocompleteField
+          label="Goal name"
           value={goalName}
           onChangeText={setGoalName}
+          suggestions={savingGoalSuggestions}
           placeholder="Big purchase or safety net"
-          placeholderTextColor={palette.onSurfaceVariant}
-          style={styles.input}
         />
-        <TextInput
+        <NumberField
+          label="Target amount"
           value={goalTarget}
           onChangeText={setGoalTarget}
+          unit="R"
+          min={0}
+          showStepper={false}
           placeholder="Target amount"
-          placeholderTextColor={palette.onSurfaceVariant}
-          keyboardType="numeric"
-          style={styles.input}
         />
         <Pressable onPress={onAddGoal} style={styles.primaryButton}>
           <Text style={[type.labelMd, { color: palette.onPrimary }]}>Add goal</Text>
@@ -378,21 +387,23 @@ export default function MoneyScreen() {
       </ActionSheet>
 
       <ActionSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} eyebrow="Monthly plan" title="Income and budget">
-        <TextInput
+        <NumberField
+          label="Monthly income"
           value={incomeDraft}
           onChangeText={setIncomeDraft}
+          unit="R"
+          min={0}
+          showStepper={false}
           placeholder="Monthly income"
-          placeholderTextColor={palette.onSurfaceVariant}
-          keyboardType="numeric"
-          style={styles.input}
         />
-        <TextInput
+        <NumberField
+          label="Monthly budget"
           value={monthlyBudgetDraft}
           onChangeText={setMonthlyBudgetDraft}
+          unit="R"
+          min={0}
+          showStepper={false}
           placeholder="Monthly budget envelope"
-          placeholderTextColor={palette.onSurfaceVariant}
-          keyboardType="numeric"
-          style={styles.input}
         />
         <SectionLabel>Category limits</SectionLabel>
         <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
@@ -403,15 +414,17 @@ export default function MoneyScreen() {
             <View style={[styles.categoryBubbleSmall, { backgroundColor: `${categoryMeta[item].color}24` }]}>
               <Text style={[type.labelMd, { color: categoryMeta[item].color }]}>{categoryMeta[item].icon}</Text>
             </View>
-            <Text style={[type.labelMd, { color: palette.onSurface, flex: 1 }]}>{item}</Text>
-            <TextInput
-              value={budgetDrafts[item]}
-              onChangeText={(value) => setBudgetDrafts((drafts) => ({ ...drafts, [item]: value }))}
-              keyboardType="numeric"
-              placeholder="0"
-              placeholderTextColor={palette.onSurfaceVariant}
-              style={styles.limitInput}
-            />
+            <View style={styles.limitField}>
+              <NumberField
+                label={`${item} limit`}
+                value={budgetDrafts[item]}
+                onChangeText={(value) => setBudgetDrafts((drafts) => ({ ...drafts, [item]: value }))}
+                unit="R"
+                min={0}
+                showStepper={false}
+                placeholder="0"
+              />
+            </View>
           </View>
         ))}
         <Pressable onPress={onSaveBudgetPlan} style={styles.primaryButton}>
@@ -420,13 +433,14 @@ export default function MoneyScreen() {
       </ActionSheet>
 
       <ActionSheet visible={contributionOpen} onClose={() => setContributionOpen(false)} eyebrow="Saving goal" title="Add contribution">
-        <TextInput
+        <NumberField
+          label="Contribution"
           value={contributionAmount}
           onChangeText={setContributionAmount}
+          unit="R"
+          min={0}
+          showStepper={false}
           placeholder="Amount saved"
-          placeholderTextColor={palette.onSurfaceVariant}
-          keyboardType="numeric"
-          style={styles.amountInput}
         />
         <Pressable onPress={onContributeToGoal} style={styles.primaryButton}>
           <Text style={[type.labelMd, { color: palette.onPrimary }]}>Add to goal</Text>
@@ -545,13 +559,6 @@ const styles = StyleSheet.create({
   budgetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.md },
   moneyPlanRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.md },
   transactionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  amountInput: {
-    ...type.displayLg,
-    color: palette.onSurface,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-  },
   input: {
     color: palette.onSurface,
     backgroundColor: palette.surfaceContainer,
@@ -581,11 +588,5 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainerHigh,
   },
   limitRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  limitInput: {
-    width: 112,
-    color: palette.onSurface,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-  },
+  limitField: { flex: 1 },
 });
