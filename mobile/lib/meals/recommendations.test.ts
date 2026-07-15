@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import type { CatalogRecipe } from './catalog';
 import { recipeCatalog } from './catalog';
-import { buildCatalogPlan, recommendForNow } from './recommendations';
-import type { DailyNutritionTarget, NutritionProfile } from './types';
+import { buildCatalogPlan, isRecipeAllowed, recommendForNow } from './recommendations';
+import type { DailyNutritionTarget, MealLogRecord, NutritionProfile } from './types';
 
 const profile: NutritionProfile = {
   dateOfBirth: '1994-05-20', biologicalSex: 'female', activityLevel: 'moderate', goal: 'maintain',
@@ -11,6 +12,30 @@ const profile: NutritionProfile = {
   dietaryPreferences: [], foodAllergies: [], dislikedIngredients: [], maxPrepMinutes: 45,
 };
 const target: DailyNutritionTarget = { localDate: '2026-07-13', calories: 2100, proteinG: 120, carbsG: 245, fatG: 65, calculatedAt: '2026-07-13T00:00:00.000Z' };
+
+function recipeWith(ingredientName: string): CatalogRecipe {
+  const recipe = recipeCatalog[0];
+  return {
+    ...recipe,
+    ingredients: [{ ...recipe.ingredients[0], name: ingredientName }],
+  };
+}
+
+function loggedCatalogMeal(recipe: CatalogRecipe): MealLogRecord {
+  return {
+    id: 'meal_logged_catalog_recipe',
+    name: recipe.name,
+    localDate: target.localDate,
+    consumedAt: '2026-07-13T07:30:00+02:00',
+    timezone: 'Africa/Johannesburg',
+    mealType: recipe.mealType,
+    servingQuantity: 1,
+    servingUnit: 'serving',
+    nutrition: recipe.nutrition,
+    source: 'curated',
+    providerId: recipe.providerId,
+  };
+}
 
 test('recommendation respects the current meal window and remaining calories', () => {
   const result = recommendForNow({ recipes: recipeCatalog, profile, target, meals: [], now: new Date('2026-07-13T12:30:00+02:00') });
@@ -43,4 +68,25 @@ test('allergy and diet constraints remove invalid recipes before ranking', () =>
     assert.ok(recipe?.dietaryTags.includes('vegan'));
     assert.ok(recipe?.ingredients.every((ingredient) => !veganNutFree.foodAllergies.some((allergen) => ingredient.name.toLowerCase().includes(allergen))));
   }
+});
+
+test('fish allergy blocks named fish and fish sauce', () => {
+  const fishProfile = { ...profile, foodAllergies: ['fish'] };
+  assert.equal(isRecipeAllowed(recipeWith('salmon fillet'), fishProfile), false);
+  assert.equal(isRecipeAllowed(recipeWith('fish sauce'), fishProfile), false);
+  assert.equal(isRecipeAllowed(recipeWith('starfruit'), fishProfile), true);
+});
+
+test('logged canonical recipe identities are excluded', () => {
+  const loggedRecipe = recipeCatalog[0];
+  const now = new Date('2026-07-13T08:00:00+02:00');
+  const result = recommendForNow({
+    recipes: [loggedRecipe],
+    profile,
+    target,
+    meals: [loggedCatalogMeal(loggedRecipe)],
+    now,
+    recentRecipeIds: [],
+  });
+  assert.ok(result.candidates.every((recipe) => recipe.id !== loggedRecipe.id));
 });

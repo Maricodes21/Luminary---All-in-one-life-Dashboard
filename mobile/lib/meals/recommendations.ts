@@ -1,3 +1,4 @@
+import { ingredientMatchesAvoidance } from './allergens';
 import type { CatalogRecipe } from './catalog';
 import { localDateKey, mealWindowFor } from './dates';
 import { calculateMealTotals } from './totals';
@@ -24,9 +25,10 @@ export function recommendForNow({ recipes, profile, target, meals, now, recentRe
   const totals = calculateMealTotals(meals);
   const remainingCalories = target.calories - totals.calories;
   const mealType = mealWindowFor(now);
+  const loggedRecipeIdentities = new Set(meals.map(recipeIdentityForMeal).filter((identity): identity is string => identity !== null));
   const valid = recipes
     .filter((recipe) => recipe.mealType === mealType)
-    .filter((recipe) => isRecipeAllowed(recipe, profile))
+    .filter((recipe) => isRecommendationCandidate(recipe, profile, loggedRecipeIdentities))
     .filter((recipe) => recipe.nutrition.calories <= remainingCalories)
     .sort((left, right) => scoreRecipe(right, target, totals.proteinG, remainingCalories, recentRecipeIds) - scoreRecipe(left, target, totals.proteinG, remainingCalories, recentRecipeIds));
   const primary = valid[0] ?? null;
@@ -34,7 +36,8 @@ export function recommendForNow({ recipes, profile, target, meals, now, recentRe
   const snack = mealType === 'snack' || afterPrimary < 120
     ? null
     : recipes
-        .filter((recipe) => recipe.mealType === 'snack' && recipe.nutrition.calories <= afterPrimary && isRecipeAllowed(recipe, profile))
+        .filter((recipe) => recipe.mealType === 'snack' && recipe.nutrition.calories <= afterPrimary)
+        .filter((recipe) => isRecommendationCandidate(recipe, profile, loggedRecipeIdentities))
         .sort((left, right) => right.nutrition.proteinG - left.nutrition.proteinG)[0] ?? null;
   const currentLogged = meals.some((meal) => meal.mealType === mealType);
   const rationale = !primary
@@ -108,9 +111,23 @@ export function catalogSubstitutions(recipes: readonly CatalogRecipe[], entry: M
 export function isRecipeAllowed(recipe: CatalogRecipe, profile: NutritionProfile): boolean {
   const preferences = profile.dietaryPreferences ?? [];
   if (preferences.length && !preferences.every((preference) => recipe.dietaryTags.includes(preference))) return false;
-  const blocked = [...(profile.foodAllergies ?? []), ...(profile.dislikedIngredients ?? [])].map((item) => item.trim().toLowerCase()).filter(Boolean);
-  if (blocked.some((term) => recipe.ingredients.some((ingredient) => ingredient.name.toLowerCase().includes(term)))) return false;
+  const blocked = [...(profile.foodAllergies ?? []), ...(profile.dislikedIngredients ?? [])];
+  if (recipe.ingredients.some((ingredient) => ingredientMatchesAvoidance(ingredient.name, blocked))) return false;
   return recipe.prepMinutes + recipe.cookMinutes <= (profile.maxPrepMinutes ?? 60);
+}
+
+export function recipeIdentityForMeal(meal: Pick<MealLogRecord, 'providerId'>): string | null {
+  const providerId = meal.providerId?.trim();
+  return providerId || null;
+}
+
+function isLoggedRecipe(recipe: CatalogRecipe, loggedRecipeIdentities: ReadonlySet<string>): boolean {
+  const providerId = recipe.providerId?.trim();
+  return providerId ? loggedRecipeIdentities.has(providerId) : false;
+}
+
+function isRecommendationCandidate(recipe: CatalogRecipe, profile: NutritionProfile, loggedRecipeIdentities: ReadonlySet<string>): boolean {
+  return !isLoggedRecipe(recipe, loggedRecipeIdentities) && isRecipeAllowed(recipe, profile);
 }
 
 function recipeToPlanEntry(recipe: CatalogRecipe, localDate: string): MealPlanEntry {
