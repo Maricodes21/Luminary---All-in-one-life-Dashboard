@@ -56,3 +56,4 @@ supabase/seed.sql
 .turbo/
 coverage/
 .superpowers/
+.worktrees/
