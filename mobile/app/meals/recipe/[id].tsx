@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { getRecipeById } from '@/lib/meals/catalog';
 import { localDateKey, mealWindowFor } from '@/lib/meals/dates';
 import { makeUuid } from '@/lib/meals/state';
+import { recipeImageUri } from '@/lib/meals/recipeImages';
 import type { CatalogRecipe } from '@/lib/meals/catalog';
 import type { Recipe } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
@@ -16,7 +17,9 @@ export default function RecipeDetailScreen() {
   const router = useRouter();
   const { id, entryId } = useLocalSearchParams<{ id: string; entryId?: string }>();
   const user = useMealsStore(activeMealsUser);
-  const snapshot = useMemo(() => user?.plans.flatMap((plan) => plan.entries).find((entry) => entry.id === entryId)?.recipeSnapshot, [entryId, user?.plans]);
+  const snapshot = useMemo(() => (Array.isArray(user?.plans) ? user.plans : [])
+    .flatMap((plan) => Array.isArray(plan.entries) ? plan.entries : [])
+    .find((entry) => entry.id === entryId)?.recipeSnapshot, [entryId, user?.plans]);
   const recipe = getRecipeById(id) ?? (snapshot?.id === id ? snapshot : undefined);
   const addMeal = useMealsStore((state) => state.addMeal);
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
@@ -54,7 +57,6 @@ export default function RecipeDetailScreen() {
 }
 
 function Stat({ label, value }: { label: string; value: string }) { return <View style={styles.stat}><Text style={[type.titleMd, { color: palette.onSurface }]}>{value}</Text><Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{label}</Text></View>; }
-function recipeImageUri(recipe: Recipe | CatalogRecipe) { return 'image' in recipe && recipe.image.kind === 'exact' ? recipe.image.uri : recipe.imageUri; }
 function recipeDuration(recipe: Recipe | CatalogRecipe) { return (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? recipe.steps.reduce((sum, step) => sum + (step.durationMinutes ?? 0), 0)); }
 function currentTimezone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } }
 

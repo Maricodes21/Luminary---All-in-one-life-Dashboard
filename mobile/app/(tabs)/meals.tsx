@@ -15,6 +15,7 @@ import { localDateKey, mealWindowFor } from '@/lib/meals/dates';
 import { rankDailySuggestionCandidates } from '@/lib/meals/aiRecommendationGateway';
 import { recipeCatalog } from '@/lib/meals/catalog';
 import { recommendForNow } from '@/lib/meals/recommendations';
+import { recipeImageUri } from '@/lib/meals/recipeImages';
 import { makeUuid } from '@/lib/meals/state';
 import { calculateMealTotals, calculateRemaining } from '@/lib/meals/totals';
 import type { MealLogRecord, MealPlan, MealPlanEntry } from '@/lib/meals/types';
@@ -98,7 +99,7 @@ export default function MealsScreen() {
               const recipe = recipeCatalog.find((item) => item.id === recipeId);
               if (!recipe) return;
               const now = new Date();
-              addMeal({ id: makeUuid(), name: recipe.name, localDate: localDateKey(now), consumedAt: now.toISOString(), timezone: currentTimezone(), mealType: mealWindowFor(now), servingQuantity: 1, servingUnit: 'serving', nutrition: recipe.nutrition, source: 'curated', providerId: recipe.providerId, imageUri: recipe.image.kind === 'exact' ? recipe.image.uri : undefined });
+              addMeal({ id: makeUuid(), name: recipe.name, localDate: localDateKey(now), consumedAt: now.toISOString(), timezone: currentTimezone(), mealType: mealWindowFor(now), servingQuantity: 1, servingUnit: 'serving', nutrition: recipe.nutrition, source: 'curated', providerId: recipe.providerId, imageUri: recipeImageUri(recipe) });
             }}
           />
         ) : (
@@ -241,7 +242,7 @@ function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe,
         <Icon name="sparkles" size={20} color={palette.tertiary} />
         <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>Suggested for right now</SectionLabel></View>
       </View>
-      {suggested.map((recipe) => <MealCard key={recipe.id} title={recipe.name} imageUri={recipe.image.kind === 'exact' ? recipe.image.uri : undefined} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
+      {suggested.map((recipe) => <MealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
         { icon: 'trash', label: `Not for me: ${recipe.name}`, tone: 'danger', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); setSuggestionCursor(0); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); } },
         { icon: 'swap', label: `Show another ${recipe.mealType}`, onPress: () => setSuggestionCursor((current) => current + 1) },
         { icon: 'plus', label: `Log ${recipe.name}`, tone: 'primary', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); } },
@@ -295,7 +296,7 @@ function PlanMode({ plan, selectedDate, dates, onSelectDate, onOpenRecipe, onCre
           </ScrollView>
           <View style={styles.timeline}>
             {entries.map((entry) => (
-              <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
+              <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
             ))}
             {!entries.length ? <EmptyState title="This day is open" detail="Use Edit to add a meal, or leave the space for something spontaneous." /> : null}
           </View>

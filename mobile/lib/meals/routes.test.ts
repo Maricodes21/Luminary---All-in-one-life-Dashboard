@@ -80,3 +80,24 @@ test('macro progress animates a clamped fill and honors reduced motion', () => {
   assert.match(source, /AccessibilityInfo\.isReduceMotionEnabled\(\)/);
   assert.match(source, /height:\s*6/);
 });
+
+test('food search debounces typing and ignores stale responses', () => {
+  const source = fs.readFileSync(path.join(appDirectory, 'meals/search.tsx'), 'utf8');
+
+  assert.match(source, /setTimeout\([^]*350/);
+  assert.match(source, /requestSequence\.current/);
+  assert.match(source, /clearTimeout/);
+  assert.match(source, /query\.trim\(\)\.length < 2/);
+});
+
+test('substitution tolerates older persisted plans without array fields', () => {
+  const route = fs.readFileSync(path.join(appDirectory, 'meals/substitute/[id].tsx'), 'utf8');
+  const store = fs.readFileSync(path.resolve(__dirname, '../../stores/useMealsStore.ts'), 'utf8');
+
+  assert.match(route, /Array\.isArray\(user\?\.plans\)/);
+  assert.match(route, /Array\.isArray\(item\.entries\)/);
+  assert.match(route, /InteractionManager\.runAfterInteractions/);
+  assert.ok(route.indexOf('router.replace') < route.indexOf('updatePlanEntry(planId'));
+  assert.match(store, /Array\.isArray\(user\.plans\)/);
+  assert.match(store, /Array\.isArray\(plan\.entries\)/);
+});

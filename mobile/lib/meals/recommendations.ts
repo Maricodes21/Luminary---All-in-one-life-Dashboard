@@ -3,6 +3,7 @@ import type { CatalogRecipe } from './catalog';
 import { localDateKey, mealWindowFor } from './dates';
 import { calculateMealTotals } from './totals';
 import { makeUuid } from './state';
+import { recipeImageUri } from './recipeImages';
 import type { DailyNutritionTarget, MealLogRecord, MealPlan, MealPlanEntry, MealType, NutritionProfile } from './types';
 
 type RecommendationInput = {
@@ -136,7 +137,7 @@ function recipeToPlanEntry(recipe: CatalogRecipe, localDate: string): MealPlanEn
   return {
     id: makeUuid(), localDate, mealType: recipe.mealType, name: recipe.name, source: 'curated', servingQuantity: 1,
     servingUnit: 'serving', recipeId: recipe.id, providerId: recipe.providerId, nutrition: recipe.nutrition,
-    imageUri: recipe.image.kind === 'exact' ? recipe.image.uri : undefined,
+    imageUri: recipeImageUri(recipe),
     recipeSnapshot: recipe,
   };
 }

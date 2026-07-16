@@ -104,13 +104,15 @@ export const useMealsStore = create<MealsState>()(
       deletePlanEntry: (planId, entryId) => updateActive(set, (user) => deletePlanEntryFromUser(user, planId, entryId)),
       updatePlanEntry: (planId, entryId, updates) =>
         updateActive(set, (user) => {
-          const plans = user.plans.map((plan) =>
+          const currentPlans = Array.isArray(user.plans) ? user.plans : [];
+          const plans = currentPlans.map((plan) =>
             plan.id === planId
-              ? { ...plan, entries: plan.entries.map((entry) => (entry.id === entryId ? { ...entry, ...updates } : entry)) }
+              ? { ...plan, entries: (Array.isArray(plan.entries) ? plan.entries : []).map((entry) => (entry.id === entryId ? { ...entry, ...updates } : entry)) }
               : plan,
           );
           const entry = plans.find((plan) => plan.id === planId)?.entries.find((item) => item.id === entryId);
-          return { ...user, plans, syncQueue: entry ? [...user.syncQueue, entryMutation({ planId, entry }, 'update')] : user.syncQueue };
+          const syncQueue = Array.isArray(user.syncQueue) ? user.syncQueue : [];
+          return { ...user, plans, syncQueue: entry ? [...syncQueue, entryMutation({ planId, entry }, 'update')] : syncQueue };
         }),
       deletePlanDay: (planId, localDate) =>
         updateActive(set, (user) => {

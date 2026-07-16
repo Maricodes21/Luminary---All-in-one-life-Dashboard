@@ -254,7 +254,7 @@ export function addSuggestionFeedbackToUser(
   };
   return {
     ...current,
-    syncQueue: [...current.syncQueue, mutation('feedback', 'create', payload, at)],
+    syncQueue: [...(Array.isArray(current.syncQueue) ? current.syncQueue : []), mutation('feedback', 'create', payload, at)],
   };
 }
 

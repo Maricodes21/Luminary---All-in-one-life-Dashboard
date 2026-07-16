@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
@@ -15,15 +15,31 @@ export default function FoodSearchScreen() {
   const [results, setResults] = useState<FoodSearchResult[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
+  const requestSequence = useRef(0);
 
-  const runSearch = async () => {
-    if (!query.trim()) return;
+  const runSearch = useCallback(async (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed.length < 2) return;
+    const requestId = ++requestSequence.current;
     setLoading(true);
-    const found = await searchFoods(query);
+    const found = await searchFoods(trimmed);
+    if (requestId !== requestSequence.current) return;
     setResults(found);
     setSearched(true);
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      requestSequence.current += 1;
+      setResults([]);
+      setSearched(false);
+      setLoading(false);
+      return;
+    }
+    const timeout = setTimeout(() => { void runSearch(query); }, 350);
+    return () => clearTimeout(timeout);
+  }, [query, runSearch]);
 
   const choose = (result: FoodSearchResult) => {
     const nutrition = result.servings[0]?.nutrition ?? result.nutrition;
@@ -46,8 +62,8 @@ export default function FoodSearchScreen() {
     <MealScreen title="Search food" subtitle="Brands, staples, meals, and community records">
       <View style={styles.searchRow}>
         <Icon name="search" size={19} color={palette.onSurfaceVariant} />
-        <TextInput value={query} onChangeText={setQuery} onSubmitEditing={runSearch} returnKeyType="search" autoFocus placeholder="Try oats, Bokomo, or burger patty" placeholderTextColor={palette.onSurfaceVariant} style={styles.input} />
-        {loading ? <ActivityIndicator color={palette.primary} /> : <Pressable onPress={runSearch} style={styles.go}><Icon name="back" size={18} color={palette.onPrimary} /></Pressable>}
+        <TextInput value={query} onChangeText={setQuery} onSubmitEditing={() => void runSearch(query)} returnKeyType="search" autoFocus placeholder="Try oats, Bokomo, or burger patty" placeholderTextColor={palette.onSurfaceVariant} style={styles.input} />
+        {loading ? <ActivityIndicator color={palette.primary} /> : <Pressable onPress={() => void runSearch(query)} style={styles.go}><Icon name="back" size={18} color={palette.onPrimary} /></Pressable>}
       </View>
       {!searched ? (
         <View style={styles.intro}><Text style={[type.titleMd, { color: palette.onSurface }]}>Search what you actually ate</Text><Text style={[type.bodyMd, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>Direct provider matches come first. When wording is unclear, AI may expand the search, but nutrition always comes from a traceable food record.</Text></View>

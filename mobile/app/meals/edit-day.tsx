@@ -7,6 +7,7 @@ import { MealCard } from '@/components/meals/MealCard';
 import { MealScreen } from '@/components/meals/MealScreen';
 import { recipeCatalog } from '@/lib/meals/catalog';
 import { isRecipeAllowed } from '@/lib/meals/recommendations';
+import { recipeImageUri } from '@/lib/meals/recipeImages';
 import { makeUuid } from '@/lib/meals/state';
 import type { MealType } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
@@ -42,7 +43,7 @@ export default function EditPlanDayScreen() {
     addPlanEntry(plan.id, {
       id: makeUuid(), localDate, mealType: recipe.mealType, name: recipe.name, source: 'curated',
       servingQuantity: 1, servingUnit: 'serving', recipeId: recipe.id, providerId: recipe.providerId,
-      nutrition: recipe.nutrition, imageUri: recipe.image.kind === 'exact' ? recipe.image.uri : undefined,
+      nutrition: recipe.nutrition, imageUri: recipeImageUri(recipe),
       recipeSnapshot: recipe,
     });
   };
@@ -56,14 +57,14 @@ export default function EditPlanDayScreen() {
     <MealScreen title={`Edit ${formatDay(localDate)}`} subtitle="Shape this day without rebuilding the week">
       <View style={styles.section}>
         <Text style={[type.headlineSm, { color: palette.onSurface }]}>Planned meals</Text>
-        {entries.map((entry) => <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => router.push(`/meals/recipe/${entry.recipeId ?? 'missing'}?entryId=${entry.id}`)} onEdit={() => router.push(`/meals/substitute/${entry.id}`)} onDelete={() => removeEntry(entry.id, entry.name)} />)}
+        {entries.map((entry) => <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => router.push(`/meals/recipe/${entry.recipeId ?? 'missing'}?entryId=${entry.id}`)} onEdit={() => router.push(`/meals/substitute/${entry.id}`)} onDelete={() => removeEntry(entry.id, entry.name)} />)}
         {!entries.length ? <View style={styles.notice}><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>This day is open. Add only the meals that would genuinely help.</Text></View> : null}
       </View>
 
       <View style={styles.section}>
         <Text style={[type.headlineSm, { color: palette.onSurface }]}>Add a meal</Text>
         <View style={styles.tabs}>{mealTypes.map((item) => <Pressable key={item} onPress={() => setMealType(item)} style={[styles.tab, item === mealType && styles.tabActive]}><Text style={[type.labelSm, { color: item === mealType ? palette.onPrimary : palette.onSurfaceVariant }]} numberOfLines={1}>{titleCase(item)}</Text></Pressable>)}</View>
-        {candidates.map((recipe) => <View key={recipe.id} style={styles.candidate}><MealCard title={recipe.name} imageUri={recipe.image.kind === 'exact' ? recipe.image.uri : undefined} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min`} onPress={() => router.push(`/meals/recipe/${recipe.id}`)} /><Pressable onPress={() => addRecipe(recipe)} style={styles.addButton} accessibilityRole="button" accessibilityLabel={`Add ${recipe.name} to ${formatDay(localDate)}`}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Add meal</Text></Pressable></View>)}
+        {candidates.map((recipe) => <View key={recipe.id} style={styles.candidate}><MealCard title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min`} onPress={() => router.push(`/meals/recipe/${recipe.id}`)} /><Pressable onPress={() => addRecipe(recipe)} style={styles.addButton} accessibilityRole="button" accessibilityLabel={`Add ${recipe.name} to ${formatDay(localDate)}`}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Add meal</Text></Pressable></View>)}
         {!candidates.length ? <View style={styles.notice}><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>No verified {mealType} fits the remaining calories and current preferences.</Text></View> : null}
       </View>
     </MealScreen>
