@@ -79,9 +79,8 @@ export default function RitualScreen() {
         {(stage === 'recap' || stage === 'mood') && (
           <>
             <Text style={[type.displayMd, { color: palette.onSurface }]}>
-              How are you{' '}
-              <Text style={{ color: palette.primary, fontStyle: 'italic' }}>really</Text>{' '}
-              feeling?
+              Here&apos;s how today{' '}
+              <Text style={{ color: palette.primary, fontStyle: 'italic' }}>sounded.</Text>
             </Text>
 
             {isLoading && (

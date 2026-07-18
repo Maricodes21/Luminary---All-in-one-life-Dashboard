@@ -12,7 +12,6 @@
  *
  * Required Spotify scopes:
  *   user-read-recently-played
- *   user-top-read
  *
  * Usage:
  *   const { connect, disconnect, isConnected, isLoading, error } = useSpotifyAuth();
@@ -29,7 +28,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-const SCOPES = ['user-read-recently-played', 'user-top-read'];
+const SCOPES = ['user-read-recently-played'];
 
 const discovery: AuthSession.DiscoveryDocument = {
   authorizationEndpoint: 'https://accounts.spotify.com/authorize',

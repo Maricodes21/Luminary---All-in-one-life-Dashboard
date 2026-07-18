@@ -96,6 +96,11 @@ export function MoodConfirm({ recap, onComplete }: MoodConfirmProps) {
   if (phase === 'initial') {
     return (
       <View style={styles.container}>
+        <View style={styles.signalCard}>
+          <Text style={[type.labelSm, styles.signalLabel]}>Listening signal</Text>
+          <Text style={[type.headlineMd, styles.signalMood]}>{moodCopy[spotifyMood.label].display}</Text>
+          <Text style={[type.bodySm, styles.chipPrompt]}>Does that match how today felt?</Text>
+        </View>
         {saveError && (
           <Text style={[type.bodySm, styles.errorText]}>{saveError}</Text>
         )}
@@ -218,6 +223,14 @@ const styles = StyleSheet.create({
   chipPrompt: {
     color: palette.onSurfaceVariant,
   },
+  signalCard: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainer,
+  },
+  signalLabel: { color: palette.onSurfaceVariant },
+  signalMood: { color: palette.primary },
   buttonRow: {
     gap: spacing.sm,
   },
