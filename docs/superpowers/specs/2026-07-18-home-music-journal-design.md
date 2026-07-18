@@ -11,8 +11,8 @@ The home screen content order will be:
 1. Greeting and profile control
 2. Music recap or Spotify connection prompt
 3. Nightly ritual, when it is still relevant
-4. Daily habits
-5. Today at a glance
+4. Today at a glance
+5. Daily habits
 
 The separate Spotify and Health Connect connection tiles will be removed. Health setup remains available from the Health screen. The Today's Focus card will be removed for now.
 
@@ -35,7 +35,7 @@ When Spotify is disconnected, the music card itself becomes the connection promp
 
 ## Nightly Ritual And Habits
 
-The existing nightly ritual card moves into the space previously occupied by Today's Focus. Its completion logic remains unchanged: when the ritual is no longer relevant, it may be omitted and Daily Habits moves up naturally. The Daily Habits section follows immediately after the ritual with the existing habit controls unchanged.
+The existing nightly ritual card moves into the space previously occupied by Today's Focus. Its completion logic remains unchanged: when the ritual is no longer relevant, it may be omitted and Today at a Glance moves up naturally. Today at a Glance follows the ritual, and Daily Habits follows the glance section with its existing controls unchanged.
 
 ## Journal Timeline
 
