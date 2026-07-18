@@ -42,7 +42,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 
-const mobileRoot = path.resolve(__dirname, '../..');
+const mobileRoot = path.resolve(__dirname, '..');
 
 test('compact Spotify recap uses centered three-column tracks and artists', () => {
   const source = fs.readFileSync(
