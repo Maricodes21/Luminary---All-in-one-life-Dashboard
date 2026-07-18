@@ -9,6 +9,7 @@ import {
   addSuggestionFeedbackToUser,
   createEmptyMealsUser,
   deleteMealFromUser,
+  dismissMealDeletion,
   deletePlanEntryFromUser,
   ensureDailyTarget,
   importLegacyMealsForUser,
@@ -42,6 +43,7 @@ type MealsState = {
   updateMeal: (mealId: string, updates: Partial<Omit<MealLogRecord, 'id'>>) => void;
   deleteMeal: (mealId: string) => void;
   undoMealDeletion: () => void;
+  dismissMealDeletion: () => void;
   recordSuggestionFeedback: (candidateId: string, action: SuggestionFeedbackAction, context?: Record<string, unknown>) => void;
   replacePlans: (plans: MealPlan[]) => void;
   addPlanEntry: (planId: string, entry: MealPlan['entries'][number]) => void;
@@ -97,6 +99,7 @@ export const useMealsStore = create<MealsState>()(
       updateMeal: (mealId, updates) => updateActive(set, (user) => updateMealForUser(user, mealId, updates)),
       deleteMeal: (mealId) => updateActive(set, (user) => deleteMealFromUser(user, mealId)),
       undoMealDeletion: () => updateActive(set, (user) => undoLastMealDeletion(user)),
+      dismissMealDeletion: () => updateActive(set, (user) => dismissMealDeletion(user)),
       recordSuggestionFeedback: (candidateId, action, context = {}) =>
         updateActive(set, (user) => addSuggestionFeedbackToUser(user, candidateId, action, context)),
       replacePlans: (plans) => updateActive(set, (user) => replacePlansForUser(user, plans)),

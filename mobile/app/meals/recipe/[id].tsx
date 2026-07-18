@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { MealScreen } from '@/components/meals/MealScreen';
 import { Icon } from '@/components/ui/Icon';
+import { useRecipeImage } from '@/hooks/useRecipeImage';
 import { getRecipeById } from '@/lib/meals/catalog';
 import { localDateKey, mealWindowFor } from '@/lib/meals/dates';
 import { makeUuid } from '@/lib/meals/state';
@@ -24,7 +25,8 @@ export default function RecipeDetailScreen() {
   const addMeal = useMealsStore((state) => state.addMeal);
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [imageFailed, setImageFailed] = useState(false);
-  const displayImageUri = recipe ? recipeImageUri(recipe) : undefined;
+  const imageMatch = useRecipeImage({ name: recipe?.name ?? '', imageUri: recipe ? recipeImageUri(recipe) : undefined });
+  const displayImageUri = imageMatch?.uri;
   const ingredientRows = useMemo(() => recipe?.ingredients ?? [], [recipe]);
   const instructionRows = useMemo(() => recipe?.steps ?? [], [recipe]);
 
@@ -40,13 +42,22 @@ export default function RecipeDetailScreen() {
 
   const logRecipe = () => {
     const now = new Date();
-    addMeal({ id: makeUuid(), name: recipe.name, localDate: localDateKey(now), consumedAt: now.toISOString(), timezone: currentTimezone(), mealType: mealWindowFor(now), servingQuantity: 1, servingUnit: 'serving', nutrition: recipe.nutrition!, source: recipe.source, providerId: recipe.providerId, imageUri: recipeImageUri(recipe) });
+    addMeal({ id: makeUuid(), name: recipe.name, localDate: localDateKey(now), consumedAt: now.toISOString(), timezone: currentTimezone(), mealType: mealWindowFor(now), servingQuantity: 1, servingUnit: 'serving', nutrition: recipe.nutrition!, source: recipe.source, providerId: recipe.providerId, imageUri: displayImageUri });
     router.replace('/(tabs)/meals');
   };
 
   return (
     <MealScreen title={recipe.name} subtitle={`${recipeDuration(recipe)} min / ${recipe.servings} ${recipe.servings === 1 ? 'serving' : 'servings'}`}>
-      {displayImageUri && !imageFailed ? <Image source={{ uri: displayImageUri }} style={styles.hero} resizeMode="cover" onError={() => setImageFailed(true)} accessibilityLabel={recipe.name} /> : null}
+      <View style={styles.hero}>
+        {displayImageUri && !imageFailed
+          ? <Image source={{ uri: displayImageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setImageFailed(true)} accessibilityLabel={recipe.name} />
+          : <Icon name="meals" size={34} color={palette.onSurfaceVariant} />}
+      </View>
+      {imageMatch?.sourceUrl && imageMatch.creator ? (
+        <Pressable onPress={() => void Linking.openURL(imageMatch.sourceUrl!)} accessibilityRole="link">
+          <Text style={[type.labelSm, styles.attribution]}>Photo by {imageMatch.creator}{imageMatch.license ? ` / CC ${imageMatch.license.replace(/^CC\s+/i, '')}` : ''}</Text>
+        </Pressable>
+      ) : null}
       <View style={styles.summary}><Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>{recipe.description}</Text><View style={styles.stats}><Stat label="Calories" value={`${recipe.nutrition.calories}`} /><Stat label="Protein" value={`${recipe.nutrition.proteinG}g`} /><Stat label="Carbs" value={`${recipe.nutrition.carbsG}g`} /><Stat label="Fat" value={`${recipe.nutrition.fatG}g`} /></View></View>
       <View style={styles.section}><Text style={[type.headlineSm, { color: palette.onSurface }]}>Ingredients</Text>{ingredientRows.map((ingredient) => { const done = checked.has(ingredient.id); return <Pressable key={ingredient.id} onPress={() => setChecked((current) => { const next = new Set(current); if (next.has(ingredient.id)) next.delete(ingredient.id); else next.add(ingredient.id); return next; })} style={styles.ingredient} accessibilityRole="checkbox" accessibilityState={{ checked: done }}><View style={[styles.checkbox, done && styles.checkboxDone]}>{done ? <Icon name="check" size={14} color={palette.onPrimary} /> : null}</View><Text style={[type.bodyMd, { color: done ? palette.onSurfaceVariant : palette.onSurface, flex: 1 }]}>{ingredient.quantity} {ingredient.unit} {ingredient.name}{ingredient.note ? `, ${ingredient.note}` : ''}</Text></Pressable>; })}</View>
       <View style={styles.section}><Text style={[type.headlineSm, { color: palette.onSurface }]}>Instructions</Text>{instructionRows.map((step, index) => <View key={step.id} style={styles.step}><View style={styles.stepNumber}><Text style={[type.labelSm, { color: palette.primary }]}>{index + 1}</Text></View><View style={{ flex: 1 }}><Text style={[type.bodyMd, { color: palette.onSurface }]}>{step.text}</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>{step.durationMinutes} min / {step.cue}</Text></View></View>)}</View>
@@ -62,7 +73,8 @@ function currentTimezone() { try { return Intl.DateTimeFormat().resolvedOptions(
 
 const styles = StyleSheet.create({
   missing: { minHeight: 380, alignItems: 'center', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
-  hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHigh },
+  hero: { width: '100%', aspectRatio: 16 / 9, borderRadius: radii.lg, overflow: 'hidden', backgroundColor: palette.surfaceContainerHigh, alignItems: 'center', justifyContent: 'center' },
+  attribution: { color: palette.onSurfaceVariant, alignSelf: 'flex-end' },
   summary: { gap: spacing.md, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, padding: spacing.md },
   stats: { flexDirection: 'row', gap: spacing.xs },
   stat: { flex: 1, minWidth: 0, alignItems: 'center', backgroundColor: palette.surfaceContainerHigh, borderRadius: radii.sm, paddingVertical: spacing.sm },

@@ -69,6 +69,14 @@ test('daily suggestions keep actions inside cards without rationale copy', () =>
   assert.match(source, /actions=\{/);
 });
 
+test('deleted meal notice can be dismissed and expires automatically', () => {
+  const source = fs.readFileSync(path.join(appDirectory, '(tabs)/meals.tsx'), 'utf8');
+
+  assert.match(source, /setTimeout\(dismissMealDeletion, Math\.max\(0, 6000 - elapsed\)\)/);
+  assert.match(source, /clearTimeout\(timeout\)/);
+  assert.match(source, /accessibilityLabel="Dismiss deleted meal notice"/);
+});
+
 test('macro progress animates a clamped fill and honors reduced motion', () => {
   const source = fs.readFileSync(path.join(componentsDirectory, 'MacroProgress.tsx'), 'utf8');
 

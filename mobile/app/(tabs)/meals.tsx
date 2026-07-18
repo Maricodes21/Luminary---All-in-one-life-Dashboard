@@ -5,8 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { CalorieRing } from '@/components/meals/CalorieRing';
+import { DynamicMealCard } from '@/components/meals/DynamicMealCard';
 import { MacroProgress } from '@/components/meals/MacroProgress';
-import { MealCard } from '@/components/meals/MealCard';
 import { MealsSegmentedControl, type MealsMode } from '@/components/meals/MealsSegmentedControl';
 import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -33,6 +33,7 @@ export default function MealsScreen() {
   const deleteMeal = useMealsStore((state) => state.deleteMeal);
   const addMeal = useMealsStore((state) => state.addMeal);
   const undoMealDeletion = useMealsStore((state) => state.undoMealDeletion);
+  const dismissMealDeletion = useMealsStore((state) => state.dismissMealDeletion);
   const deletePlanDay = useMealsStore((state) => state.deletePlanDay);
   const deletePlan = useMealsStore((state) => state.deletePlan);
 
@@ -43,6 +44,13 @@ export default function MealsScreen() {
   useEffect(() => {
     if (params.mode === 'plan') setMode('plan');
   }, [params.mode]);
+
+  useEffect(() => {
+    if (user?.undo?.kind !== 'meal') return;
+    const elapsed = Date.now() - new Date(user.undo.createdAt).getTime();
+    const timeout = setTimeout(dismissMealDeletion, Math.max(0, 6000 - elapsed));
+    return () => clearTimeout(timeout);
+  }, [dismissMealDeletion, user?.undo?.createdAt, user?.undo?.kind]);
 
   const today = localDateKey(new Date());
   const todayMeals = useMemo(() => user?.meals.filter((meal) => meal.localDate === today) ?? [], [today, user?.meals]);
@@ -125,6 +133,9 @@ export default function MealsScreen() {
             <Icon name="undo" size={16} color={palette.primary} />
             <Text style={[type.labelSm, { color: palette.primary }]}>Undo</Text>
           </Pressable>
+          <Pressable onPress={dismissMealDeletion} style={styles.undoDismiss} accessibilityRole="button" accessibilityLabel="Dismiss deleted meal notice">
+            <Icon name="close" size={16} color={palette.onSurfaceVariant} />
+          </Pressable>
         </View>
       ) : null}
     </View>
@@ -194,7 +205,7 @@ function TodayMode({ user, meals, target, totals, remainingCalories, profileStal
         </View>
         <View style={styles.cardList}>
           {meals.map((meal) => (
-            <MealCard key={meal.id} title={meal.name} imageUri={meal.imageUri} nutrition={meal.nutrition} detail={`${titleCase(meal.mealType)}  /  ${formatTime(meal.consumedAt)}`} onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal)} />
+            <DynamicMealCard key={meal.id} title={meal.name} imageUri={meal.imageUri} nutrition={meal.nutrition} detail={`${titleCase(meal.mealType)}  /  ${formatTime(meal.consumedAt)}`} onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal)} />
           ))}
           {!meals.length ? <EmptyState title="Nothing logged yet" detail="Search the full food library, scan a meal, or add exactly what you know." /> : null}
         </View>
@@ -242,7 +253,7 @@ function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe,
         <Icon name="sparkles" size={20} color={palette.tertiary} />
         <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>Suggested for right now</SectionLabel></View>
       </View>
-      {suggested.map((recipe) => <MealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
+      {suggested.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
         { icon: 'trash', label: `Not for me: ${recipe.name}`, tone: 'danger', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); setSuggestionCursor(0); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); } },
         { icon: 'swap', label: `Show another ${recipe.mealType}`, onPress: () => setSuggestionCursor((current) => current + 1) },
         { icon: 'plus', label: `Log ${recipe.name}`, tone: 'primary', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); } },
@@ -296,7 +307,7 @@ function PlanMode({ plan, selectedDate, dates, onSelectDate, onOpenRecipe, onCre
           </ScrollView>
           <View style={styles.timeline}>
             {entries.map((entry) => (
-              <MealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
+              <DynamicMealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
             ))}
             {!entries.length ? <EmptyState title="This day is open" detail="Use Edit to add a meal, or leave the space for something spontaneous." /> : null}
           </View>
@@ -381,6 +392,7 @@ const styles = StyleSheet.create({
   undo: { position: 'absolute', left: spacing.md, right: spacing.md, minHeight: 48, flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surfaceBright, borderRadius: radii.sm, paddingHorizontal: spacing.md },
   undoText: { color: palette.onSurface, flex: 1 },
   undoButton: { height: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm },
+  undoDismiss: { width: 36, height: 40, alignItems: 'center', justifyContent: 'center' },
   planHeader: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: spacing.sm },
   planHeaderActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.xs },
   textButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm },

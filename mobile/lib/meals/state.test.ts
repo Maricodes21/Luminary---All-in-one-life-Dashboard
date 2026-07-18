@@ -5,6 +5,7 @@ import {
   addMealToUser,
   createEmptyMealsUser,
   deleteMealFromUser,
+  dismissMealDeletion,
   addSuggestionFeedbackToUser,
   addPlanEntryToUser,
   deletePlanEntryFromUser,
@@ -78,6 +79,16 @@ test('meal add, edit, delete, and undo data stay in one user bucket', () => {
   assert.equal(deleted.undo?.kind, 'meal');
   assert.equal(deleted.undo?.record.id, meal.id);
   assert.equal(initial.meals.length, 0);
+});
+
+test('dismissing a meal deletion clears the notice without restoring or queueing', () => {
+  const deleted = deleteMealFromUser(addMealToUser(createEmptyMealsUser(), meal), meal.id);
+  const queueLength = deleted.syncQueue.length;
+  const dismissed = dismissMealDeletion(deleted);
+
+  assert.equal(dismissed.undo, null);
+  assert.equal(dismissed.meals.length, 0);
+  assert.equal(dismissed.syncQueue.length, queueLength);
 });
 
 test('remote hydration cannot restore a meal with a pending local deletion', () => {

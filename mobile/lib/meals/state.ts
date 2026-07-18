@@ -126,6 +126,11 @@ export function undoLastMealDeletion(current: MealsUserData, at = new Date()): M
   };
 }
 
+export function dismissMealDeletion(current: MealsUserData): MealsUserData {
+  if (!current.undo || current.undo.kind !== 'meal') return current;
+  return { ...current, undo: null };
+}
+
 export function mergeHydratedMeals(
   remoteMeals: MealLogRecord[],
   localMeals: MealLogRecord[],

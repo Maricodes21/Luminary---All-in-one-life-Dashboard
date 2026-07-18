@@ -12,7 +12,7 @@ export type MealCardAction = {
   onPress: () => void;
 };
 
-type MealCardProps = {
+export type MealCardProps = {
   title: string;
   imageUri?: string;
   nutrition?: NutritionValues | null;

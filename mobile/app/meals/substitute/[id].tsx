@@ -2,7 +2,7 @@ import { Alert, InteractionManager, Pressable, StyleSheet, Text, View } from 're
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
-import { MealCard } from '@/components/meals/MealCard';
+import { DynamicMealCard } from '@/components/meals/DynamicMealCard';
 import { MealScreen } from '@/components/meals/MealScreen';
 import { recipeCatalog } from '@/lib/meals/catalog';
 import { catalogSubstitutions } from '@/lib/meals/recommendations';
@@ -46,7 +46,7 @@ export default function SubstituteMealScreen() {
   return (
     <MealScreen title="Substitute meal" subtitle={entry ? `Replace ${entry.name}` : 'Planner entry unavailable'}>
       {entry ? <View style={styles.note}><Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>These options use the same meal time and your current diet, allergy, ingredient, and preparation limits.</Text></View> : null}
-      <View style={styles.list}>{substitutions.map((recipe) => <MealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${(recipe.dietaryTags ?? []).join(', ')}`} onPress={() => choose(recipe)} />)}</View>
+      <View style={styles.list}>{substitutions.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${(recipe.dietaryTags ?? []).join(', ')}`} onPress={() => choose(recipe)} />)}</View>
       {!entry || !substitutions.length ? <View style={styles.empty}><Text style={[type.titleMd, { color: palette.onSurface }]}>No safe substitute found</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>Your plan is unchanged. Adjust preferences or return to the week.</Text><Pressable onPress={() => router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } })} style={styles.back}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Back to plan</Text></Pressable></View> : null}
     </MealScreen>
   );
