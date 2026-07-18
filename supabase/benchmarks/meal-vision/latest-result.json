@@ -1,0 +1,543 @@
+{
+  "benchmarkVersion": "nutrition5k-overhead-v1",
+  "promptVersion": "meal-vision-v1",
+  "source": {
+    "name": "Nutrition5k",
+    "url": "https://github.com/google-research-datasets/Nutrition5k",
+    "license": "CC BY 4.0"
+  },
+  "generatedAt": "2026-07-14T17:14:38.029Z",
+  "models": [
+    {
+      "model": "gemma4:31b-cloud",
+      "usageTier": "medium",
+      "sampleCount": 20,
+      "truePositives": 43,
+      "falsePositives": 25,
+      "falseNegatives": 24,
+      "qualityEvaluated": true,
+      "precision": 0.6324,
+      "recall": 0.6418,
+      "f1": 0.637,
+      "schemaValidity": 0.95,
+      "successRate": 0.95,
+      "latencyMs": {
+        "p50": 6126,
+        "p95": 75291
+      },
+      "samples": [
+        {
+          "id": "dish_1560455030",
+          "expected": ["cherry tomatoes", "cucumber", "baby carrots"],
+          "predicted": ["carrots", "cucumber", "cherry tomatoes"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 5375,
+          "matched": ["carrot", "cucumber", "tomato"],
+          "unexpected": [],
+          "missed": []
+        },
+        {
+          "id": "dish_1559844951",
+          "expected": ["almonds", "roasted potatoes"],
+          "predicted": ["almonds", "potatoes"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 4826,
+          "matched": ["almond", "potato"],
+          "unexpected": [],
+          "missed": []
+        },
+        {
+          "id": "dish_1561739238",
+          "expected": ["egg whites", "hash browns", "berries", "sweet potato"],
+          "predicted": [
+            "cottage cheese",
+            "shredded coconut",
+            "blueberries",
+            "raspberries",
+            "blackberries",
+            "sweet potato"
+          ],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 6082,
+          "matched": ["berry", "sweet potato"],
+          "unexpected": ["cottage cheese", "shredded coconut"],
+          "missed": ["egg", "potato"]
+        },
+        {
+          "id": "dish_1562691032",
+          "expected": ["berries", "pineapple", "scrambled eggs", "roasted potatoes", "broccoli"],
+          "predicted": [
+            "scrambled eggs",
+            "potatoes",
+            "broccoli",
+            "strawberries",
+            "pineapple",
+            "blueberries"
+          ],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 4168,
+          "matched": ["egg", "potato", "broccoli", "pineapple", "berry"],
+          "unexpected": ["strawberry"],
+          "missed": []
+        },
+        {
+          "id": "dish_1563822597",
+          "expected": ["broccoli", "caesar salad", "squash", "zucchini"],
+          "predicted": ["lettuce", "croutons", "parmesan cheese", "mango", "zucchini"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 5681,
+          "matched": ["zucchini"],
+          "unexpected": ["lettuce", "croutons", "parmesan", "mango"],
+          "missed": ["broccoli", "salad", "squash"]
+        },
+        {
+          "id": "dish_1565119669",
+          "expected": ["mixed greens", "zucchini", "squash"],
+          "predicted": ["kale", "yellow squash", "zucchini", "beetroot"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 3632,
+          "matched": ["zucchini"],
+          "unexpected": ["kale", "yellow squash", "beetroot"],
+          "missed": ["greens", "squash"]
+        },
+        {
+          "id": "dish_1558724031",
+          "expected": ["cherry tomatoes", "cantaloupe", "almonds", "cauliflower"],
+          "predicted": ["cauliflower", "almonds", "cherry tomatoes", "apricots"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 15768,
+          "matched": ["cauliflower", "almond", "tomato"],
+          "unexpected": ["apricots"],
+          "missed": ["cantaloupe"]
+        },
+        {
+          "id": "dish_1565033110",
+          "expected": ["broccoli", "mixed greens"],
+          "predicted": ["broccoli", "lettuce"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 17104,
+          "matched": ["broccoli"],
+          "unexpected": ["lettuce"],
+          "missed": ["greens"]
+        },
+        {
+          "id": "dish_1558720236",
+          "expected": ["apple", "carrot", "cauliflower", "almonds"],
+          "predicted": ["carrots", "cauliflower", "almonds", "apple"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 5285,
+          "matched": ["carrot", "cauliflower", "almond", "apple"],
+          "unexpected": [],
+          "missed": []
+        },
+        {
+          "id": "dish_1563468269",
+          "expected": ["berries", "watermelon", "pineapple"],
+          "predicted": ["raspberry", "blackberry", "watermelon", "pineapple"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 3402,
+          "matched": ["watermelon", "pineapple"],
+          "unexpected": ["raspberry", "blackberry"],
+          "missed": ["berry"]
+        },
+        {
+          "id": "dish_1558380557",
+          "expected": ["grapes", "almonds", "sausage"],
+          "predicted": ["almonds", "grapes", "dried dates"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 3971,
+          "matched": ["almond", "grape"],
+          "unexpected": ["dried dates"],
+          "missed": ["sausage"]
+        },
+        {
+          "id": "dish_1558724959",
+          "expected": ["brussels sprouts", "carrot", "almonds", "apple"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 120005,
+          "error": "The operation was aborted due to timeout",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["brussels sprouts", "carrot", "almond", "apple"]
+        },
+        {
+          "id": "dish_1559751801",
+          "expected": ["berries", "sweet potato", "eggs", "sausage"],
+          "predicted": [
+            "sausages",
+            "scrambled eggs",
+            "sweet potato",
+            "blackberries",
+            "raspberries"
+          ],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 26167,
+          "matched": ["sausage", "egg", "sweet potato", "berry"],
+          "unexpected": [],
+          "missed": []
+        },
+        {
+          "id": "dish_1565383026",
+          "expected": ["spinach", "cucumber", "olives"],
+          "predicted": ["spinach", "kidney beans", "cucumber"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 75291,
+          "matched": ["spinach", "cucumber"],
+          "unexpected": ["kidney beans"],
+          "missed": ["olive"]
+        },
+        {
+          "id": "dish_1566849923",
+          "expected": ["cherry tomatoes", "carrot"],
+          "predicted": ["shredded carrots", "cherry tomatoes"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 12177,
+          "matched": ["tomato"],
+          "unexpected": ["shredded carrots"],
+          "missed": ["carrot"]
+        },
+        {
+          "id": "dish_1563824339",
+          "expected": ["onions", "cherry tomatoes", "olives", "bell pepper"],
+          "predicted": [
+            "red bell pepper",
+            "green bell pepper",
+            "red onion",
+            "cherry tomatoes",
+            "black olives"
+          ],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 23022,
+          "matched": ["tomato"],
+          "unexpected": ["red bell pepper", "green bell pepper", "red onion", "black olives"],
+          "missed": ["onion", "olive", "bell pepper"]
+        },
+        {
+          "id": "dish_1559844506",
+          "expected": ["mandarin oranges", "grapes", "strawberries"],
+          "predicted": ["strawberry", "clementine", "grape"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 39891,
+          "matched": ["strawberry", "grape"],
+          "unexpected": ["clementine"],
+          "missed": ["orange"]
+        },
+        {
+          "id": "dish_1560360055",
+          "expected": ["sausage", "scrambled eggs"],
+          "predicted": ["sausage", "scrambled eggs"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 24403,
+          "matched": ["sausage", "egg"],
+          "unexpected": [],
+          "missed": []
+        },
+        {
+          "id": "dish_1566849327",
+          "expected": ["parmesan cheese", "mixed greens", "avocado", "olives", "chicken"],
+          "predicted": ["chicken", "kidney beans", "avocado", "lettuce", "cheese"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 9322,
+          "matched": ["chicken", "avocado"],
+          "unexpected": ["kidney beans", "lettuce", "cheese"],
+          "missed": ["parmesan", "greens", "olive"]
+        },
+        {
+          "id": "dish_1558546663",
+          "expected": ["spinach", "almonds", "apple"],
+          "predicted": ["spinach", "apple", "almonds"],
+          "schemaValid": true,
+          "succeeded": true,
+          "latencyMs": 6126,
+          "matched": ["spinach", "apple", "almond"],
+          "unexpected": [],
+          "missed": []
+        }
+      ]
+    },
+    {
+      "model": "qwen3.5:cloud",
+      "usageTier": "medium",
+      "sampleCount": 20,
+      "truePositives": 0,
+      "falsePositives": 0,
+      "falseNegatives": 67,
+      "qualityEvaluated": false,
+      "precision": null,
+      "recall": null,
+      "f1": null,
+      "schemaValidity": 0,
+      "successRate": 0,
+      "latencyMs": {
+        "p50": null,
+        "p95": null
+      },
+      "samples": [
+        {
+          "id": "dish_1560455030",
+          "expected": ["cherry tomatoes", "cucumber", "baby carrots"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1005,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["tomato", "cucumber", "carrot"]
+        },
+        {
+          "id": "dish_1559844951",
+          "expected": ["almonds", "roasted potatoes"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 415,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["almond", "potato"]
+        },
+        {
+          "id": "dish_1561739238",
+          "expected": ["egg whites", "hash browns", "berries", "sweet potato"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1695,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["egg", "potato", "berry", "sweet potato"]
+        },
+        {
+          "id": "dish_1562691032",
+          "expected": ["berries", "pineapple", "scrambled eggs", "roasted potatoes", "broccoli"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1028,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["berry", "pineapple", "egg", "potato", "broccoli"]
+        },
+        {
+          "id": "dish_1563822597",
+          "expected": ["broccoli", "caesar salad", "squash", "zucchini"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 426,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["broccoli", "salad", "squash", "zucchini"]
+        },
+        {
+          "id": "dish_1565119669",
+          "expected": ["mixed greens", "zucchini", "squash"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 360,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["greens", "zucchini", "squash"]
+        },
+        {
+          "id": "dish_1558724031",
+          "expected": ["cherry tomatoes", "cantaloupe", "almonds", "cauliflower"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 583,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["tomato", "cantaloupe", "almond", "cauliflower"]
+        },
+        {
+          "id": "dish_1565033110",
+          "expected": ["broccoli", "mixed greens"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 523,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["broccoli", "greens"]
+        },
+        {
+          "id": "dish_1558720236",
+          "expected": ["apple", "carrot", "cauliflower", "almonds"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1889,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["apple", "carrot", "cauliflower", "almond"]
+        },
+        {
+          "id": "dish_1563468269",
+          "expected": ["berries", "watermelon", "pineapple"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 384,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["berry", "watermelon", "pineapple"]
+        },
+        {
+          "id": "dish_1558380557",
+          "expected": ["grapes", "almonds", "sausage"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 557,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["grape", "almond", "sausage"]
+        },
+        {
+          "id": "dish_1558724959",
+          "expected": ["brussels sprouts", "carrot", "almonds", "apple"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 512,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["brussels sprouts", "carrot", "almond", "apple"]
+        },
+        {
+          "id": "dish_1559751801",
+          "expected": ["berries", "sweet potato", "eggs", "sausage"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 616,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["berry", "sweet potato", "egg", "sausage"]
+        },
+        {
+          "id": "dish_1565383026",
+          "expected": ["spinach", "cucumber", "olives"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1060,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["spinach", "cucumber", "olive"]
+        },
+        {
+          "id": "dish_1566849923",
+          "expected": ["cherry tomatoes", "carrot"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 947,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["tomato", "carrot"]
+        },
+        {
+          "id": "dish_1563824339",
+          "expected": ["onions", "cherry tomatoes", "olives", "bell pepper"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1010,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["onion", "tomato", "olive", "bell pepper"]
+        },
+        {
+          "id": "dish_1559844506",
+          "expected": ["mandarin oranges", "grapes", "strawberries"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 1030,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["orange", "grape", "strawberry"]
+        },
+        {
+          "id": "dish_1560360055",
+          "expected": ["sausage", "scrambled eggs"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 384,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["sausage", "egg"]
+        },
+        {
+          "id": "dish_1566849327",
+          "expected": ["parmesan cheese", "mixed greens", "avocado", "olives", "chicken"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 555,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["parmesan", "greens", "avocado", "olive", "chicken"]
+        },
+        {
+          "id": "dish_1558546663",
+          "expected": ["spinach", "almonds", "apple"],
+          "predicted": [],
+          "schemaValid": false,
+          "succeeded": false,
+          "latencyMs": 564,
+          "error": "ollama_subscription_required",
+          "matched": [],
+          "unexpected": [],
+          "missed": ["spinach", "almond", "apple"]
+        }
+      ]
+    }
+  ],
+  "decision": {
+    "promote": false,
+    "reasons": ["challenger_unavailable"]
+  }
+}

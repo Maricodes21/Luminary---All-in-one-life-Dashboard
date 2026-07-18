@@ -1,65 +1,87 @@
 # Luminary
 
-> Personal Growth OS — a nightly ritual for the people who want to know themselves better.
+> Personal Growth OS: a nightly ritual for people who want to know themselves better.
 
-Luminary is a mobile-first wellness app organized around a 3–5 minute evening wind-down. It uses Spotify listening history as a passive mood signal, ties it to habits and journaling, and quietly builds a longitudinal portrait of a user's inner weather. Six modules — Home, Journal, Health, Money, Habits, Meals — sit beneath one consistent voice.
+Luminary is a mobile-first wellness app organized around a 3-5 minute evening wind-down. It uses Spotify listening history as a passive mood signal, ties that signal to habits and journaling, and builds a longitudinal portrait of a user's inner weather. The current product is an Expo mobile app with Home, Journal, Meals, Health, and Money surfaces around the ritual.
 
-## Repository layout
+## Current State
 
-```
+As of 2026-07-04, active work is on `codex/design-touchup`.
+
+The app has moved past static prototypes. The mobile workspace now includes:
+
+- A local-first production scaffold backed by persisted Zustand state and a basic sync queue.
+- Working Home, Journal, Meals, Health, and Money tabs with richer module interactions.
+- A dedicated Settings route for profile, tone, reminders, privacy, units, Spotify, Health Connect, and sync state.
+- Spotify recap plumbing that avoids the restricted audio-features endpoint and infers a lightweight mood signal from recently played history.
+- Meals backed by a content library with curated, USDA, Open Food Facts, and TheMealDB attribution.
+- Health planning backed by a local exercise library, workout completion logging, and staged Health Connect permission flow.
+- Money planning with monthly income, budget envelope, category limits, saving-goal contributions, and notification-assisted expense confirmation.
+- Supabase migrations through `0008_content_sources_profile_money.sql`.
+
+The branch still needs final verification before being treated as shippable: type-check, lint, content-library tests, Android visual smoke testing, and a review of any uncommitted working-tree changes.
+
+## Repository Layout
+
+```text
 multi-app/
-├── mobile/                  Expo (React Native) app — the product
-├── packages/
-│   └── design-system/       Shared design tokens, theme, typography
-├── supabase/                Database migrations + edge functions
-├── docs/                    Design assets, mockups, originals
-├── DESIGN.md                Visual design system spec
-├── TONE.md                  Copy + voice bible
-├── ROADMAP.md               5-phase build plan
-└── README.md                You are here
+|-- mobile/                  Expo React Native app
+|-- packages/
+|   `-- design-system/       Shared design tokens, theme, typography
+|-- supabase/                Database migrations and Supabase config
+|-- docs/                    Living plans, mockups, and historical originals
+|-- DESIGN.md                Visual design system spec
+|-- TONE.md                  Copy and voice bible
+|-- ROADMAP.md               Product roadmap and decisions log
+|-- PROGRESS.md              Current implementation snapshot
+|-- SETUP.md                 Local development setup
+`-- AGENT.md                 Working agreement for the coding agent
 ```
 
-## Quick start
+## Quick Start
 
-Prerequisites: Node 20+, npm 10+, Git, Expo CLI (`npm i -g expo-cli` optional).
+Prerequisites: Node 20+, npm 10+, Git, Expo tooling, and optionally the Supabase CLI.
 
 ```bash
-# from repo root
-npm install                    # installs all workspaces
-
-# run the mobile app
-cd mobile
-cp .env.example .env           # fill in Supabase + Spotify credentials
-npm run start                  # opens Expo dev server
+npm install
+cp mobile/.env.example mobile/.env
+npm run deps:check --workspace=mobile
+npm run start --workspace=mobile
 ```
 
-For the Supabase backend, see `supabase/README.md`.
+Useful checks:
 
-## Tech stack
+```bash
+npm run type-check --workspace=mobile
+npm run lint --workspace=mobile
+npm run test:content --workspace=mobile
+```
 
-- **Mobile:** React Native + Expo SDK 51, Expo Router (file-based)
-- **State:** Zustand (client) + TanStack Query (server cache)
-- **Backend:** Supabase (Postgres + Auth + RLS) + Edge Functions
-- **Auth:** Email/password + Google OAuth + Apple Sign-In
-- **Spotify:** OAuth Authorization Code + PKCE; mood mapping via audio features
-- **Health:** Apple Health + Google Fit
-- **Validation:** Zod
-- **Animations:** react-native-reanimated + react-native-skia
-- **Type safety:** TypeScript strict mode
+For Android dev-client launches from the repo root:
 
-## Architecture principles
+```bash
+npm run mobile:android:open
+```
 
-1. **Ritual-first.** The nightly check-in is the product. Every module supports or enriches it.
-2. **No-line rule.** Boundaries via background color shifts, never 1px borders. See `DESIGN.md`.
-3. **Tokens everywhere.** Colors, spacing, radii, type — all routed through `@luminary/design-system`. No inline magic numbers.
-4. **Personality is non-negotiable.** Every text moment runs through `TONE.md` voice.
-5. **Soft streaks.** Habit consistency is a band, not a binary. We don't punish a missed day.
-6. **Mood as continuous signal.** Stored as timestamped events with source (`spotify` / `manual` / `journal_inferred`), not as a daily snapshot.
+For Supabase, see `supabase/README.md`.
 
-## Status
+## Stack
 
-Phase 0 (project setup) — in progress. See `ROADMAP.md` for the full plan.
+- Mobile: Expo SDK 54, React Native 0.81, React 19, Expo Router 6.
+- State: Zustand for local-first client state, TanStack Query for server cache.
+- Backend: Supabase Postgres, Auth, RLS, and future Edge Functions.
+- Validation: Zod at trust boundaries.
+- Storage: Secure Store for Spotify tokens; AsyncStorage for local app state and queues.
+- Design: `@luminary/design-system`, Manrope, Inter, one primary blue, no-line rule.
 
----
+## Documentation Map
 
-Built by Mari with Claude as co-founder + dev.
+- `PROGRESS.md`: start here for the current implementation snapshot.
+- `ROADMAP.md`: canonical product phase plan and decisions log.
+- `docs/design-touchup-implementation-plan.md`: active branch plan and checkpoint notes.
+- `AGENT.md`: co-founder brief, non-negotiables, repo tour, and workflow.
+- `DESIGN.md`: visual system rules.
+- `TONE.md`: voice rules for user-facing copy.
+- `SETUP.md`: local machine setup.
+
+Built by Mari with Codex as co-founder and dev.

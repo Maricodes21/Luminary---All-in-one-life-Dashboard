@@ -87,7 +87,41 @@ Cards must never have dividers. Use `body-lg` for titles and `body-sm` for metad
 
 ---
 
-## 7. Do's and Don'ts
+## 7. Module Distinction For The Design Touchup
+
+The next design pass must make each product area feel specific without fragmenting the brand. Luminary should still feel like one private, dark, calm operating system, but every module needs a recognizable interaction pattern and visual material.
+
+### Home
+Home is the command center. It should surface profile/settings, connection states, daily focus, habit progress, and lightweight cross-module summaries. It should never feel blank when Spotify or Health Connect is disconnected; disconnected services get useful setup cards and quiet fallback content.
+
+### Habits
+Habits should feel like choosing from a curated library, not filling out a form. The add flow should use category suggestions, icons, cadence, time estimate, and one-tap add actions. Inline editing remains secondary.
+
+### Journal
+Journal keeps the most restrained visual language. Use spacious text areas, prompt chips, mood tags, and gentle trend previews. Avoid making it look like a productivity form.
+
+### Meals
+Meals is the most visual module. Use food thumbnails, macro badges, search, scan actions, recent meals, presets, and meal-plan cards. The user should recognize meals faster than they read them.
+
+### Health
+Health is physical and action-oriented. Use Health Connect state, metric tiles, workout thumbnails, exercise rows, substitute actions, and completion indicators. Plans should expose actual movements, not just day-type labels.
+
+### Money
+Money must be scannable and low-anxiety. Use amount-first capture, category color chips, budget progress, transaction confirmation cards, and simple spending summaries. Avoid dense finance dashboards.
+
+### Visual Asset Policy
+Use visuals when they reduce cognitive load:
+
+- Meals: food thumbnails or generated/static placeholders by meal type.
+- Health: workout/exercise thumbnails or icon-backed movement cards.
+- Money: category icons and spending-summary graphics.
+- Habits: category icons and compact progress rings.
+
+Do not add decorative imagery that does not help recognition or action.
+
+---
+
+## 8. Do's and Don'ts
 
 ### Do
 - **DO** use asymmetric layouts. Align a headline to the left and a summary card to the right with generous whitespace.
