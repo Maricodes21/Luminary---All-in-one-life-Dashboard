@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, Text, Image, StyleSheet, Pressable, TextInput } from 'react-native';
+import { ScrollView, View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -10,6 +10,7 @@ import { Icon } from '@/components/ui/Icon';
 import { ActionSheet } from '@/components/ui/ActionSheet';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { Chip } from '@/components/ui/Chip';
+import { SpotifyDailyRecap } from '@/components/spotify/SpotifyDailyRecap';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductionStore } from '@/stores/useProductionStore';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
@@ -17,7 +18,6 @@ import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { habitCategories, habitSuggestions, type HabitSuggestion } from '@/lib/modulePresets';
 import { localDateKey } from '@/lib/meals/dates';
-import { getDailyFocusNote } from '@/lib/dailyFocus';
 import { getHabitIconName } from '@/lib/habitIcons';
 
 const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
@@ -47,30 +47,18 @@ export default function HomeScreen() {
   const mealsUser = useMealsStore(activeMealsUser);
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
   const expenses = useProductionStore((s) => s.expenses);
-  const profileSettings = useProductionStore((s) => s.profileSettings);
   const addHabit = useProductionStore((s) => s.addHabit);
   const archiveHabit = useProductionStore((s) => s.archiveHabit);
   const toggleHabitCompletion = useProductionStore((s) => s.toggleHabitCompletion);
   const syncQueue = useProductionStore((s) => s.syncQueue);
   const completedToday = habits.filter((habit) => habit.completedOn.includes(today)).length;
   const todayMeals = mealsUser?.meals.filter((meal) => meal.localDate === today) ?? [];
-  const nutritionTarget = mealsUser?.targets[today];
-  const proteinLogged = todayMeals.reduce((sum, meal) => sum + (meal.nutrition.proteinG ?? 0), 0);
-  const proteinRemaining = Math.max(0, (nutritionTarget?.proteinG ?? 0) - proteinLogged);
   const queuedUpdates = syncQueue.length + (mealsUser?.syncQueue.length ?? 0);
   const ritualDoneToday = habits.length > 0 && completedToday === habits.length;
   const todaySpend = expenses
     .filter((expense) => expense.transactionDate === today)
     .reduce((sum, expense) => sum + expense.amount, 0);
   const latestPlan = workoutPlans[0];
-  const focusNote = getDailyFocusNote(today, {
-    displayName: displayName ?? profileSettings.displayName,
-    toneProfile: profileSettings.toneProfile,
-    completedHabits: completedToday,
-    totalHabits: habits.length,
-    proteinRemaining,
-    ritualDone: ritualDoneToday,
-  });
 
   useEffect(() => {
     if (spotify.isConnected) {
@@ -116,49 +104,13 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.connectionRow}>
-          <ConnectionTile
-            label="Spotify"
-            detail={recap ? `${recap.trackCount} tracks today` : spotify.isConnected ? 'Connected, checking today' : 'Connect music'}
-            active={!!recap || spotify.isConnected}
-            icon="sparkles"
-            onPress={spotify.isConnected ? () => refetchRecap() : spotify.connect}
-          />
-          <ConnectionTile
-            label="Health Connect"
-            detail="Set up body data"
-            active={false}
-            icon="health"
-            onPress={() => router.push('/(tabs)/health')}
-          />
-        </View>
-
-        {recap ? (
-          <SpotifyHomeCard recap={recap} />
-        ) : (
-          <Card variant="recessed" style={styles.spaced}>
-            <View style={styles.emptyIntegration}>
-              <Icon name="sparkles" size={22} color={palette.primary} />
-              <View style={{ flex: 1 }}>
-                <SectionLabel>Listening today</SectionLabel>
-                <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-                  {spotify.isConnected
-                    ? recapFetching
-                      ? 'Checking today\'s listening signal.'
-                      : 'Spotify is connected. Once you have listening history today, your recap will show here.'
-                    : 'Connect Spotify to bring music and mood into the daily brief.'}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        )}
-
-        <Card variant="recessed" style={styles.spaced}>
-          <SectionLabel>Today's focus</SectionLabel>
-          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
-            {focusNote}
-          </Text>
-        </Card>
+        <SpotifyHomeCard
+          recap={recap}
+          connected={spotify.isConnected}
+          loading={recapFetching}
+          onConnect={spotify.connect}
+          onRefresh={() => refetchRecap()}
+        />
 
         {!ritualDoneToday ? (
           <Card variant="featured" style={styles.spaced}>
@@ -184,6 +136,44 @@ export default function HomeScreen() {
             </Pressable>
           </Card>
         ) : null}
+
+        <View style={styles.spaced}>
+          <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Today at a glance</Text>
+          <View style={styles.glanceGrid}>
+            <QuickActionTile
+              icon="meals"
+              label="Meals"
+              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealsUser?.plans[0]?.entries[0]?.name ?? 'Plan your first plate'}
+              accent={palette.secondary}
+              onPress={() => router.push('/(tabs)/meals')}
+            />
+            <QuickActionTile
+              icon="health"
+              label="Movement"
+              detail={latestPlan ? `${latestPlan.category} / ${latestPlan.level}` : 'Create a weekly plan'}
+              accent={palette.tertiary}
+              onPress={() => router.push('/(tabs)/health')}
+            />
+            <QuickActionTile
+              icon="money"
+              label="Spend"
+              detail={todaySpend ? `R${todaySpend.toFixed(0)} captured today` : 'No purchases logged'}
+              accent={palette.primary}
+              onPress={() => router.push('/(tabs)/money')}
+            />
+            <QuickActionTile
+              icon="sparkles"
+              label="Sync"
+              detail={
+                queuedUpdates > 0
+                  ? `${queuedUpdates} update${queuedUpdates === 1 ? '' : 's'} waiting`
+                  : 'Local rhythm is current'
+              }
+              accent={palette.primary}
+              onPress={() => router.push('/settings')}
+            />
+          </View>
+        </View>
 
         <View style={styles.spaced}>
           <View style={styles.sectionHeader}>
@@ -241,44 +231,6 @@ export default function HomeScreen() {
             </Pressable>
           </Card>
         </View>
-
-        <View style={styles.spaced}>
-          <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Today at a glance</Text>
-          <View style={styles.glanceGrid}>
-            <QuickActionTile
-              icon="meals"
-              label="Meals"
-              detail={todayMeals.length ? `${todayMeals.length} logged today` : mealsUser?.plans[0]?.entries[0]?.name ?? 'Plan your first plate'}
-              accent={palette.secondary}
-              onPress={() => router.push('/(tabs)/meals')}
-            />
-            <QuickActionTile
-              icon="health"
-              label="Movement"
-              detail={latestPlan ? `${latestPlan.category} / ${latestPlan.level}` : 'Create a weekly plan'}
-              accent={palette.tertiary}
-              onPress={() => router.push('/(tabs)/health')}
-            />
-            <QuickActionTile
-              icon="money"
-              label="Spend"
-              detail={todaySpend ? `R${todaySpend.toFixed(0)} captured today` : 'No purchases logged'}
-              accent={palette.primary}
-              onPress={() => router.push('/(tabs)/money')}
-            />
-            <QuickActionTile
-              icon="sparkles"
-              label="Sync"
-              detail={
-                queuedUpdates > 0
-                  ? `${queuedUpdates} update${queuedUpdates === 1 ? '' : 's'} waiting`
-                  : 'Local rhythm is current'
-              }
-              accent={palette.primary}
-              onPress={() => router.push('/settings')}
-            />
-          </View>
-        </View>
       </ScrollView>
 
       <ActionSheet
@@ -328,35 +280,6 @@ export default function HomeScreen() {
   );
 }
 
-function ConnectionTile({
-  label,
-  detail,
-  active,
-  icon,
-  onPress,
-}: {
-  label: string;
-  detail: string;
-  active: boolean;
-  icon: React.ComponentProps<typeof Icon>['name'];
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.connectionTile} accessibilityRole="button">
-      <View style={[styles.connectionIcon, active && { backgroundColor: `${palette.tertiary}24` }]}>
-        <Icon name={icon} size={20} color={active ? palette.tertiary : palette.primary} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[type.labelMd, { color: palette.onSurface }]}>{label}</Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]} numberOfLines={1}>
-          {detail}
-        </Text>
-      </View>
-      {active ? <Icon name="check" size={16} color={palette.tertiary} /> : null}
-    </Pressable>
-  );
-}
-
 function SuggestionRow({ suggestion, onAdd }: { suggestion: HabitSuggestion; onAdd: () => void }) {
   return (
     <View style={styles.suggestionRow}>
@@ -374,50 +297,35 @@ function SuggestionRow({ suggestion, onAdd }: { suggestion: HabitSuggestion; onA
   );
 }
 
-function SpotifyHomeCard({ recap }: { recap: SpotifyRecap }) {
+function SpotifyHomeCard({ recap, connected, loading, onConnect, onRefresh }: {
+  recap: SpotifyRecap | null | undefined;
+  connected: boolean;
+  loading: boolean;
+  onConnect: () => void;
+  onRefresh: () => void;
+}) {
+  if (recap) return <View style={styles.spaced}><SpotifyDailyRecap recap={recap} compact /></View>;
+
   return (
-    <Card style={styles.spaced}>
-      <View style={styles.recapCenter}>
+    <Card variant="recessed" style={styles.spaced}>
+      <View style={styles.musicEmptyState}>
+        <Icon name="sparkles" size={24} color={palette.primary} />
         <SectionLabel>Listening today</SectionLabel>
-        <View style={styles.statTiles}>
-          <View style={styles.statTile}>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>{recap.minutesListened}</Text>
-            <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>min played</Text>
-          </View>
-          <View style={styles.statTile}>
-            <Text style={[type.displayMd, { color: palette.onSurface }]}>{recap.trackCount}</Text>
-            <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>tracks</Text>
-          </View>
-        </View>
-        {recap.topArtists.length > 0 && <ArtistRow artists={recap.topArtists} />}
+        <Text style={[type.titleMd, styles.musicEmptyTitle]}>
+          {connected ? 'Your music will meet you here' : 'Bring your listening into Luminary'}
+        </Text>
+        <Text style={[type.bodySm, styles.musicEmptyCopy]}>
+          {connected
+            ? loading ? 'Checking today\'s listening.' : 'No listening history has arrived for today yet.'
+            : 'Connect Spotify to see today\'s tracks, artists, and listening rhythm.'}
+        </Text>
+        <Pressable onPress={connected ? onRefresh : onConnect} style={styles.musicEmptyButton} accessibilityRole="button">
+          <Text style={[type.labelMd, { color: palette.onPrimary }]}>
+            {connected ? 'Refresh listening' : 'Connect Spotify'}
+          </Text>
+        </Pressable>
       </View>
     </Card>
-  );
-}
-
-function ArtistRow({ artists }: { artists: SpotifyRecap['topArtists'] }) {
-  return (
-    <View style={styles.artistRow}>
-      <View style={styles.artistAvatars}>
-        {artists.map((artist) => (
-          <View key={artist.id} style={styles.artistAvatar}>
-            {artist.imageUrl ? (
-              <Image source={{ uri: artist.imageUrl }} style={styles.artistImage} />
-            ) : (
-              <View style={[styles.artistImage, styles.artistImageFallback]}>
-                <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>{artist.name.charAt(0)}</Text>
-              </View>
-            )}
-          </View>
-        ))}
-      </View>
-      <Text
-        style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: spacing.xs, textAlign: 'center' }]}
-        numberOfLines={1}
-      >
-        {artists.map((a) => a.name).join(' / ')}
-      </Text>
-    </View>
   );
 }
 
@@ -439,27 +347,18 @@ const styles = StyleSheet.create({
     gap: 0,
     backgroundColor: palette.surfaceContainer,
   },
-  connectionRow: { flexDirection: 'row', gap: spacing.sm },
-  connectionTile: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.lg,
-    padding: spacing.sm,
-  },
-  connectionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radii.md,
+  spaced: { marginTop: spacing.sm },
+  musicEmptyState: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
+  musicEmptyTitle: { color: palette.onSurface, textAlign: 'center' },
+  musicEmptyCopy: { color: palette.onSurfaceVariant, textAlign: 'center', maxWidth: 300 },
+  musicEmptyButton: {
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: palette.surfaceContainerHigh,
+    borderRadius: radii.sm,
+    backgroundColor: palette.primary,
+    paddingHorizontal: spacing.lg,
   },
-  spaced: { marginTop: spacing.sm },
-  emptyIntegration: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   ritualCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -559,31 +458,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: palette.primary,
   },
-  recapCenter: { alignItems: 'center' },
-  statTiles: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  statTile: {
-    flex: 1,
-    maxWidth: 130,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: palette.surfaceContainerHigh,
-    borderRadius: radii.md,
-  },
-  artistRow: { marginTop: spacing.md, alignItems: 'center' },
-  artistAvatars: { flexDirection: 'row', gap: spacing.sm },
-  artistAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    overflow: 'hidden',
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  artistImage: { width: 44, height: 44, borderRadius: 22 },
-  artistImageFallback: { alignItems: 'center', justifyContent: 'center' },
 });

@@ -18,3 +18,24 @@ test('compact Spotify recap uses centered three-column tracks and artists', () =
   assert.match(source, /flex:\s*1/);
   assert.doesNotMatch(source, /compactTrackList|compactTrackRow/);
 });
+
+test('home removes redundant prompts and orders glance before habits', () => {
+  const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/index.tsx'), 'utf8');
+  const music = source.indexOf('<SpotifyHomeCard');
+  const ritual = source.indexOf('accessibilityLabel="Begin tonight\'s ritual"');
+  const glance = source.indexOf('Today at a glance');
+  const habits = source.indexOf('Daily habits');
+
+  assert.ok(music >= 0 && music < ritual);
+  assert.ok(ritual < glance && glance < habits);
+  assert.doesNotMatch(source, /<ConnectionTile|function ConnectionTile|Today\'s focus/);
+});
+
+test('home music empty state owns Spotify connection and refresh actions', () => {
+  const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/index.tsx'), 'utf8');
+
+  assert.match(source, /onConnect=\{spotify\.connect\}/);
+  assert.match(source, /onRefresh=\{\(\) => refetchRecap\(\)\}/);
+  assert.match(source, /Connect Spotify/);
+  assert.match(source, /Refresh listening/);
+});
