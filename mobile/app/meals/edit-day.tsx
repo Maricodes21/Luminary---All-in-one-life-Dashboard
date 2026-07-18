@@ -57,14 +57,14 @@ export default function EditPlanDayScreen() {
     <MealScreen title={`Edit ${formatDay(localDate)}`} subtitle="Shape this day without rebuilding the week">
       <View style={styles.section}>
         <Text style={[type.headlineSm, { color: palette.onSurface }]}>Planned meals</Text>
-        {entries.map((entry) => <DynamicMealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => router.push(`/meals/recipe/${entry.recipeId ?? 'missing'}?entryId=${entry.id}`)} onEdit={() => router.push(`/meals/substitute/${entry.id}`)} onDelete={() => removeEntry(entry.id, entry.name)} />)}
+        {entries.map((entry) => <DynamicMealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => router.push({ pathname: '/meals/recipe', params: { id: entry.recipeId ?? 'missing', entryId: entry.id } })} onEdit={() => router.push({ pathname: '/meals/substitute', params: { id: entry.id } })} onDelete={() => removeEntry(entry.id, entry.name)} />)}
         {!entries.length ? <View style={styles.notice}><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>This day is open. Add only the meals that would genuinely help.</Text></View> : null}
       </View>
 
       <View style={styles.section}>
         <Text style={[type.headlineSm, { color: palette.onSurface }]}>Add a meal</Text>
         <View style={styles.tabs}>{mealTypes.map((item) => <Pressable key={item} onPress={() => setMealType(item)} style={[styles.tab, item === mealType && styles.tabActive]}><Text style={[type.labelSm, { color: item === mealType ? palette.onPrimary : palette.onSurfaceVariant }]} numberOfLines={1}>{titleCase(item)}</Text></Pressable>)}</View>
-        {candidates.map((recipe) => <View key={recipe.id} style={styles.candidate}><DynamicMealCard title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min`} onPress={() => router.push(`/meals/recipe/${recipe.id}`)} /><Pressable onPress={() => addRecipe(recipe)} style={styles.addButton} accessibilityRole="button" accessibilityLabel={`Add ${recipe.name} to ${formatDay(localDate)}`}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Add meal</Text></Pressable></View>)}
+        {candidates.map((recipe) => <View key={recipe.id} style={styles.candidate}><DynamicMealCard title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min`} onPress={() => router.push({ pathname: '/meals/recipe', params: { id: recipe.id } })} /><Pressable onPress={() => addRecipe(recipe)} style={styles.addButton} accessibilityRole="button" accessibilityLabel={`Add ${recipe.name} to ${formatDay(localDate)}`}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Add meal</Text></Pressable></View>)}
         {!candidates.length ? <View style={styles.notice}><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>No verified {mealType} fits the remaining calories and current preferences.</Text></View> : null}
       </View>
     </MealScreen>

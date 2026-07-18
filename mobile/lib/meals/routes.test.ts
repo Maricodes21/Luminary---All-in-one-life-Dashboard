@@ -25,6 +25,22 @@ test('every Meals workflow has a concrete route file', () => {
   }
 });
 
+test('recipe and substitution navigation use registered static routes', () => {
+  const meals = fs.readFileSync(path.join(appDirectory, '(tabs)/meals.tsx'), 'utf8');
+  const editDay = fs.readFileSync(path.join(appDirectory, 'meals/edit-day.tsx'), 'utf8');
+  const recipe = fs.readFileSync(path.join(appDirectory, 'meals/recipe/[id].tsx'), 'utf8');
+
+  assert.equal(fs.existsSync(path.join(appDirectory, 'meals/recipe.tsx')), true);
+  assert.equal(fs.existsSync(path.join(appDirectory, 'meals/substitute.tsx')), true);
+  assert.match(meals, /pathname:\s*'\/meals\/recipe'/);
+  assert.match(meals, /pathname:\s*'\/meals\/substitute'/);
+  assert.match(editDay, /pathname:\s*'\/meals\/recipe'/);
+  assert.match(editDay, /pathname:\s*'\/meals\/substitute'/);
+  assert.match(recipe, /pathname:\s*'\/meals\/substitute'/);
+  assert.doesNotMatch(meals, /`\/meals\/(?:recipe|substitute)\/\$\{/);
+  assert.doesNotMatch(editDay, /`\/meals\/(?:recipe|substitute)\/\$\{/);
+});
+
 test('recipe detail handles missing IDs before rendering recipe arrays', () => {
   const source = fs.readFileSync(path.join(appDirectory, 'meals/recipe/[id].tsx'), 'utf8');
   const missingGuard = source.indexOf('if (!recipe || !recipe.nutrition)');

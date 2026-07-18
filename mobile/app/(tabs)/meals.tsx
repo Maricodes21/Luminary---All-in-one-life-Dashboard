@@ -102,7 +102,7 @@ export default function MealsScreen() {
             onOpenBarcode={() => router.push({ pathname: '/meals/camera', params: { mode: 'barcode' } })}
             onOpenManual={() => router.push('/meals/manual')}
             onOpenProfile={() => router.push('/meals/profile')}
-            onOpenRecipe={(recipeId) => router.push(`/meals/recipe/${recipeId}`)}
+            onOpenRecipe={(recipeId) => router.push({ pathname: '/meals/recipe', params: { id: recipeId } })}
             onLogRecipe={(recipeId) => {
               const recipe = recipeCatalog.find((item) => item.id === recipeId);
               if (!recipe) return;
@@ -116,9 +116,9 @@ export default function MealsScreen() {
             selectedDate={selectedDate}
             dates={dates}
             onSelectDate={setSelectedDate}
-            onOpenRecipe={(entry) => router.push(`/meals/recipe/${entry.recipeId ?? 'missing'}?entryId=${entry.id}`)}
+            onOpenRecipe={(entry) => router.push({ pathname: '/meals/recipe', params: { id: entry.recipeId ?? 'missing', entryId: entry.id } })}
             onCreatePlan={() => router.push('/meals/plan-builder')}
-            onEditEntry={(entry) => router.push(`/meals/substitute/${entry.id}`)}
+            onEditEntry={(entry) => router.push({ pathname: '/meals/substitute', params: { id: entry.id } })}
             onEditDay={() => plan && router.push({ pathname: '/meals/edit-day', params: { planId: plan.id, localDate: selectedDate } })}
             onClearDay={() => plan && confirmClearDay(plan, selectedDate, deletePlanDay)}
             onDeletePlan={() => plan && confirmDeletePlan(plan, deletePlan)}
