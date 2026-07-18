@@ -39,3 +39,15 @@ test('home music empty state owns Spotify connection and refresh actions', () =>
   assert.match(source, /Connect Spotify/);
   assert.match(source, /Refresh listening/);
 });
+
+test('journal timeline spaces every card and exposes local and synced deletion', () => {
+  const screen = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/journal.tsx'), 'utf8');
+  const card = fs.readFileSync(path.join(mobileRoot, 'components/journal/EntryCard.tsx'), 'utf8');
+
+  assert.match(screen, /timelineStack/);
+  assert.match(screen, /gap:\s*spacing\.md/);
+  assert.match(screen, /confirmLocalDelete/);
+  assert.match(screen, /confirmRemoteDelete/);
+  assert.match(card, /onDelete\??:/);
+  assert.match(card, /accessibilityLabel="Delete journal entry"/);
+});

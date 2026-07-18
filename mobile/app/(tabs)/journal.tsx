@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, TextInput } from 'react-native';
+import { Alert, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Card } from '@/components/ui/Card';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Icon } from '@/components/ui/Icon';
-import { useJournalEntries } from '@/hooks/useJournalEntries';
+import { useDeleteJournalEntry, useJournalEntries } from '@/hooks/useJournalEntries';
 import { EntryCard } from '@/components/journal/EntryCard';
 import { MultiChoiceField } from '@/components/ui';
 import { useProductionStore } from '@/stores/useProductionStore';
@@ -20,7 +20,8 @@ export default function JournalScreen() {
   const [draft, setDraft] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState(journalPrompts[0]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const { data: remoteEntries, isLoading } = useJournalEntries();
+  const { data: remoteEntries, isLoading, isError } = useJournalEntries();
+  const remoteDeletion = useDeleteJournalEntry();
   const localEntries = useProductionStore((s) => s.journalEntries.filter((entry) => !entry.deletedAt));
   const addJournalEntry = useProductionStore((s) => s.addJournalEntry);
   const deleteJournalEntry = useProductionStore((s) => s.deleteJournalEntry);
@@ -33,6 +34,30 @@ export default function JournalScreen() {
     setDraft('');
     setSelectedTags([]);
   };
+
+  const confirmLocalDelete = (id: string) => Alert.alert(
+    'Delete journal entry?',
+    'This entry will be permanently removed after your changes sync.',
+    [
+      { text: 'Keep', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteJournalEntry(id) },
+    ],
+  );
+
+  const confirmRemoteDelete = (id: string) => Alert.alert(
+    'Delete journal entry?',
+    'This permanently removes the entry from your journal.',
+    [
+      { text: 'Keep', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => void remoteDeletion.mutateAsync(id).catch(() => {
+          Alert.alert('Could not delete entry', 'The entry is still here. Please try again.');
+        }),
+      },
+    ],
+  );
 
   return (
     <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
@@ -48,7 +73,7 @@ export default function JournalScreen() {
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 120 }]} showsVerticalScrollIndicator={false}>
         {view === 'timeline' && (
-          <View>
+          <View style={styles.timelineStack}>
             <Card>
               <SectionLabel>New entry</SectionLabel>
               <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.xs }]}>{selectedPrompt}</Text>
@@ -92,7 +117,7 @@ export default function JournalScreen() {
             </Card>
 
             {localEntries.map((entry) => (
-              <Card key={entry.id} style={{ marginTop: spacing.md }}>
+              <Card key={entry.id}>
                 <View style={styles.entryTop}>
                   <View style={styles.entryIcon}>
                     <Icon name="journal" size={18} color={palette.primary} />
@@ -109,7 +134,11 @@ export default function JournalScreen() {
                     {new Date(entry.writtenAt).toLocaleDateString()}
                     {entry.tags.length ? ` / ${entry.tags.join(', ')}` : ''}
                   </Text>
-                  <Pressable onPress={() => deleteJournalEntry(entry.id)} accessibilityRole="button">
+                  <Pressable
+                    onPress={() => confirmLocalDelete(entry.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Delete journal entry"
+                  >
                     <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Delete</Text>
                   </Pressable>
                 </View>
@@ -117,11 +146,24 @@ export default function JournalScreen() {
             ))}
 
             {isLoading ? (
-              <ActivityIndicator color={palette.primary} style={{ marginTop: spacing.xl }} />
+              <ActivityIndicator color={palette.primary} />
+            ) : isError ? (
+              <Card variant="recessed">
+                <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
+                  Your synced entries could not load. Please try again.
+                </Text>
+              </Card>
             ) : remoteEntries && remoteEntries.length > 0 ? (
-              remoteEntries.map((entry) => <EntryCard key={entry.id} entry={entry} />)
+              remoteEntries.map((entry) => (
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  onDelete={() => confirmRemoteDelete(entry.id)}
+                  deleting={remoteDeletion.isPending && remoteDeletion.variables === entry.id}
+                />
+              ))
             ) : localEntries.length === 0 ? (
-              <Card style={{ marginTop: spacing.lg }} variant="recessed">
+              <Card variant="recessed">
                 <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
                   Nothing here yet. Start with one honest sentence.
                 </Text>
@@ -196,6 +238,7 @@ const styles = StyleSheet.create({
   },
   segmentActive: { backgroundColor: palette.surfaceContainerHigh },
   content: { paddingHorizontal: spacing.md },
+  timelineStack: { gap: spacing.md },
   promptStrip: { gap: spacing.sm, paddingRight: spacing.md, marginTop: spacing.md },
   promptChip: {
     paddingHorizontal: spacing.md,
