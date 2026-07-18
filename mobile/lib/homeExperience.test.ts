@@ -40,6 +40,16 @@ test('home music empty state owns Spotify connection and refresh actions', () =>
   assert.match(source, /Refresh listening/);
 });
 
+test('home routes Spotify auth and recap failures into a recoverable music card', () => {
+  const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/index.tsx'), 'utf8');
+
+  assert.match(source, /error:\s*recapError/);
+  assert.match(source, /error=\{spotify\.error \?\? recapError\?\.message \?\? null\}/);
+  assert.match(source, /error:\s*string \| null/);
+  assert.match(source, /\{error \? error :/);
+  assert.match(source, /onPress=\{connected \? onRefresh : onConnect\}/);
+});
+
 test('journal timeline spaces every card and exposes local and synced deletion', () => {
   const screen = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/journal.tsx'), 'utf8');
   const card = fs.readFileSync(path.join(mobileRoot, 'components/journal/EntryCard.tsx'), 'utf8');
@@ -50,4 +60,14 @@ test('journal timeline spaces every card and exposes local and synced deletion',
   assert.match(screen, /confirmRemoteDelete/);
   assert.match(card, /onDelete\??:/);
   assert.match(card, /accessibilityLabel="Delete journal entry"/);
+});
+
+test('journal delete confirmations identify local and synced entries', () => {
+  const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/journal.tsx'), 'utf8');
+
+  assert.match(source, /const confirmLocalDelete = \(entry:/);
+  assert.match(source, /const confirmRemoteDelete = \(entry:/);
+  assert.match(source, /entry\.title\?\.trim\(\) \|\| entry\.body\.trim\(\)\.slice\(0, 80\)/);
+  assert.match(source, /confirmLocalDelete\(entry\)/);
+  assert.match(source, /confirmRemoteDelete\(entry\)/);
 });

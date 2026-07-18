@@ -13,6 +13,7 @@ import { useProductionStore } from '@/stores/useProductionStore';
 import { journalPrompts, moodTags } from '@/lib/modulePresets';
 
 type TabView = 'timeline' | 'trends';
+type EntryDeleteContext = { id: string; title: string | null; body: string };
 
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
@@ -35,24 +36,27 @@ export default function JournalScreen() {
     setSelectedTags([]);
   };
 
-  const confirmLocalDelete = (id: string) => Alert.alert(
+  const entryContext = (entry: EntryDeleteContext) =>
+    entry.title?.trim() || entry.body.trim().slice(0, 80);
+
+  const confirmLocalDelete = (entry: EntryDeleteContext) => Alert.alert(
     'Delete journal entry?',
-    'This entry will be permanently removed after your changes sync.',
+    `"${entryContext(entry)}" will be permanently removed after your changes sync.`,
     [
       { text: 'Keep', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => deleteJournalEntry(id) },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteJournalEntry(entry.id) },
     ],
   );
 
-  const confirmRemoteDelete = (id: string) => Alert.alert(
+  const confirmRemoteDelete = (entry: EntryDeleteContext) => Alert.alert(
     'Delete journal entry?',
-    'This permanently removes the entry from your journal.',
+    `"${entryContext(entry)}" permanently removes the entry from your journal.`,
     [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => void remoteDeletion.mutateAsync(id).catch(() => {
+        onPress: () => void remoteDeletion.mutateAsync(entry.id).catch(() => {
           Alert.alert('Could not delete entry', 'The entry is still here. Please try again.');
         }),
       },
@@ -135,7 +139,7 @@ export default function JournalScreen() {
                     {entry.tags.length ? ` / ${entry.tags.join(', ')}` : ''}
                   </Text>
                   <Pressable
-                    onPress={() => confirmLocalDelete(entry.id)}
+                    onPress={() => confirmLocalDelete(entry)}
                     accessibilityRole="button"
                     accessibilityLabel="Delete journal entry"
                   >
@@ -158,7 +162,7 @@ export default function JournalScreen() {
                 <EntryCard
                   key={entry.id}
                   entry={entry}
-                  onDelete={() => confirmRemoteDelete(entry.id)}
+                  onDelete={() => confirmRemoteDelete(entry)}
                   deleting={remoteDeletion.isPending && remoteDeletion.variables === entry.id}
                 />
               ))

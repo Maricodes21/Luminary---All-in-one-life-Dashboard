@@ -35,7 +35,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const displayName = useAuthStore((s) => s.displayName);
-  const { data: recap, refetch: refetchRecap, isFetching: recapFetching } = useHomeSpotifyRecap();
+  const { data: recap, error: recapError, refetch: refetchRecap, isFetching: recapFetching } = useHomeSpotifyRecap();
   const spotify = useSpotifyAuth();
   const [customHabitName, setCustomHabitName] = useState('');
   const [habitSheetOpen, setHabitSheetOpen] = useState(false);
@@ -108,6 +108,7 @@ export default function HomeScreen() {
           recap={recap}
           connected={spotify.isConnected}
           loading={recapFetching}
+          error={spotify.error ?? recapError?.message ?? null}
           onConnect={spotify.connect}
           onRefresh={() => refetchRecap()}
         />
@@ -297,10 +298,11 @@ function SuggestionRow({ suggestion, onAdd }: { suggestion: HabitSuggestion; onA
   );
 }
 
-function SpotifyHomeCard({ recap, connected, loading, onConnect, onRefresh }: {
+function SpotifyHomeCard({ recap, connected, loading, error, onConnect, onRefresh }: {
   recap: SpotifyRecap | null | undefined;
   connected: boolean;
   loading: boolean;
+  error: string | null;
   onConnect: () => void;
   onRefresh: () => void;
 }) {
@@ -315,7 +317,7 @@ function SpotifyHomeCard({ recap, connected, loading, onConnect, onRefresh }: {
           {connected ? 'Your music will meet you here' : 'Bring your listening into Luminary'}
         </Text>
         <Text style={[type.bodySm, styles.musicEmptyCopy]}>
-          {connected
+          {error ? error : connected
             ? loading ? 'Checking today\'s listening.' : 'No listening history has arrived for today yet.'
             : 'Connect Spotify to see today\'s tracks, artists, and listening rhythm.'}
         </Text>
