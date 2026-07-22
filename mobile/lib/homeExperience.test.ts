@@ -5,20 +5,21 @@ import test from 'node:test';
 
 const mobileRoot = path.resolve(__dirname, '..');
 
-test('compact Spotify recap uses four-column tracks and artists', () => {
+test('home Spotify recap matches the Luminary editorial card and keeps four tracks and artists', () => {
   const source = fs.readFileSync(
     path.join(mobileRoot, 'components/spotify/SpotifyDailyRecap.tsx'),
     'utf8',
   );
 
-  assert.match(source, /compactTrackGrid/);
-  assert.match(source, /compactTrackCard/);
-  assert.match(source, /compactSectionHeading/);
-  assert.match(source, /compactArtistRow/);
+  assert.match(source, /LuminaryHomeRecap/);
+  assert.match(source, /Listening today/);
+  assert.match(source, /Tonight’s read/);
   assert.match(source, /topTracks\.slice\(0, 4\)/);
   assert.match(source, /topArtists\.slice\(0, 4\)/);
-  assert.match(source, /flex:\s*1/);
-  assert.doesNotMatch(source, /compactTrackList|compactTrackRow/);
+  assert.match(source, /tracks\.map\(\(track\) => track\.name\)\.join\(' · '\)/);
+  assert.match(source, /artists\.map\(\(artist\) => artist\.name\)\.join\(' · '\)/);
+  assert.match(source, /See tonight’s recap/);
+  assert.doesNotMatch(source, /compactTrackGrid|compactArtistRow|compactCenteredText/);
 });
 
 test('home swaps the ritual invitation for music only after explicit completion', () => {
@@ -31,6 +32,9 @@ test('home swaps the ritual invitation for music only after explicit completion'
   assert.match(source, /Open profile and settings/);
   assert.match(source, /<CommitmentsCard/);
   assert.match(source, /Signal board/);
+  assert.match(source, /confirmedMood=\{ritualSession\.mood\}/);
+  assert.match(source, /moodSkipped=\{ritualSession\.moodSkipped\}/);
+  assert.match(source, /onOpenSummary=\{\(\) => router\.push\('\/ritual\/summary'\)\}/);
   assert.doesNotMatch(source, /ritualDoneToday = habits/);
 });
 

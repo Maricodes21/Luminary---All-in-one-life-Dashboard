@@ -19,6 +19,7 @@ import { useJournalEntries } from '@/hooks/useJournalEntries';
 import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { localDateKey } from '@/lib/meals/dates';
 import { getHabitIconName } from '@/lib/habitIcons';
+import type { MoodLabel } from '@/lib/mood';
 import {
   formatHomeDate,
   isRitualCompletedForDate,
@@ -139,11 +140,14 @@ export default function HomeScreen() {
       {ritualComplete ? (
         <SpotifyHomeCard
           recap={recap}
+          confirmedMood={ritualSession.mood}
+          moodSkipped={ritualSession.moodSkipped}
           connected={spotify.isConnected}
           loading={recapFetching}
           error={spotify.error ?? recapError?.message ?? null}
           onConnect={spotify.connect}
           onRefresh={() => refetchRecap()}
+          onOpenSummary={() => router.push('/ritual/summary')}
         />
       ) : (
         <TonightCard
@@ -331,15 +335,40 @@ function ModuleCard({ icon, title, signal, meta, accent, onPress }: {
   );
 }
 
-function SpotifyHomeCard({ recap, connected, loading, error, onConnect, onRefresh }: {
+function SpotifyHomeCard({
+  recap,
+  confirmedMood,
+  moodSkipped,
+  connected,
+  loading,
+  error,
+  onConnect,
+  onRefresh,
+  onOpenSummary,
+}: {
   recap: SpotifyRecap | null | undefined;
+  confirmedMood: MoodLabel | null;
+  moodSkipped: boolean;
   connected: boolean;
   loading: boolean;
   error: string | null;
   onConnect: () => void;
   onRefresh: () => void;
+  onOpenSummary: () => void;
 }) {
-  if (recap) return <View style={styles.musicCard}><SpotifyDailyRecap recap={recap} compact /></View>;
+  if (recap) {
+    return (
+      <View style={styles.musicCard}>
+        <SpotifyDailyRecap
+          recap={recap}
+          compact
+          confirmedMood={confirmedMood}
+          moodSkipped={moodSkipped}
+          onOpenSummary={onOpenSummary}
+        />
+      </View>
+    );
+  }
   return (
     <Card variant="recessed" style={styles.musicCard}>
       <View style={styles.musicEmptyState}>

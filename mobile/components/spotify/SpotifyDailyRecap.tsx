@@ -12,29 +12,167 @@ import {
 } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
+import { Icon } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { moodCopy, type MoodLabel } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
 
 type SpotifyDailyRecapProps = {
   recap: SpotifyRecap;
   compact?: boolean;
+  confirmedMood?: MoodLabel | null;
+  moodSkipped?: boolean;
+  onOpenSummary?: () => void;
 };
 
-export function SpotifyDailyRecap({ recap, compact = false }: SpotifyDailyRecapProps) {
+export function SpotifyDailyRecap({
+  recap,
+  compact = false,
+  confirmedMood = null,
+  moodSkipped = false,
+  onOpenSummary,
+}: SpotifyDailyRecapProps) {
+  if (compact) {
+    return (
+      <LuminaryHomeRecap
+        recap={recap}
+        confirmedMood={confirmedMood}
+        moodSkipped={moodSkipped}
+        onOpenSummary={onOpenSummary}
+      />
+    );
+  }
+
   return (
-    <Card variant={compact ? 'default' : 'featured'} padding={compact ? 'md' : 'lg'}>
-      <View style={[styles.header, compact && styles.headerCompact]}>
-        <View style={compact ? styles.compactHeaderCopy : undefined}>
+    <Card variant="featured" padding="lg">
+      <View style={styles.header}>
+        <View>
           <SectionLabel>Listening today</SectionLabel>
-          <Text style={[compact ? type.titleLg : type.headlineMd, styles.title, compact && styles.compactCenteredText]}>
+          <Text style={[type.headlineMd, styles.title]}>
             Your day in music
           </Text>
         </View>
         <Text style={[type.labelSm, styles.spotifyAttribution]}>Spotify</Text>
       </View>
 
-      {compact ? <CompactTracks recap={recap} /> : <EditorialRecap recap={recap} />}
-      <ListeningStats recap={recap} compact={compact} />
+      <EditorialRecap recap={recap} />
+      <ListeningStats recap={recap} compact={false} />
+    </Card>
+  );
+}
+
+function LuminaryHomeRecap({
+  recap,
+  confirmedMood,
+  moodSkipped,
+  onOpenSummary,
+}: {
+  recap: SpotifyRecap;
+  confirmedMood: MoodLabel | null;
+  moodSkipped: boolean;
+  onOpenSummary?: () => void;
+}) {
+  const tracks = recap.topTracks.slice(0, 4);
+  const artists = recap.topArtists.slice(0, 4);
+  const moodLabel = moodSkipped
+    ? 'Mood skipped'
+    : confirmedMood
+      ? `${moodCopy[confirmedMood].display} · confirmed`
+      : 'Listening kept';
+  const moodDetail = moodSkipped
+    ? 'Music stayed in the recap without deciding how you felt.'
+    : confirmedMood
+      ? 'You confirmed or adjusted this listening signal in tonight’s ritual.'
+      : 'Your listening stayed connected to tonight without defining your mood.';
+
+  return (
+    <Card variant="featured" padding="md" style={styles.homeCard}>
+      <View style={styles.homeHeader}>
+        <View style={styles.homeHeaderCopy}>
+          <SectionLabel>Listening today</SectionLabel>
+          <Text style={[type.headlineMd, styles.title]}>Your day in music.</Text>
+        </View>
+        <View style={styles.spotifyPill}>
+          <View style={styles.spotifyDot} />
+          <Text style={[type.labelSm, styles.spotifyAttribution]}>Spotify</Text>
+        </View>
+      </View>
+
+      <View style={styles.homeRecapBody}>
+        <View style={styles.coverGrid} accessibilityLabel="Four most-played tracks today">
+          <View style={styles.coverRow}>
+            {tracks.slice(0, 2).map((track) => (
+              <Artwork
+                key={track.id}
+                imageUrl={track.albumImageUrl}
+                fallback={track.name.charAt(0)}
+                style={styles.coverArtwork}
+                radius={radii.sm}
+              />
+            ))}
+          </View>
+          <View style={styles.coverRow}>
+            {tracks.slice(2, 4).map((track) => (
+              <Artwork
+                key={track.id}
+                imageUrl={track.albumImageUrl}
+                fallback={track.name.charAt(0)}
+                style={styles.coverArtwork}
+                radius={radii.sm}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.moodPanel}>
+          <SectionLabel>Tonight’s read</SectionLabel>
+          <Text style={[type.headlineSm, styles.moodTitle]}>{moodLabel}</Text>
+          <Text style={[type.bodySm, styles.moodCopy]}>{moodDetail}</Text>
+        </View>
+      </View>
+
+      <View style={styles.rankingList}>
+        {tracks.length ? (
+          <View style={styles.rankingRow}>
+            <SectionLabel>Top tracks</SectionLabel>
+            <Text style={[type.bodySm, styles.rankingCopy]} numberOfLines={2}>
+              {tracks.map((track) => track.name).join(' · ')}
+            </Text>
+          </View>
+        ) : null}
+        {artists.length ? (
+          <View style={styles.rankingRow}>
+            <SectionLabel>Top artists</SectionLabel>
+            <Text style={[type.bodySm, styles.rankingCopy]} numberOfLines={2}>
+              {artists.map((artist) => artist.name).join(' · ')}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={styles.homeFooter}>
+        <View style={styles.footerStats}>
+          <Text style={[type.labelSm, styles.footerStat]}>
+            <Text style={styles.footerStatValue}>{recap.minutesListened}</Text> minutes
+          </Text>
+          <Text style={[type.labelSm, styles.footerStat]}>
+            <Text style={styles.footerStatValue}>{recap.trackCount}</Text> tracks
+          </Text>
+        </View>
+        {onOpenSummary ? (
+          <Pressable
+            onPress={onOpenSummary}
+            style={({ pressed }) => [styles.summaryButton, pressed && styles.pressed]}
+            accessibilityRole="button"
+            accessibilityLabel="See tonight’s completed recap"
+          >
+            <Text style={[type.labelSm, styles.summaryButtonText]}>See tonight’s recap</Text>
+            <View style={styles.summaryArrow}>
+              <Icon name="back" size={spacing.md} color={palette.primary} />
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
     </Card>
   );
 }
@@ -103,63 +241,6 @@ function EditorialRecap({ recap }: { recap: SpotifyRecap }) {
                 </Text>
                 <Text style={[type.bodySm, styles.mutedText]} numberOfLines={1}>
                   {track.artistName}
-                </Text>
-              </SpotifyLink>
-            ))}
-          </View>
-        </View>
-      ) : null}
-    </>
-  );
-}
-
-function CompactTracks({ recap }: { recap: SpotifyRecap }) {
-  return (
-    <>
-      {recap.topTracks.length ? (
-        <View style={styles.compactSection}>
-          <SectionLabel>On repeat</SectionLabel>
-          <View style={styles.compactTrackGrid}>
-            {recap.topTracks.map((track) => (
-              <SpotifyLink
-                key={track.id}
-                url={track.spotifyUrl}
-                label={`${track.name} by ${track.artistName}`}
-                style={styles.compactTrackCard}
-              >
-                <Artwork
-                  imageUrl={track.albumImageUrl}
-                  fallback={track.name.charAt(0)}
-                  style={styles.compactArtwork}
-                  radius={radii.sm}
-                />
-                <Text style={[type.labelSm, styles.primaryText, styles.compactCenteredText]} numberOfLines={2}>
-                  {track.name}
-                </Text>
-                <Text style={[type.bodySm, styles.mutedText, styles.compactCenteredText]} numberOfLines={1}>
-                  {track.artistName}
-                </Text>
-                <Text style={[type.labelSm, styles.playPillText]}>{formatPlayCount(track.playCount)}</Text>
-              </SpotifyLink>
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {recap.topArtists.length ? (
-        <View style={styles.compactSection}>
-          <View style={styles.compactSectionHeading}><SectionLabel>Top artists</SectionLabel></View>
-          <View style={styles.compactArtistRow}>
-            {recap.topArtists.slice(0, 4).map((artist) => (
-              <SpotifyLink key={artist.id} url={artist.spotifyUrl} label={artist.name} style={styles.compactArtist}>
-                <Artwork
-                  imageUrl={artist.imageUrl}
-                  fallback={artist.name.charAt(0)}
-                  style={styles.compactArtistImage}
-                  radius={radii.pill}
-                />
-                <Text style={[type.labelSm, styles.primaryText, styles.compactArtistName]} numberOfLines={1}>
-                  {artist.name}
                 </Text>
               </SpotifyLink>
             ))}
@@ -246,10 +327,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  headerCompact: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
-  compactHeaderCopy: { alignItems: 'flex-start', flex: 1 },
   title: { color: palette.onSurface, marginTop: spacing.xs },
   spotifyAttribution: { color: palette.primary },
+  homeCard: { gap: spacing.md, backgroundColor: palette.surfaceContainerHigh },
+  homeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  homeHeaderCopy: { flex: 1 },
+  spotifyPill: { minHeight: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerHighest },
+  spotifyDot: { width: spacing.xs, height: spacing.xs, borderRadius: radii.pill, backgroundColor: palette.primary },
+  homeRecapBody: { flexDirection: 'row', gap: spacing.sm },
+  coverGrid: { flex: 1, gap: spacing.xs },
+  coverRow: { flexDirection: 'row', flex: 1, gap: spacing.xs },
+  coverArtwork: { flex: 1, aspectRatio: 1 },
+  moodPanel: { flex: 1, justifyContent: 'center', padding: spacing.sm, borderRadius: radii.md, backgroundColor: palette.surfaceContainer },
+  moodTitle: { color: palette.primary, marginTop: spacing.sm },
+  moodCopy: { color: palette.onSurfaceVariant, marginTop: spacing.xs },
+  rankingList: { gap: spacing.sm },
+  rankingRow: { gap: spacing.xs, padding: spacing.sm, borderRadius: radii.md, backgroundColor: palette.surfaceContainer },
+  rankingCopy: { color: palette.onSurface },
+  homeFooter: { gap: spacing.sm },
+  footerStats: { flexDirection: 'row', gap: spacing.md },
+  footerStat: { color: palette.onSurfaceVariant },
+  footerStatValue: { color: palette.onSurface },
+  summaryButton: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
+  summaryButtonText: { color: palette.primary },
+  summaryArrow: { transform: [{ rotate: '180deg' }] },
   section: { marginTop: spacing.lg, gap: spacing.sm },
   artistGrid: { flexDirection: 'row', gap: spacing.sm },
   artistCard: { flex: 1, minWidth: 0 },
@@ -292,16 +393,6 @@ const styles = StyleSheet.create({
   },
   statTileCompact: { paddingVertical: spacing.sm },
   statValue: { color: palette.onSurface },
-  compactSection: { marginTop: spacing.md, alignItems: 'center', gap: spacing.sm },
-  compactSectionHeading: { alignItems: 'center' },
-  compactTrackGrid: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
-  compactTrackCard: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
-  compactArtwork: { width: '100%', maxWidth: 68, aspectRatio: 1 },
-  compactCenteredText: { width: '100%', textAlign: 'center' },
-  compactArtistRow: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
-  compactArtist: { flex: 1, minWidth: 0, alignItems: 'center', gap: spacing.xs },
-  compactArtistImage: { width: 38, height: 38 },
-  compactArtistName: { width: '100%', textAlign: 'center' },
   artworkFallback: {
     alignItems: 'center',
     justifyContent: 'center',
