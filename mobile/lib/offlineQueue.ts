@@ -62,11 +62,30 @@ type PendingJournalEntry = {
   payload: { body: string; tags: string[]; mood_event_id: string | null };
 };
 
+type PendingDailyRitualSession = {
+  type: 'daily_ritual_session';
+  id: string;
+  payload: {
+    id: string;
+    session_date: string;
+    status: string;
+    current_stage: string;
+    started_at: string | null;
+    completed_at: string | null;
+    mood: string | null;
+    mood_skipped: boolean;
+    journal_added: boolean;
+    selected_signal_ids: string[];
+    summary: object | null;
+  };
+};
+
 export type PendingWrite =
   | PendingMoodEvent
   | PendingSpotifySnapshot
   | PendingHabitCompletion
-  | PendingJournalEntry;
+  | PendingJournalEntry
+  | PendingDailyRitualSession;
 
 // ─── Queue operations ─────────────────────────────────────────────────────────
 
@@ -152,6 +171,13 @@ async function replayWrite(item: PendingWrite): Promise<void> {
         id: item.id,
         ...item.payload,
       });
+      if (error) throw error;
+      break;
+    }
+    case 'daily_ritual_session': {
+      const { error } = await supabase
+        .from('daily_ritual_sessions')
+        .upsert(item.payload, { onConflict: 'user_id,session_date' });
       if (error) throw error;
       break;
     }

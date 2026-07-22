@@ -205,6 +205,7 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
             />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="habits" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="spotify-callback" options={{ animation: 'fade' }} />
             <Stack.Screen name="onboarding" />

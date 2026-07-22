@@ -28,6 +28,7 @@ export function JournalStep() {
   const journalTags = useRitualStore((s) => s.journalTags);
   const setJournalText = useRitualStore((s) => s.setJournalText);
   const setJournalTags = useRitualStore((s) => s.setJournalTags);
+  const setJournalAdded = useRitualStore((s) => s.setJournalAdded);
   const setStage = useRitualStore((s) => s.setStage);
 
   // Stable for this component's lifetime — survives re-renders, resets on unmount.
@@ -54,6 +55,7 @@ export function JournalStep() {
         tags: journalTags,
         moodEventId,
       });
+      setJournalAdded(true);
       setStage('habits');
     } catch {
       setSaveError("We couldn't save that. Try again?");
@@ -63,6 +65,7 @@ export function JournalStep() {
   }
 
   function handleSkip() {
+    setJournalAdded(false);
     setStage('habits');
   }
 
@@ -125,7 +128,7 @@ export function JournalStep() {
           {isSaving ? (
             <ActivityIndicator color={palette.onPrimary} />
           ) : (
-            <Text style={[type.titleMd, { color: palette.onPrimary }]}>Capture</Text>
+            <Text style={[type.titleMd, { color: palette.onPrimary }]}>Add to Journal</Text>
           )}
         </Pressable>
 
@@ -139,7 +142,7 @@ export function JournalStep() {
             pressed && { opacity: 0.75 },
           ]}
         >
-          <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>Skip for now</Text>
+          <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>Skip Journal</Text>
         </Pressable>
       </View>
     </View>

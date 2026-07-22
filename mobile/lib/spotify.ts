@@ -125,7 +125,7 @@ async function refreshTokens(refreshToken: string, clientId: string): Promise<Sp
  * Pipeline:
  *   1. Page backward through recently played tracks for the local day.
  *   2. Rank daily songs and primary artists from the same play set.
- *   3. Enrich the three daily artists with Spotify portraits when available.
+ *   3. Enrich the four daily artists with Spotify portraits when available.
  *   4. Infer a lightweight mood signal from listening timing and repeats.
  *
  * Returns null if no tracks were found for today (user hasn't listened).

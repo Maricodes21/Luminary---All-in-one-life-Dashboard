@@ -33,6 +33,15 @@ export type Habit = {
   position: number;
   archivedAt?: string;
   completedOn: string[];
+  category?: string;
+  schedule?: HabitSchedule;
+  pausedOn?: string[];
+};
+
+export type HabitSchedule = {
+  days: number[];
+  timeWindow: 'morning' | 'day' | 'evening' | 'anytime';
+  weeklyTarget: number;
 };
 
 export type LocalJournalEntry = {
@@ -167,10 +176,12 @@ type ProductionState = {
   expensePrompts: ExpensePrompt[];
   syncQueue: SyncQueueItem[];
   updateProfileSettings: (settings: Partial<ProfileSettings>) => void;
-  addHabit: (name: string) => void;
+  addHabit: (name: string, options?: { category?: string; schedule?: HabitSchedule }) => void;
   updateHabit: (id: string, name: string) => void;
+  updateHabitDetails: (id: string, details: Partial<Pick<Habit, 'name' | 'category' | 'schedule'>>) => void;
   archiveHabit: (id: string) => void;
   toggleHabitCompletion: (id: string, date: string) => void;
+  toggleHabitPause: (id: string, date: string) => void;
   addJournalEntry: (body: string, title?: string, tags?: string[]) => void;
   deleteJournalEntry: (id: string) => void;
   updateBodyProfile: (profile: Partial<BodyProfile>) => void;
@@ -221,9 +232,9 @@ export const useProductionStore = create<ProductionState>()(
         goal: 'maintain',
       },
       habits: [
-        { id: 'habit_water', name: 'Water before bed', position: 0, completedOn: [] },
-        { id: 'habit_read', name: 'Read ten pages', position: 1, completedOn: [] },
-        { id: 'habit_reset', name: 'Reset the room', position: 2, completedOn: [] },
+        { id: 'habit_water', name: 'Water before bed', position: 0, completedOn: [], category: 'Sleep', schedule: { days: [0, 1, 2, 3, 4, 5, 6], timeWindow: 'evening', weeklyTarget: 7 }, pausedOn: [] },
+        { id: 'habit_read', name: 'Read ten pages', position: 1, completedOn: [], category: 'Mind', schedule: { days: [0, 1, 2, 3, 4, 5, 6], timeWindow: 'evening', weeklyTarget: 5 }, pausedOn: [] },
+        { id: 'habit_reset', name: 'Reset the room', position: 2, completedOn: [], category: 'Home', schedule: { days: [0, 1, 2, 3, 4, 5, 6], timeWindow: 'evening', weeklyTarget: 5 }, pausedOn: [] },
       ],
       journalEntries: [],
       meals: [],
@@ -250,15 +261,28 @@ export const useProductionStore = create<ProductionState>()(
             syncQueue: [...state.syncQueue, enqueue('profile_settings', 'update', profileSettings)],
           };
         }),
-      addHabit: (name) =>
+      addHabit: (name, options = {}) =>
         set((state) => {
-          const habit = { id: id('habit'), name: name.trim(), position: state.habits.length, completedOn: [] };
+          const habit = {
+            id: id('habit'),
+            name: name.trim(),
+            position: state.habits.length,
+            completedOn: [],
+            pausedOn: [],
+            category: options.category,
+            schedule: options.schedule ?? { days: [0, 1, 2, 3, 4, 5, 6], timeWindow: 'anytime' as const, weeklyTarget: 5 },
+          };
           return { habits: [...state.habits, habit], syncQueue: [...state.syncQueue, enqueue('habit', 'create', habit)] };
         }),
       updateHabit: (habitId, name) =>
         set((state) => ({
           habits: state.habits.map((habit) => (habit.id === habitId ? { ...habit, name: name.trim() } : habit)),
           syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, name })],
+        })),
+      updateHabitDetails: (habitId, details) =>
+        set((state) => ({
+          habits: state.habits.map((habit) => (habit.id === habitId ? { ...habit, ...details, name: details.name?.trim() ?? habit.name } : habit)),
+          syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, ...details })],
         })),
       archiveHabit: (habitId) =>
         set((state) => ({
@@ -275,6 +299,18 @@ export const useProductionStore = create<ProductionState>()(
             return { ...habit, completedOn };
           }),
           syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, completedOn: date })],
+        })),
+      toggleHabitPause: (habitId, date) =>
+        set((state) => ({
+          habits: state.habits.map((habit) => {
+            if (habit.id !== habitId) return habit;
+            const pausedOn = habit.pausedOn ?? [];
+            return {
+              ...habit,
+              pausedOn: pausedOn.includes(date) ? pausedOn.filter((value) => value !== date) : [...pausedOn, date],
+            };
+          }),
+          syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, pausedOn: date })],
         })),
       addJournalEntry: (body, title = '', tags = []) =>
         set((state) => {

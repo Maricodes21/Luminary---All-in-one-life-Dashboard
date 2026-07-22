@@ -80,7 +80,7 @@ function EditorialRecap({ recap }: { recap: SpotifyRecap }) {
         <View style={styles.section}>
           <SectionLabel>On repeat</SectionLabel>
           <View style={styles.trackGrid}>
-            {recap.topTracks.map((track) => (
+            {recap.topTracks.slice(0, 4).map((track) => (
               <SpotifyLink
                 key={track.id}
                 url={track.spotifyUrl}
@@ -150,7 +150,7 @@ function CompactTracks({ recap }: { recap: SpotifyRecap }) {
         <View style={styles.compactSection}>
           <View style={styles.compactSectionHeading}><SectionLabel>Top artists</SectionLabel></View>
           <View style={styles.compactArtistRow}>
-            {recap.topArtists.map((artist) => (
+            {recap.topArtists.slice(0, 4).map((artist) => (
               <SpotifyLink key={artist.id} url={artist.spotifyUrl} label={artist.name} style={styles.compactArtist}>
                 <Artwork
                   imageUrl={artist.imageUrl}
@@ -246,8 +246,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  headerCompact: { flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  compactHeaderCopy: { alignItems: 'center' },
+  headerCompact: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
+  compactHeaderCopy: { alignItems: 'flex-start', flex: 1 },
   title: { color: palette.onSurface, marginTop: spacing.xs },
   spotifyAttribution: { color: palette.primary },
   section: { marginTop: spacing.lg, gap: spacing.sm },
@@ -296,11 +296,11 @@ const styles = StyleSheet.create({
   compactSectionHeading: { alignItems: 'center' },
   compactTrackGrid: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
   compactTrackCard: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
-  compactArtwork: { width: 72, height: 72 },
+  compactArtwork: { width: '100%', maxWidth: 68, aspectRatio: 1 },
   compactCenteredText: { width: '100%', textAlign: 'center' },
   compactArtistRow: { alignSelf: 'stretch', flexDirection: 'row', gap: spacing.sm },
   compactArtist: { flex: 1, minWidth: 0, alignItems: 'center', gap: spacing.xs },
-  compactArtistImage: { width: 40, height: 40 },
+  compactArtistImage: { width: 38, height: 38 },
   compactArtistName: { width: '100%', textAlign: 'center' },
   artworkFallback: {
     alignItems: 'center',

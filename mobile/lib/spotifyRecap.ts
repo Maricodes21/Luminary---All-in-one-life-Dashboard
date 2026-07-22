@@ -102,8 +102,8 @@ export function buildDailySpotifyRecap(plays: SpotifyPlay[], date: string): Spot
     }
   }
 
-  const topTracks = rank([...tracks.values()]).slice(0, 3).map(stripRankMetadata);
-  const topArtists = rank([...artists.values()]).slice(0, 3).map(stripRankMetadata);
+  const topTracks = rank([...tracks.values()]).slice(0, 4).map(stripRankMetadata);
+  const topArtists = rank([...artists.values()]).slice(0, 4).map(stripRankMetadata);
   const minutesListened = Math.round(
     dailyPlays.reduce((total, play) => total + Math.max(0, play.durationMs), 0) / 60_000,
   );

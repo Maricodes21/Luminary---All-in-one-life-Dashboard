@@ -1,395 +1,64 @@
-/**
- * HabitCheckin — Stage 4 of the ritual.
- *
- * Loads the user's active habits + today's completions + last-7-days history
- * in one parallel Supabase call. Tap-to-complete is optimistic (local state
- * updates instantly, DB write happens async). Streak band recalculates after
- * every toggle.
- *
- * "Tomorrow" section: lightweight toggles that write to habit_pauses so the
- * user can soft-skip a habit for the next day without archiving it.
- */
-import { useEffect, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { palette, spacing, radii, type } from '@luminary/design-system';
+import { palette, radii, spacing, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
+import { Icon } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { supabase } from '@/lib/supabase';
-import {
-  writeHabitCompletion,
-  deleteHabitCompletion,
-  writeHabitPause,
-  deleteHabitPause,
-} from '@/lib/ritual';
-import { calculateBand, bandCopy } from '@/lib/streak';
 import { useRitualStore } from '@/stores/useRitualStore';
 import { useProductionStore } from '@/stores/useProductionStore';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type Habit = { id: string; name: string; icon: string | null; position: number; source: 'remote' | 'local' };
-
-// ─── Date helpers (local to this file) ───────────────────────────────────────
-
-function toIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function addDays(d: Date, n: number): Date {
-  const copy = new Date(d);
-  copy.setDate(copy.getDate() + n);
-  return copy;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import { localDateKey } from '@/lib/meals/dates';
+import { getHabitIconName } from '@/lib/habitIcons';
 
 export function HabitCheckin() {
-  const { toggleHabit, setTotalHabits, setStage } = useRitualStore();
-  const localHabits = useProductionStore((s) =>
-    s.habits.filter((habit) => !habit.archivedAt).sort((a, b) => a.position - b.position),
-  );
-  const toggleLocalHabitCompletion = useProductionStore((s) => s.toggleHabitCompletion);
-
-  const [habits, setHabits] = useState<Habit[]>([]);
-  const [completedToday, setCompletedToday] = useState<Set<string>>(new Set());
-  const [pausedTomorrow, setPausedTomorrow] = useState<Set<string>>(new Set());
-  // All unique dates in the past 7 days that had at least one completion.
-  const [completedDates, setCompletedDates] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const today = toIso(new Date());
-  const tomorrow = toIso(addDays(new Date(), 1));
+  const today = localDateKey(new Date());
+  const habits = useProductionStore((state) => state.habits.filter((habit) => !habit.archivedAt).sort((a, b) => a.position - b.position));
+  const toggleCompletion = useProductionStore((state) => state.toggleHabitCompletion);
+  const setStage = useRitualStore((state) => state.setStage);
+  const setTotalHabits = useRitualStore((state) => state.setTotalHabits);
+  const setHabitsCompleted = useRitualStore((state) => state.setHabitsCompleted);
+  const completed = habits.filter((habit) => habit.completedOn.includes(today));
+  const completedKey = completed.map((habit) => habit.id).join('|');
 
   useEffect(() => {
-    void load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    setTotalHabits(habits.length);
+    setHabitsCompleted(completedKey ? completedKey.split('|') : []);
+  }, [completedKey, habits.length, setHabitsCompleted, setTotalHabits]);
 
-  async function load() {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const sevenDaysAgo = toIso(addDays(new Date(), -6));
-
-      const [habitsRes, todayRes, pausesRes, historyRes] = await Promise.all([
-        supabase
-          .from('habits')
-          .select('id, name, icon, position')
-          .is('archived_at', null)
-          .order('position'),
-        supabase
-          .from('habit_completions')
-          .select('habit_id')
-          .eq('completed_on', today),
-        supabase
-          .from('habit_pauses')
-          .select('habit_id')
-          .eq('pause_date', tomorrow),
-        supabase
-          .from('habit_completions')
-          .select('completed_on')
-          .gte('completed_on', sevenDaysAgo),
-      ]);
-
-      if (habitsRes.error) throw habitsRes.error;
-      if (todayRes.error) throw todayRes.error;
-      if (pausesRes.error) throw pausesRes.error;
-      if (historyRes.error) throw historyRes.error;
-
-      const remoteHabits = (habitsRes.data ?? []).map((habit) => ({
-        ...(habit as Omit<Habit, 'source'>),
-        source: 'remote' as const,
-      }));
-      const loadedHabits = remoteHabits.length > 0
-        ? remoteHabits
-        : localHabits.map((habit) => ({
-            id: habit.id,
-            name: habit.name,
-            icon: null,
-            position: habit.position,
-            source: 'local' as const,
-          }));
-      setHabits(loadedHabits);
-      setTotalHabits(loadedHabits.length);
-
-      const remoteCompleted = new Set((todayRes.data ?? []).map((r) => r.habit_id as string));
-      const localCompleted = localHabits
-        .filter((habit) => habit.completedOn.includes(today))
-        .map((habit) => habit.id);
-      setCompletedToday(new Set(remoteHabits.length > 0 ? [...remoteCompleted] : localCompleted));
-      setPausedTomorrow(new Set((pausesRes.data ?? []).map((r) => r.habit_id as string)));
-      setCompletedDates(new Set((historyRes.data ?? []).map((r) => r.completed_on as string)));
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn('[HabitCheckin] load error', msg);
-      const fallbackHabits = localHabits.map((habit) => ({
-        id: habit.id,
-        name: habit.name,
-        icon: null,
-        position: habit.position,
-        source: 'local' as const,
-      }));
-      setHabits(fallbackHabits);
-      setTotalHabits(fallbackHabits.length);
-      setCompletedToday(new Set(localHabits.filter((habit) => habit.completedOn.includes(today)).map((habit) => habit.id)));
-      setError(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleToggle(habitId: string) {
-    const wasCompleted = completedToday.has(habitId);
-
-    // Optimistic update.
-    const next = new Set(completedToday);
-    if (wasCompleted) {
-      next.delete(habitId);
-    } else {
-      next.add(habitId);
-    }
-    setCompletedToday(next);
-    toggleHabit(habitId);
-
-    // Update date-level set for band calculation.
-    const nextDates = new Set(completedDates);
-    if (wasCompleted && next.size === 0) {
-      nextDates.delete(today);
-    } else if (!wasCompleted) {
-      nextDates.add(today);
-    }
-    setCompletedDates(nextDates);
-
+  function toggle(id: string) {
+    toggleCompletion(id, today);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    const habit = habits.find((item) => item.id === habitId);
-    if (habit?.source === 'local') {
-      toggleLocalHabitCompletion(habitId, today);
-      return;
-    }
-
-    try {
-      if (wasCompleted) {
-        await deleteHabitCompletion(habitId);
-      } else {
-        await writeHabitCompletion(habitId);
-      }
-    } catch (err: unknown) {
-      // Roll back optimistic update on failure.
-      setCompletedToday(completedToday);
-      setCompletedDates(completedDates);
-      console.warn('[HabitCheckin] toggle error', err);
-    }
-  }
-
-  async function handlePauseToggle(habitId: string) {
-    const wasPaused = pausedTomorrow.has(habitId);
-    const next = new Set(pausedTomorrow);
-    if (wasPaused) {
-      next.delete(habitId);
-    } else {
-      next.add(habitId);
-    }
-    setPausedTomorrow(next);
-
-    try {
-      if (wasPaused) {
-        await deleteHabitPause(habitId);
-      } else {
-        await writeHabitPause(habitId);
-      }
-    } catch (err: unknown) {
-      setPausedTomorrow(pausedTomorrow);
-      console.warn('[HabitCheckin] pause toggle error', err);
-    }
-  }
-
-  // ── Band ──────────────────────────────────────────────────────────────────
-
-  const window = calculateBand(
-    [...completedDates].map((date) => ({ date })),
-  );
-  const bandText = bandCopy(window.band, window.daysHit);
-
-  // ── Loading / error ───────────────────────────────────────────────────────
-
-  if (isLoading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator color={palette.primary} />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>{error}</Text>
-      </View>
-    );
-  }
-
-  if (habits.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-          Pick something small. Three is enough.
-        </Text>
-        <Pressable
-          onPress={() => setStage('summary')}
-          accessibilityRole="button"
-          accessibilityLabel="Continue to summary"
-          style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
-        >
-          <Text style={[type.titleMd, { color: palette.onPrimary }]}>Continue</Text>
-        </Pressable>
-      </View>
-    );
   }
 
   return (
     <View style={styles.container}>
-      {/* ── Today ────────────────────────────────────────────────────────── */}
-      <Text style={[type.displayMd, { color: palette.onSurface }]}>Today's habits</Text>
+      <SectionLabel>Commitments</SectionLabel>
+      <Text style={[type.displaySm, styles.title]}>How did your small promises go?</Text>
+      <Text style={[type.bodyMd, styles.copy]}>Check what happened. An unfinished commitment is information, not a reset.</Text>
 
-      <View style={styles.habitList}>
-        {habits.map((habit) => {
-          const done = completedToday.has(habit.id);
+      <Card style={styles.list}>
+        {habits.length ? habits.map((habit) => {
+          const done = habit.completedOn.includes(today);
           return (
-            <Pressable
-              key={habit.id}
-              onPress={() => handleToggle(habit.id)}
-              accessibilityRole="checkbox"
-              accessibilityLabel={habit.name}
-              accessibilityState={{ checked: done }}
-              style={({ pressed }) => [
-                styles.habitRow,
-                done && styles.habitRowDone,
-                pressed && { opacity: 0.75 },
-              ]}
-            >
-              <View style={[styles.checkbox, done && styles.checkboxDone]} />
-              <Text
-                style={[
-                  type.bodyMd,
-                  { color: done ? palette.onSurfaceVariant : palette.onSurface },
-                  done && styles.strikethrough,
-                ]}
-              >
-                {habit.name}
-              </Text>
+            <Pressable key={habit.id} onPress={() => toggle(habit.id)} style={({ pressed }) => [styles.row, pressed && styles.pressed]} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={habit.name}>
+              <View style={[styles.toggle, done && styles.toggleDone]}><Icon name={done ? 'check' : getHabitIconName(habit.name)} size={16} color={done ? palette.onPrimary : palette.onSurfaceVariant} /></View>
+              <View style={styles.rowBody}><Text style={[type.titleMd, styles.rowTitle, done && styles.done]}>{habit.name}</Text><Text style={[type.bodySm, styles.rowMeta]}>{done ? 'Captured today' : 'Leave open or check it now'}</Text></View>
             </Pressable>
           );
-        })}
-      </View>
-
-      <Text style={[type.bodySm, styles.bandText]}>{bandText}</Text>
-
-      {/* ── Tomorrow ─────────────────────────────────────────────────────── */}
-      <Card variant="recessed" style={styles.tomorrowCard}>
-        <SectionLabel>Tomorrow</SectionLabel>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-          Keep active tomorrow
-        </Text>
-        <View style={styles.tomorrowList}>
-          {habits.map((habit) => {
-            const paused = pausedTomorrow.has(habit.id);
-            const activeTomorrow = !paused;
-            return (
-              <Pressable
-                key={habit.id}
-                onPress={() => handlePauseToggle(habit.id)}
-                accessibilityRole="switch"
-                accessibilityLabel={`${habit.name} - ${activeTomorrow ? 'active tomorrow' : 'paused tomorrow'}`}
-                accessibilityState={{ checked: activeTomorrow }}
-                style={({ pressed }) => [styles.tomorrowRow, pressed && { opacity: 0.75 }]}
-              >
-                <Text style={[type.bodyMd, { color: activeTomorrow ? palette.onSurface : palette.onSurfaceVariant }]}>
-                  {habit.name}
-                </Text>
-                <View style={[styles.tomorrowToggle, !activeTomorrow && styles.tomorrowTogglePaused]}>
-                  <Text style={[type.labelSm, { color: activeTomorrow ? palette.primary : palette.onSurfaceVariant }]}>
-                    {activeTomorrow ? 'on' : 'paused'}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+        }) : <Text style={[type.bodyMd, styles.copy]}>You have no active commitments yet. That is okay for tonight.</Text>}
       </Card>
 
-      <Pressable
-        onPress={() => setStage('summary')}
-        accessibilityRole="button"
-        accessibilityLabel="Continue to night summary"
-        style={({ pressed }) => [styles.continueBtn, pressed && { opacity: 0.85 }]}
-      >
-        <Text style={[type.titleMd, { color: palette.onPrimary }]}>Done</Text>
+      <Text style={[type.bodySm, styles.progress]}>{completed.length} of {habits.length} captured today</Text>
+      <Pressable onPress={() => setStage('context')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Text style={[type.labelMd, styles.primaryText]}>Continue</Text>
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: spacing.md },
-  centered: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.md },
-  habitList: { gap: spacing.sm },
-  habitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.md,
-    minHeight: 52,
-  },
-  habitRowDone: {
-    backgroundColor: palette.surfaceContainerLow,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: palette.onSurfaceVariant,
-  },
-  checkboxDone: {
-    backgroundColor: palette.primary,
-    borderColor: palette.primary,
-  },
-  strikethrough: {
-    textDecorationLine: 'line-through',
-  },
-  bandText: {
-    color: palette.onSurfaceVariant,
-    paddingHorizontal: spacing.xs,
-  },
-  tomorrowCard: { gap: spacing.sm },
-  tomorrowList: { gap: spacing.xs, marginTop: spacing.xs },
-  tomorrowRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-  },
-  tomorrowToggle: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    backgroundColor: `${palette.primary}18`,
-  },
-  tomorrowTogglePaused: {
-    backgroundColor: palette.surfaceContainerHigh,
-  },
-  continueBtn: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    backgroundColor: palette.primary,
-  },
+  container: { gap: spacing.md }, title: { color: palette.onSurface }, copy: { color: palette.onSurfaceVariant }, list: { gap: spacing.xs },
+  row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.md }, toggle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest }, toggleDone: { backgroundColor: palette.tertiaryDim },
+  rowBody: { flex: 1 }, rowTitle: { color: palette.onSurface }, rowMeta: { color: palette.onSurfaceVariant, marginTop: 2 }, done: { color: palette.onSurfaceVariant, textDecorationLine: 'line-through' }, progress: { color: palette.onSurfaceVariant },
+  primaryButton: { minHeight: 52, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }, primaryText: { color: palette.onPrimary }, pressed: { opacity: 0.74 },
 });

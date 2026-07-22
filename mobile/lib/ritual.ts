@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { enqueue } from '@/lib/offlineQueue';
 import type { MoodLabel, MoodSource } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
+import type { DailyRitualSession } from '@/lib/dailyRitual';
 
 function uuid(): string {
   // crypto.randomUUID is available in Hermes (RN 0.73+) and on web.
@@ -166,4 +167,35 @@ export async function writeJournalEntry(params: WriteJournalEntryParams): Promis
     return id;
   }
   return data.id as string;
+}
+
+// --- Daily ritual session ----------------------------------------------------
+
+/**
+ * Persist the current daily ritual checkpoint. The same shape is queued when
+ * offline so closing the app never turns a completed ritual back into an
+ * unfinished one.
+ */
+export async function writeDailyRitualSession(session: DailyRitualSession): Promise<void> {
+  const payload = {
+    id: session.id,
+    session_date: session.localDate,
+    status: session.status,
+    current_stage: session.currentStage,
+    started_at: session.startedAt,
+    completed_at: session.completedAt,
+    mood: session.mood,
+    mood_skipped: session.moodSkipped,
+    journal_added: session.journalAdded,
+    selected_signal_ids: session.selectedSignalIds,
+    summary: session.summary,
+  };
+
+  const { error } = await supabase
+    .from('daily_ritual_sessions')
+    .upsert(payload, { onConflict: 'user_id,session_date' });
+
+  if (error) {
+    await enqueue({ type: 'daily_ritual_session', id: session.id, payload });
+  }
 }

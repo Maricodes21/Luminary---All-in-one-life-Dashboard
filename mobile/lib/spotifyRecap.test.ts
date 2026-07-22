@@ -83,7 +83,7 @@ test('daily recap ranks repeats and artists from the same local day', () => {
   );
 });
 
-test('daily recap limits songs and artists to three while retaining image and Spotify links', () => {
+test('daily recap limits songs and artists to four while retaining image and Spotify links', () => {
   const plays = ['a', 'b', 'c', 'd'].map((id, index) =>
     play({
       trackId: id,
@@ -100,8 +100,8 @@ test('daily recap limits songs and artists to three while retaining image and Sp
   const recap = buildDailySpotifyRecap(plays, '2026-07-17');
 
   assert.ok(recap);
-  assert.equal(recap.topTracks.length, 3);
-  assert.equal(recap.topArtists.length, 3);
+  assert.equal(recap.topTracks.length, 4);
+  assert.equal(recap.topArtists.length, 4);
   assert.equal(recap.topTracks[0]?.albumImageUrl, 'https://images.example/a.jpg');
   assert.equal(recap.topTracks[0]?.spotifyUrl, 'https://open.spotify.com/track/a');
   assert.equal(recap.topArtists[0]?.imageUrl, 'https://images.example/a.jpg');

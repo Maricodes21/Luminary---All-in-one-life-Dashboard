@@ -9,6 +9,7 @@ import { useRitualStore } from '@/stores/useRitualStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { scheduleEveningReminder } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
+import { writeDailyRitualSession } from '@/lib/ritual';
 
 export default function RitualSummary() {
   const insets = useSafeAreaInsets();
@@ -17,7 +18,7 @@ export default function RitualSummary() {
   const recap = useRitualStore((s) => s.recap);
   const habitsCompleted = useRitualStore((s) => s.habitsCompleted);
   const totalHabits = useRitualStore((s) => s.totalHabits);
-  const reset = useRitualStore((s) => s.reset);
+  const session = useRitualStore((s) => s.session);
   const userId = useAuthStore((s) => s.user?.id);
 
   const moodDisplay = mood ? moodCopy[mood.label].display : null;
@@ -43,7 +44,7 @@ export default function RitualSummary() {
     } catch (err) {
       console.warn('[summary] failed to schedule reminder', err);
     }
-    reset();
+    await writeDailyRitualSession(useRitualStore.getState().session);
     router.replace('/(tabs)');
   }
 
@@ -52,6 +53,16 @@ export default function RitualSummary() {
       <View style={styles.inner}>
         <SectionLabel>Tonight</SectionLabel>
         <Text style={[type.displayMd, { color: palette.onSurface }]}>The day, distilled.</Text>
+
+        <Card variant="featured">
+          <SectionLabel>Closed gently</SectionLabel>
+          <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
+            Tonight is complete.
+          </Text>
+          <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
+            Tomorrow begins with {session.summary?.tomorrowCue ?? 'one small promise'}.
+          </Text>
+        </Card>
 
         {moodDisplay && (
           <Card>
@@ -76,6 +87,13 @@ export default function RitualSummary() {
           </Card>
         )}
 
+        {session.summary?.movementMinutes ? (
+          <Card>
+            <SectionLabel>Movement</SectionLabel>
+            <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>{session.summary.movementMinutes} minutes captured</Text>
+          </Card>
+        ) : null}
+
         {recap && (
           <Card>
             <SectionLabel>Music</SectionLabel>
@@ -84,7 +102,7 @@ export default function RitualSummary() {
             </Text>
             {recap.topArtists.length > 0 && (
               <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-                {recap.topArtists.map((a) => a.name).join(', ')}
+                {recap.topArtists.slice(0, 4).map((a) => a.name).join(', ')}
               </Text>
             )}
           </Card>
