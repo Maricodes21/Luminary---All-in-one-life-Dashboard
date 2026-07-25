@@ -31,7 +31,9 @@ test('home swaps the ritual invitation for music only after explicit completion'
   assert.match(source, /Good day,/);
   assert.match(source, /Open profile and settings/);
   assert.match(source, /<CommitmentsCard/);
-  assert.match(source, /Signal board/);
+  assert.match(source, /Today at a glance/);
+  assert.match(source, /homeHabits = habits\.slice\(0, 3\)/);
+  assert.match(source, /completedHome = homeHabits\.filter/);
   assert.match(source, /confirmedMood=\{ritualSession\.mood\}/);
   assert.match(source, /moodSkipped=\{ritualSession\.moodSkipped\}/);
   assert.match(source, /onOpenSummary=\{\(\) => router\.push\('\/ritual\/summary'\)\}/);
@@ -66,7 +68,10 @@ test('nightly ritual explains music, clarifies decisions, and persists explicit 
   assert.match(source, /Choose a different mood/);
   assert.match(source, /Skip mood tonight/);
   assert.match(source, /setStage\('journal'\)/);
-  assert.match(source, /completeSession\(summary\)/);
+  assert.match(source, /completeSession\(\{/);
+  assert.match(source, /<AlbumStack/);
+  assert.match(source, /styles\.evidenceStrip/);
+  assert.doesNotMatch(source, /<RecapCard/);
   assert.match(source, /writeDailyRitualSession/);
   assert.doesNotMatch(summary, /reset\(\)/);
 });

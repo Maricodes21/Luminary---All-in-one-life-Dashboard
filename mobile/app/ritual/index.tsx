@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
-import { SectionLabel } from '@/components/ui/SectionLabel';
-import { MoodChipGrid } from '@/components/ritual/MoodChipGrid';
-import { RecapCard } from '@/components/ritual/RecapCard';
 import { JournalStep } from '@/components/ritual/JournalStep';
 import { HabitCheckin } from '@/components/ritual/HabitCheckin';
 import { useSpotifyRecap } from '@/hooks/useSpotifyRecap';
@@ -80,74 +77,113 @@ export default function RitualScreen() {
     if (stage === 'summary') router.push('/ritual/summary');
   }, [router, stage]);
 
-  function close() {
-    router.back();
-  }
-
   function finishTomorrow() {
     const tomorrowCue = habits.find((habit) => !habit.completedOn.includes(today))?.name ?? 'Begin with one small promise';
-    const summary = {
+    completeSession({
       habitsCompleted: habitsCompleted.length,
       totalHabits,
       movementMinutes: localWorkout?.durationMinutes ?? remoteWorkout?.duration_minutes ?? 0,
       musicMinutes: recap?.minutesListened ?? 0,
       tomorrowCue,
+    });
+    void writeDailyRitualSession(useRitualStore.getState().session);
+  }
+
+  function goBack() {
+    const previous: Partial<Record<RitualStage, RitualStage>> = {
+      music: 'entry',
+      mood: 'music',
+      journal: session.mood ? 'music' : 'mood',
+      habits: session.moodSkipped ? 'music' : 'journal',
+      context: 'habits',
+      tomorrow: 'context',
     };
-    completeSession(summary);
-    const nextSession = useRitualStore.getState().session;
-    void writeDailyRitualSession(nextSession);
+    const target = previous[stage];
+    if (target) setStage(target);
+    else router.back();
   }
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.topbar}>
-        <Pressable onPress={close} style={styles.topbarButton} accessibilityRole="button" accessibilityLabel="Close ritual"><Icon name="close" size={20} color={palette.onSurfaceVariant} /></Pressable>
-        <View style={styles.topbarTitle}><SectionLabel>Tonight’s ritual</SectionLabel><Text style={[type.labelSm, styles.step]}>{stageLabel(stage)}</Text></View>
-        <View style={styles.topbarButton}><Icon name="clock" size={17} color={palette.primary} /></View>
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {stage === 'entry' ? <EntryStep signals={selectedSignals} onBegin={() => beginSession(today, selectedSignals.map((signal) => signal.id))} /> : null}
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing['2xl'] }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {stage === 'entry' ? <EntryStep signals={selectedSignals} onBack={goBack} onBegin={() => beginSession(today, selectedSignals.map((signal) => signal.id))} /> : null}
         {stage === 'music' ? (
           <MusicStep
             recap={recap}
             loading={isLoading}
             error={error}
             retry={retry}
+            onBack={goBack}
             onChooseMood={() => setStage('mood')}
             onSkip={() => { markMoodSkipped(); setStage('habits'); }}
           />
         ) : null}
-        {stage === 'mood' ? <ManualMoodStep onSkip={() => { markMoodSkipped(); setStage('habits'); }} /> : null}
-        {stage === 'journal' ? <JournalStep /> : null}
-        {stage === 'habits' ? <HabitCheckin /> : null}
-        {stage === 'context' ? <ContextStep signals={selectedSignals} onContinue={() => setStage('tomorrow')} onOpen={(signal) => router.replace(signal.route)} /> : null}
-        {stage === 'tomorrow' ? <TomorrowStep habits={habits} onTogglePause={toggleHabitPause} onFinish={finishTomorrow} /> : null}
+        {stage === 'mood' ? <ManualMoodStep onBack={goBack} onSkip={() => { markMoodSkipped(); setStage('habits'); }} /> : null}
+        {stage === 'journal' ? (
+          <View style={styles.stage}>
+            <RitualHeading eyebrow="Optional · journal" title="Want to remember why?" description="Add the mood and a sentence directly to Journal, or keep going." onBack={goBack} />
+            <JournalStep />
+          </View>
+        ) : null}
+        {stage === 'habits' ? (
+          <View style={styles.stage}>
+            <RitualHeading eyebrow="Next · commitments" title="How did your commitments go?" description="Complete what happened, or choose an intentional pause." onBack={goBack} />
+            <HabitCheckin />
+          </View>
+        ) : null}
+        {stage === 'context' ? <ContextStep signals={selectedSignals} onBack={goBack} onContinue={() => setStage('tomorrow')} onOpen={(signal) => router.push(signal.route)} /> : null}
+        {stage === 'tomorrow' ? <TomorrowStep habits={habits} onBack={goBack} onTogglePause={toggleHabitPause} onFinish={finishTomorrow} /> : null}
       </ScrollView>
     </View>
   );
 }
 
-function EntryStep({ signals, onBegin }: { signals: RitualSignal[]; onBegin: () => void }) {
+function EntryStep({ signals, onBack, onBegin }: { signals: RitualSignal[]; onBack: () => void; onBegin: () => void }) {
   return (
     <View style={styles.stage}>
-      <View style={styles.ritualHeroIcon}><Icon name="sparkles" size={24} color={palette.onPrimary} /></View>
-      <SectionLabel>About 75 seconds</SectionLabel>
-      <Text style={[type.displaySm, styles.title]}>A soft landing for the day.</Text>
-      <Text style={[type.bodyMd, styles.copy]}>Music, mood and commitments make up the core. Everything else is optional.</Text>
-      <Card>
-        <StepLine icon="sparkles" title="Music and mood" detail="Your listening offers a suggestion, never a verdict." />
-        <StepLine icon="journal" title="One honest line" detail="Add it to Journal, or skip it." />
-        <StepLine icon="check" title="Commitments" detail="Reconcile today and shape tomorrow." />
+      <RitualHeading eyebrow="Tonight · about 75 seconds" title="A quick look back." description="Music first, then commitments and a small plan for tomorrow." onBack={onBack} />
+      <Card variant="recessed" style={styles.previewCard}>
+        <View style={styles.timeOrbit}>
+          <Text style={[type.displaySm, styles.timeValue]}>75</Text>
+          <Text style={[type.labelSm, styles.timeLabel]}>seconds, roughly</Text>
+        </View>
+        <View style={styles.previewList}>
+          <PreviewLine number="01" label="Music + mood" />
+          <PreviewLine number="02" label="Today’s commitments" />
+          <PreviewLine number="03" label="Plan tomorrow" />
+        </View>
       </Card>
-      {signals.length ? <Card variant="recessed"><SectionLabel>Optional tonight</SectionLabel><Text style={[type.bodySm, styles.optionalIntro]}>{signals.map((signal) => signal.title).join(' · ')}</Text></Card> : null}
-      <PrimaryButton label="Begin with music" onPress={onBegin} />
+      {signals.length ? (
+        <Card variant="recessed" style={styles.optionalPanel}>
+          <View style={styles.optionalHeading}>
+            <Text style={[type.labelSm, styles.overline]}>Optional tonight</Text>
+            <Text style={[type.labelSm, styles.accentText]}>{signals.length} unfinished</Text>
+          </View>
+          <View style={styles.signalList}>{signals.map((signal) => <SignalCard key={signal.id} signal={signal} />)}</View>
+          <Text style={[type.bodySm, styles.centerNote]}>Skip any card. It never blocks the ritual.</Text>
+        </Card>
+      ) : null}
+      <PrimaryButton label="Begin with your music" onPress={onBegin} />
     </View>
   );
 }
 
-function MusicStep({ recap, loading, error, retry, onChooseMood, onSkip }: {
-  recap: ReturnType<typeof useSpotifyRecap>['recap']; loading: boolean; error: string | null; retry: () => void; onChooseMood: () => void; onSkip: () => void;
+function PreviewLine({ number, label }: { number: string; label: string }) {
+  return <View style={styles.previewLine}><Text style={[type.labelSm, styles.accentText]}>{number}</Text><Text style={[type.titleMd, styles.title]}>{label}</Text></View>;
+}
+
+function MusicStep({ recap, loading, error, retry, onBack, onChooseMood, onSkip }: {
+  recap: ReturnType<typeof useSpotifyRecap>['recap'];
+  loading: boolean;
+  error: string | null;
+  retry: () => void;
+  onBack: () => void;
+  onChooseMood: () => void;
+  onSkip: () => void;
 }) {
   const setMood = useRitualStore((state) => state.setMood);
   const setMoodEventId = useRitualStore((state) => state.setMoodEventId);
@@ -155,26 +191,34 @@ function MusicStep({ recap, loading, error, retry, onChooseMood, onSkip }: {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  if (loading) return <View style={styles.loading}><ActivityIndicator color={palette.primary} size="large" /><Text style={[type.bodyMd, styles.copy]}>Reading today’s soundtrack…</Text></View>;
+  if (loading) {
+    return <View style={styles.loading}><ActivityIndicator color={palette.primary} size="large" /><Text style={[type.bodyMd, styles.copy]}>Reading today’s soundtrack…</Text></View>;
+  }
 
   if (!recap) {
     return (
       <View style={styles.stage}>
-        <SectionLabel>Music</SectionLabel><Text style={[type.displaySm, styles.title]}>No soundtrack arrived tonight.</Text>
-        <Text style={[type.bodyMd, styles.copy]}>{error ?? 'That is okay. You can choose your mood yourself or move on.'}</Text>
-        {error ? <PrimaryButton label="Try Spotify again" onPress={retry} /> : null}
+        <RitualHeading eyebrow="First · your music" title="No soundtrack arrived tonight." description={error ?? 'That is okay. Choose how today felt, or skip mood entirely.'} onBack={onBack} />
+        <Card variant="recessed" style={styles.emptyMusicCard}>
+          <Icon name="sparkles" size={spacing.xl} color={palette.primary} />
+          <Text style={[type.titleLg, styles.title]}>Your ritual still works without Spotify.</Text>
+          <Text style={[type.bodySm, styles.copy]}>Music is a prompt, never a requirement.</Text>
+        </Card>
+        {error ? <SecondaryButton label="Try Spotify again" onPress={retry} /> : null}
         <PrimaryButton label="Choose how I feel" onPress={onChooseMood} />
-        <TertiaryButton label="Skip mood tonight" onPress={onSkip} />
+        <TextButton label="Skip mood tonight" onPress={onSkip} />
       </View>
     );
   }
 
   const musicRecap = recap;
   const estimate = mapAudioFeaturesToMood(musicRecap.averageFeatures);
-  const evidence = buildMusicEvidence(musicRecap);
+  const displayMood = moodCopy[estimate.label].display;
+  const evidence = buildMusicEvidence(musicRecap).slice(0, 2).join(' · ');
 
   async function accept() {
-    setSaving(true); setSaveError(null);
+    setSaving(true);
+    setSaveError(null);
     try {
       const [eventId] = await Promise.all([
         writeMoodEvent({ label: estimate.label, source: 'spotify', confidence: estimate.confidence, features: musicRecap.averageFeatures }),
@@ -183,41 +227,63 @@ function MusicStep({ recap, loading, error, retry, onChooseMood, onSkip }: {
       setMood({ label: estimate.label, source: 'spotify', confidence: estimate.confidence });
       setMoodEventId(eventId);
       setStage('journal');
-    } catch { setSaveError('That did not save yet. Try once more.'); }
-    finally { setSaving(false); }
+    } catch {
+      setSaveError('That did not save yet. Try once more.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <View style={styles.stage}>
-      <SectionLabel>Your soundtrack</SectionLabel>
-      <Text style={[type.displaySm, styles.title]}>Here’s how today sounded.</Text>
-      <RecapCard recap={musicRecap} />
-      <Card variant="featured">
-        <SectionLabel>Mood suggestion</SectionLabel>
-        <Text style={[type.headlineLg, styles.moodTitle]}>{moodCopy[estimate.label].display}</Text>
-        <Text style={[type.bodySm, styles.copy]}>Does this feel close to how your day actually felt?</Text>
-      </Card>
-      <Card variant="recessed">
-        <SectionLabel>Why this came up</SectionLabel>
-        <View style={styles.evidenceList}>{evidence.map((item) => <View key={item} style={styles.evidenceRow}><View style={styles.evidenceDot} /><Text style={[type.bodySm, styles.copy]}>{item}</Text></View>)}</View>
+      <RitualHeading eyebrow="First · your music" title={`Did today feel ${displayMood.toLowerCase()}?`} description="Use the listening signal, change it, or skip mood entirely." onBack={onBack} />
+      <Card variant="featured" style={styles.musicHero}>
+        <View style={styles.musicGlow} pointerEvents="none" />
+        <AlbumStack tracks={musicRecap.topTracks.slice(0, 3)} />
+        <Text style={[type.labelSm, styles.musicStats]}>{musicRecap.minutesListened} minutes · {musicRecap.trackCount} tracks</Text>
+        <Text style={[type.displayMd, styles.musicMood]}>{displayMood}</Text>
+        <Text style={[type.bodySm, styles.musicPrompt]}>Your listening carried {musicRecap.moodPhrase.toLowerCase()}. Does that sound like your day?</Text>
+        <View style={styles.evidenceStrip}>
+          <Text style={[type.labelSm, styles.evidenceLabel]}>Why this came up</Text>
+          <Text style={[type.labelSm, styles.evidenceCopy]}>{evidence}</Text>
+        </View>
       </Card>
       {saveError ? <Text style={[type.bodySm, styles.error]}>{saveError}</Text> : null}
       <PrimaryButton label={saving ? 'Saving…' : 'Yes, this feels right'} onPress={accept} disabled={saving} />
-      <TertiaryButton label="Choose a different mood" onPress={onChooseMood} />
-      <TertiaryButton label="Skip mood tonight" onPress={onSkip} />
+      <SecondaryButton label="Choose a different mood" onPress={onChooseMood} />
+      <TextButton label="Skip mood tonight" onPress={onSkip} />
     </View>
   );
 }
 
-function ManualMoodStep({ onSkip }: { onSkip: () => void }) {
-  const [selected, setSelected] = useState<MoodLabel | null>(null);
+type RitualTrack = { id: string; name: string; albumImageUrl?: string };
+
+function AlbumStack({ tracks }: { tracks: RitualTrack[] }) {
+  return (
+    <View style={styles.albumStage} accessibilityLabel="Most-played album covers">
+      {[0, 1, 2].map((index) => {
+        const track = tracks[index];
+        const position = index === 0 ? styles.albumLeft : index === 1 ? styles.albumRight : styles.albumCenter;
+        return track?.albumImageUrl ? (
+          <Image key={track.id} source={{ uri: track.albumImageUrl }} style={[styles.albumCover, position]} resizeMode="cover" />
+        ) : (
+          <View key={`empty-${index}`} style={[styles.albumCover, styles.albumFallback, position]}><Text style={[type.headlineMd, styles.copy]}>{track?.name.charAt(0) ?? '♪'}</Text></View>
+        );
+      })}
+    </View>
+  );
+}
+
+const MANUAL_MOODS: MoodLabel[] = ['wired', 'focused', 'peaceful', 'drained', 'restless', 'energized'];
+
+function ManualMoodStep({ onBack, onSkip }: { onBack: () => void; onSkip: () => void }) {
+  const [selected, setSelected] = useState<MoodLabel>('wired');
   const [saving, setSaving] = useState(false);
   const setMood = useRitualStore((state) => state.setMood);
   const setMoodEventId = useRitualStore((state) => state.setMoodEventId);
   const setStage = useRitualStore((state) => state.setStage);
 
   async function save() {
-    if (!selected) return;
     setSaving(true);
     const id = await writeMoodEvent({ label: selected, source: 'manual', confidence: 1 });
     setMood({ label: selected, source: 'manual', confidence: 1 });
@@ -228,59 +294,197 @@ function ManualMoodStep({ onSkip }: { onSkip: () => void }) {
 
   return (
     <View style={styles.stage}>
-      <SectionLabel>Mood</SectionLabel><Text style={[type.displaySm, styles.title]}>How did today really feel?</Text>
-      <Text style={[type.bodyMd, styles.copy]}>Pick the closest word. You can add the nuance to Journal next.</Text>
-      <MoodChipGrid selected={selected} onSelect={setSelected} />
-      <PrimaryButton label={saving ? 'Saving…' : 'Use this mood'} onPress={save} disabled={!selected || saving} />
-      <TertiaryButton label="Skip mood tonight" onPress={onSkip} />
+      <RitualHeading eyebrow="Only if music missed" title="How did today actually feel?" description="Choose the closest word, or skip this part." onBack={onBack} />
+      <View style={styles.moodOrbit}>
+        <Text style={[type.bodySm, styles.copy]}>Your read comes first</Text>
+        <Text style={[type.displayMd, styles.musicMood]}>{moodCopy[selected].display}</Text>
+        <Text style={[type.bodySm, styles.copy]}>Choose the closest word. You can still skip.</Text>
+      </View>
+      <View style={styles.moodGrid}>
+        {MANUAL_MOODS.map((label) => (
+          <Pressable
+            key={label}
+            onPress={() => setSelected(label)}
+            style={[styles.moodChip, selected === label && styles.moodChipSelected]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: selected === label }}
+          >
+            <Text style={[type.labelMd, selected === label ? styles.accentText : styles.title]}>{moodCopy[label].display}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.actionRow}>
+        <View style={styles.actionColumn}><SecondaryButton label="Skip mood tonight" onPress={onSkip} /></View>
+        <View style={styles.actionColumn}><PrimaryButton label={saving ? 'Saving…' : 'Use this mood'} onPress={save} disabled={saving} /></View>
+      </View>
     </View>
   );
 }
 
-function ContextStep({ signals, onContinue, onOpen }: { signals: RitualSignal[]; onContinue: () => void; onOpen: (signal: RitualSignal) => void }) {
+function ContextStep({ signals, onBack, onContinue, onOpen }: { signals: RitualSignal[]; onBack: () => void; onContinue: () => void; onOpen: (signal: RitualSignal) => void }) {
   return (
     <View style={styles.stage}>
-      <SectionLabel>Optional tonight</SectionLabel><Text style={[type.displaySm, styles.title]}>{signals.length ? 'Anything still open?' : 'Your essentials are covered.'}</Text>
-      <Text style={[type.bodyMd, styles.copy]}>{signals.length ? 'These come from unfinished areas of today. Open one now, or leave all of them for tomorrow.' : 'There are no extra check-ins asking for your attention.'}</Text>
-      <View style={styles.signalList}>{signals.map((signal) => <Pressable key={signal.id} onPress={() => onOpen(signal)} style={({ pressed }) => [styles.signalCard, pressed && styles.pressed]} accessibilityRole="button"><View style={styles.signalIcon}><Icon name={signalIcon(signal.kind)} size={20} color={palette.onPrimary} /></View><View style={styles.signalBody}><Text style={[type.titleMd, styles.title]}>{signal.title}</Text><Text style={[type.bodySm, styles.copy]}>{signal.detail}</Text></View><Text style={[type.labelSm, styles.signalAction]}>{signal.action}</Text></Pressable>)}</View>
-      <PrimaryButton label={signals.length ? 'Leave these for tomorrow' : 'Plan tomorrow'} onPress={onContinue} />
+      <RitualHeading eyebrow="Optional tonight" title="Anything else before tomorrow?" description="Meals, Money and Health only appear when something is unfinished." onBack={onBack} />
+      <Card variant="featured" style={styles.introCard}>
+        <Text style={[type.labelSm, styles.accentText]}>Optional tonight</Text>
+        <Text style={[type.headlineSm, styles.title]}>{signals.length ? 'A few things are still open.' : 'Your essentials are covered.'}</Text>
+        <Text style={[type.bodySm, styles.copy]}>{signals.length ? 'Open one now, or leave every card for tomorrow.' : 'There are no extra check-ins asking for your attention.'}</Text>
+      </Card>
+      <View style={styles.signalList}>{signals.map((signal) => <SignalCard key={signal.id} signal={signal} onPress={() => onOpen(signal)} />)}</View>
+      <View style={styles.actionRow}>
+        <View style={styles.actionColumn}><SecondaryButton label="Leave these for tomorrow" onPress={onContinue} /></View>
+        <View style={styles.actionColumn}><PrimaryButton label="Continue tonight" onPress={onContinue} /></View>
+      </View>
     </View>
   );
 }
 
-function TomorrowStep({ habits, onTogglePause, onFinish }: {
-  habits: { id: string; name: string; pausedOn?: string[] }[];
+function TomorrowStep({ habits, onBack, onTogglePause, onFinish }: {
+  habits: { id: string; name: string; completedOn: string[]; pausedOn?: string[] }[];
+  onBack: () => void;
   onTogglePause: (id: string, date: string) => void;
   onFinish: () => void;
 }) {
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1); const tomorrowKey = localDateKey(tomorrow);
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowKey = localDateKey(tomorrow);
+  const cue = habits.find((habit) => !habit.completedOn.includes(localDateKey(new Date())))?.name ?? 'Begin with one small promise';
+
   return (
     <View style={styles.stage}>
-      <SectionLabel>Tomorrow</SectionLabel><Text style={[type.displaySm, styles.title]}>Make room before morning.</Text>
-      <Text style={[type.bodyMd, styles.copy]}>Keep each commitment active, or pause it intentionally for tomorrow.</Text>
-      <Card>{habits.map((habit) => {
+      <RitualHeading eyebrow="Last · tomorrow" title="What should stay with you?" description="Keep, pause or carry forward the commitments that still fit." onBack={onBack} />
+      <Card variant="featured" style={styles.cueCard}>
+        <Text style={[type.labelSm, styles.accentText]}>Tomorrow’s first useful cue</Text>
+        <Text style={[type.headlineMd, styles.title]}>Make {cue.toLowerCase()} easy before the day gets loud.</Text>
+      </Card>
+      <View style={styles.tomorrowHeader}><Text style={[type.labelSm, styles.copy]}>Tomorrow’s commitments</Text><Text style={[type.labelSm, styles.accentText]}>Keep or pause</Text></View>
+      <View style={styles.tomorrowList}>{habits.map((habit) => {
         const paused = habit.pausedOn?.includes(tomorrowKey) ?? false;
-        return <Pressable key={habit.id} onPress={() => onTogglePause(habit.id, tomorrowKey)} style={styles.tomorrowRow} accessibilityRole="switch" accessibilityState={{ checked: !paused }}><View style={styles.tomorrowCopy}><Text style={[type.titleMd, styles.title]}>{habit.name}</Text><Text style={[type.bodySm, styles.copy]}>{paused ? 'Paused for tomorrow' : 'Active tomorrow'}</Text></View><View style={[styles.pausePill, paused && styles.pausePillActive]}><Text style={[type.labelSm, { color: paused ? palette.secondary : palette.tertiaryDim }]}>{paused ? 'Paused' : 'Keep'}</Text></View></Pressable>;
-      })}</Card>
+        return (
+          <Pressable key={habit.id} onPress={() => onTogglePause(habit.id, tomorrowKey)} style={({ pressed }) => [styles.tomorrowRow, pressed && styles.pressed]} accessibilityRole="switch" accessibilityState={{ checked: !paused }}>
+            <Text style={[type.titleMd, styles.title, styles.tomorrowName]} numberOfLines={2}>{habit.name}</Text>
+            <Text style={[type.labelSm, styles.accentText]}>{paused ? 'Paused' : 'Keep active'}</Text>
+          </Pressable>
+        );
+      })}</View>
       <PrimaryButton label="Finish tonight" onPress={onFinish} />
     </View>
   );
 }
 
-function StepLine({ icon, title, detail }: { icon: IconName; title: string; detail: string }) { return <View style={styles.stepLine}><View style={styles.stepIcon}><Icon name={icon} size={17} color={palette.primary} /></View><View style={styles.stepBody}><Text style={[type.titleMd, styles.title]}>{title}</Text><Text style={[type.bodySm, styles.copy]}>{detail}</Text></View></View>; }
-function PrimaryButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) { return <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.primaryButton, (pressed || disabled) && styles.disabled]} accessibilityRole="button"><Text style={[type.labelMd, styles.primaryText]}>{label}</Text><Icon name="sparkles" size={16} color={palette.onPrimary} /></Pressable>; }
-function TertiaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.tertiaryButton, pressed && styles.pressed]} accessibilityRole="button"><Text style={[type.labelMd, styles.tertiaryText]}>{label}</Text></Pressable>; }
-function signalIcon(kind: RitualSignal['kind']): IconName { if (kind === 'meals') return 'meals'; if (kind === 'money') return 'money'; return 'health'; }
-function sentenceCase(value: string) { return value.charAt(0).toUpperCase() + value.slice(1); }
-function stageLabel(stage: RitualStage) { const labels: Record<RitualStage, string> = { entry: 'Preview', music: '1 of 6', mood: '2 of 6', journal: '3 of 6', habits: '4 of 6', context: 'Optional', tomorrow: '5 of 6', summary: 'Complete' }; return labels[stage]; }
+function RitualHeading({ eyebrow, title, description, onBack }: { eyebrow: string; title: string; description: string; onBack: () => void }) {
+  return (
+    <View style={styles.heading}>
+      <Pressable onPress={onBack} style={({ pressed }) => [styles.backButton, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Go back">
+        <Icon name="back" size={spacing.lg} color={palette.onSurface} />
+      </Pressable>
+      <View style={styles.headingCopy}>
+        <Text style={[type.labelSm, styles.overline]}>{eyebrow}</Text>
+        <Text style={[type.displaySm, styles.headingTitle]}>{title}</Text>
+        <Text style={[type.bodyMd, styles.headingDescription]}>{description}</Text>
+      </View>
+    </View>
+  );
+}
+
+function SignalCard({ signal, onPress }: { signal: RitualSignal; onPress?: () => void }) {
+  const content = (
+    <>
+      <View style={styles.signalIcon}><Icon name={signalIcon(signal.kind)} size={spacing.md} color={palette.primary} /></View>
+      <View style={styles.signalBody}>
+        <Text style={[type.labelSm, styles.copy]}>{signal.kind}</Text>
+        <Text style={[type.titleMd, styles.title]}>{signal.title}</Text>
+        <Text style={[type.bodySm, styles.copy]}>{signal.detail}</Text>
+        <Text style={[type.labelSm, styles.accentText]}>{signal.action} →</Text>
+      </View>
+    </>
+  );
+  return onPress ? <Pressable onPress={onPress} style={({ pressed }) => [styles.signalCard, pressed && styles.pressed]} accessibilityRole="button">{content}</Pressable> : <View style={styles.signalCard}>{content}</View>;
+}
+
+function PrimaryButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
+  return <Pressable onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.primaryButton, (pressed || disabled) && styles.disabled]} accessibilityRole="button"><Text style={[type.labelMd, styles.primaryText]}>{label}</Text></Pressable>;
+}
+
+function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button"><Text style={[type.labelMd, styles.secondaryText]}>{label}</Text></Pressable>;
+}
+
+function TextButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={({ pressed }) => [styles.textButton, pressed && styles.pressed]} accessibilityRole="button"><Text style={[type.labelMd, styles.textButtonText]}>{label}</Text></Pressable>;
+}
+
+function signalIcon(kind: RitualSignal['kind']): IconName {
+  if (kind === 'meals') return 'meals';
+  if (kind === 'money') return 'money';
+  return 'health';
+}
+
+function sentenceCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.surface }, topbar: { minHeight: 60, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, topbarButton: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerLow }, topbarTitle: { alignItems: 'center', gap: 2 }, step: { color: palette.onSurfaceVariant },
-  scroll: { padding: spacing.md, paddingBottom: spacing['2xl'] }, stage: { gap: spacing.md }, title: { color: palette.onSurface }, copy: { color: palette.onSurfaceVariant }, error: { color: palette.error }, pressed: { opacity: 0.74 }, disabled: { opacity: 0.48 },
-  ritualHeroIcon: { width: 52, height: 52, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }, optionalIntro: { color: palette.onSurfaceVariant, marginTop: spacing.sm },
-  stepLine: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: spacing.md }, stepIcon: { width: 38, height: 38, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest }, stepBody: { flex: 1, gap: 2 },
-  primaryButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radii.md, paddingHorizontal: spacing.md, backgroundColor: palette.primary }, primaryText: { color: palette.onPrimary }, tertiaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md }, tertiaryText: { color: palette.onSurfaceVariant }, loading: { minHeight: 400, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
-  moodTitle: { color: palette.primary, marginTop: spacing.xs, marginBottom: spacing.xs }, evidenceList: { gap: spacing.sm, marginTop: spacing.md }, evidenceRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, evidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.primary },
-  signalList: { gap: spacing.sm }, signalCard: { minHeight: 92, borderRadius: radii.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: palette.surfaceContainer }, signalIcon: { width: 42, height: 42, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }, signalBody: { flex: 1, gap: 2 }, signalAction: { color: palette.primary, maxWidth: 64, textAlign: 'right' },
-  tomorrowRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }, tomorrowCopy: { flex: 1, gap: 2 }, pausePill: { minWidth: 60, minHeight: 32, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest }, pausePillActive: { backgroundColor: palette.secondaryContainer },
+  root: { flex: 1, backgroundColor: palette.surface },
+  scroll: { padding: spacing.md },
+  stage: { gap: spacing.sm },
+  heading: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.md },
+  backButton: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerLow },
+  headingCopy: { flex: 1, gap: spacing.xs },
+  overline: { color: palette.primary },
+  headingTitle: { color: palette.onSurface },
+  headingDescription: { color: palette.onSurfaceVariant },
+  title: { color: palette.onSurface },
+  copy: { color: palette.onSurfaceVariant },
+  accentText: { color: palette.primary },
+  error: { color: palette.error },
+  pressed: { opacity: 0.74 },
+  disabled: { opacity: 0.48 },
+  previewCard: { minHeight: 160, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  timeOrbit: { width: 120, height: 120, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainer },
+  timeValue: { color: palette.onSurface },
+  timeLabel: { color: palette.primary, marginTop: spacing.xs, textAlign: 'center' },
+  previewList: { flex: 1, gap: spacing.md },
+  previewLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  optionalPanel: { gap: spacing.sm },
+  optionalHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  centerNote: { color: palette.onSurfaceVariant, textAlign: 'center' },
+  signalList: { gap: spacing.sm },
+  signalCard: { minHeight: 96, borderRadius: radii.md, padding: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainerLow },
+  signalIcon: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
+  signalBody: { flex: 1, gap: spacing.xs },
+  loading: { minHeight: 400, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  emptyMusicCard: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  musicHero: { minHeight: 360, padding: spacing.md, backgroundColor: palette.surfaceContainerHigh, overflow: 'hidden' },
+  musicGlow: { position: 'absolute', top: -spacing['3xl'], right: -spacing['3xl'], width: 180, height: 180, borderRadius: radii.pill, backgroundColor: palette.secondaryContainer, opacity: 0.08 },
+  albumStage: { alignSelf: 'center', width: 240, height: 168, marginBottom: spacing.sm },
+  albumCover: { position: 'absolute', width: 116, height: 116, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHighest },
+  albumLeft: { left: spacing.md, top: spacing.md, transform: [{ rotate: '-9deg' }] },
+  albumRight: { right: spacing.md, top: spacing.sm, transform: [{ rotate: '9deg' }] },
+  albumCenter: { left: 62, top: spacing.xl },
+  albumFallback: { alignItems: 'center', justifyContent: 'center' },
+  musicStats: { color: palette.onSurfaceVariant, marginTop: spacing.xs },
+  musicMood: { color: palette.primary, marginTop: spacing.sm },
+  musicPrompt: { color: palette.onSurfaceVariant, marginTop: spacing.sm },
+  evidenceStrip: { marginTop: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, backgroundColor: palette.surfaceContainerHighest, borderLeftWidth: spacing.xs, borderLeftColor: palette.primary },
+  evidenceLabel: { color: palette.onSurfaceVariant },
+  evidenceCopy: { color: palette.onSurface, marginTop: spacing.xs, textTransform: 'none', letterSpacing: 0 },
+  moodOrbit: { minHeight: 220, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', gap: spacing.md, backgroundColor: palette.surfaceContainerLow },
+  moodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  moodChip: { width: '31%', flexGrow: 1, minHeight: spacing['2xl'], borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerLow },
+  moodChipSelected: { backgroundColor: palette.primaryContainer },
+  introCard: { gap: spacing.sm },
+  actionRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  actionColumn: { flex: 1 },
+  cueCard: { minHeight: 148, justifyContent: 'flex-end', gap: spacing.sm },
+  tomorrowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
+  tomorrowList: { gap: spacing.sm },
+  tomorrowRow: { minHeight: spacing['3xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
+  tomorrowName: { flex: 1 },
+  primaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, paddingHorizontal: spacing.md, backgroundColor: palette.primary },
+  primaryText: { color: palette.onPrimary },
+  secondaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, paddingHorizontal: spacing.sm, backgroundColor: palette.surfaceContainerLow },
+  secondaryText: { color: palette.onSurface },
+  textButton: { minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center' },
+  textButtonText: { color: palette.primary },
 });

@@ -79,7 +79,8 @@ export default function HomeScreen() {
   const journalCount =
     localJournalEntries.filter((entry) => !entry.deletedAt && localDateKey(new Date(entry.writtenAt)) === today).length +
     remoteJournalEntries.filter((entry) => localDateKey(new Date(entry.written_at)) === today).length;
-  const completedToday = habits.filter((habit) => habit.completedOn.includes(today)).length;
+  const homeHabits = habits.slice(0, 3);
+  const completedHome = homeHabits.filter((habit) => habit.completedOn.includes(today)).length;
   const ritualComplete = ritualHydrated && isRitualCompletedForDate(ritualSession, today);
   const ritualInProgress = ritualSession.localDate === today && ritualSession.status === 'in_progress';
 
@@ -109,20 +110,23 @@ export default function HomeScreen() {
     router.push('/ritual');
   }
 
-  const focusSignal = ritualSignals.find((signal) => signal.kind === 'health') ?? ritualSignals[0] ?? null;
-  const useSplitCockpit = width >= 390 && Boolean(focusSignal);
+  const focusSignal = ritualSignals.find((signal) => signal.kind === 'health') ?? null;
+  const useSplitCockpit = width >= 360 && Boolean(focusSignal);
+  const displayName = authDisplayName ?? profileDisplayName ?? 'Mari';
 
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: 120 }]}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + spacing.md, paddingBottom: spacing['3xl'] + spacing['3xl'] },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
         <View style={styles.greetingBlock}>
           <Text style={[type.labelSm, styles.date]}>{formatHomeDate(todayDate)}</Text>
-          <Text style={[type.bodyMd, styles.greeting]}>Good day,</Text>
-          <Text style={[type.headlineLg, styles.name]}>{authDisplayName ?? profileDisplayName ?? 'Mari'}</Text>
+          <Text style={[type.bodyMd, styles.greeting]}>Good day, {displayName}.</Text>
         </View>
         <Pressable
           onPress={() => router.push('/settings')}
@@ -135,6 +139,11 @@ export default function HomeScreen() {
             <Icon name="settings" size={11} color={palette.onPrimary} />
           </View>
         </Pressable>
+      </View>
+
+      <View style={styles.homeIntro}>
+        <Text style={[type.displaySm, styles.homeTitle]}>Your day, connected.</Text>
+        <Text style={[type.bodySm, styles.homeCopy]}>Commitments, useful signals and tonight belong to one continuous loop.</Text>
       </View>
 
       {ritualComplete ? (
@@ -153,8 +162,6 @@ export default function HomeScreen() {
         <TonightCard
           inProgress={ritualInProgress}
           optionalCount={ritualSignals.length}
-          completedHabits={completedToday}
-          totalHabits={habits.length}
           onPress={openRitual}
         />
       )}
@@ -162,11 +169,12 @@ export default function HomeScreen() {
       <View style={[styles.cockpitRow, useSplitCockpit && styles.cockpitRowSplit]}>
         <View style={styles.commitmentsColumn}>
           <CommitmentsCard
-            habits={habits.slice(0, 4)}
-            completedCount={completedToday}
+            habits={homeHabits}
+            completedCount={completedHome}
             date={today}
             onToggle={toggleHabitCompletion}
             onOpen={() => router.push('/habits')}
+            onOpenHabit={(id) => router.push({ pathname: '/habits/[id]', params: { id } })}
           />
         </View>
         {focusSignal ? (
@@ -177,11 +185,8 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.sectionHeader}>
-        <View>
-          <SectionLabel>Signal board</SectionLabel>
-          <Text style={[type.headlineMd, styles.sectionTitle]}>What may need you</Text>
-        </View>
-        <Text style={[type.bodySm, styles.sectionMeta]}>Updates with your day</Text>
+        <Text style={[type.headlineSm, styles.sectionTitle]}>Today at a glance</Text>
+        <Text style={[type.labelSm, styles.sectionMeta]}>Useful now</Text>
       </View>
 
       <View style={styles.signalGrid}>
@@ -189,31 +194,31 @@ export default function HomeScreen() {
           icon="meals"
           title="Meals"
           signal={mealSignalCopy(todayDate, todayMeals.map((meal) => meal.mealType))}
-          meta={todayMeals.length ? `${todayMeals.length} logged today` : 'Nothing logged yet'}
-          accent={palette.secondary}
+          meta={todayMeals.length ? `${todayMeals.length} logged today` : 'Log a meal'}
+          accent={palette.tertiary}
           onPress={() => router.push('/(tabs)/meals')}
         />
         <ModuleCard
           icon="health"
           title="Health"
-          signal={workoutCompleted ? 'Movement captured for today.' : latestPlan ? 'A workout is waiting for today.' : 'Build your next movement plan.'}
-          meta={latestMetric?.steps ? `${latestMetric.steps.toLocaleString()} steps` : latestPlan ? `${sentenceCase(latestPlan.category)} · ${latestPlan.level}` : 'No workout planned'}
-          accent={palette.tertiaryDim}
+          signal={workoutCompleted ? 'Movement captured for today.' : latestPlan ? 'Workout planned for today.' : 'Build your next movement plan.'}
+          meta={latestMetric?.steps ? `${latestMetric.steps.toLocaleString()} steps` : latestPlan ? `${sentenceCase(latestPlan.category)} · ${latestPlan.level}` : 'Open Health'}
+          accent={palette.primary}
           onPress={() => router.push('/(tabs)/health')}
         />
         <ModuleCard
           icon="money"
           title="Money"
-          signal={purchaseCount ? 'Today’s purchases are captured.' : 'Log a purchase from today if you forgot one.'}
-          meta={purchaseCount ? `${purchaseCount} purchase${purchaseCount === 1 ? '' : 's'} logged` : 'Nothing logged today'}
-          accent={palette.primary}
+          signal={purchaseCount ? 'Today’s purchases are captured.' : 'Anything you forgot to log?'}
+          meta={purchaseCount ? `${purchaseCount} purchase${purchaseCount === 1 ? '' : 's'} logged` : 'Add a purchase'}
+          accent={palette.secondary}
           onPress={() => router.push('/(tabs)/money')}
         />
         <ModuleCard
           icon="journal"
           title="Journal"
           signal={journalCount ? 'Your day already has a page.' : 'Keep one thought from today.'}
-          meta={journalCount ? `${journalCount} entr${journalCount === 1 ? 'y' : 'ies'} today` : 'Journal is open'}
+          meta={journalCount ? `${journalCount} entr${journalCount === 1 ? 'y' : 'ies'} today` : 'Open Journal'}
           accent={palette.primaryFixed}
           onPress={() => router.push('/(tabs)/journal')}
         />
@@ -222,33 +227,27 @@ export default function HomeScreen() {
   );
 }
 
-function TonightCard({ inProgress, optionalCount, completedHabits, totalHabits, onPress }: {
+function TonightCard({ inProgress, optionalCount, onPress }: {
   inProgress: boolean;
   optionalCount: number;
-  completedHabits: number;
-  totalHabits: number;
   onPress: () => void;
 }) {
   return (
     <Card variant="featured" style={styles.heroCard}>
-      <View style={styles.heroTopline}>
-        <View style={styles.ritualMark}><Icon name="sparkles" size={18} color={palette.onPrimary} /></View>
-        <View style={styles.heroTime}><Icon name="clock" size={14} color={palette.primary} /><Text style={[type.labelSm, styles.heroTimeText]}>about 75 sec</Text></View>
+      <View style={styles.heroCopyBlock}>
+        <SectionLabel>Tonight · about 75 seconds</SectionLabel>
+        <Text style={[type.headlineMd, styles.heroTitle]}>{inProgress ? 'Your evening is waiting.' : 'Close the day while it is fresh.'}</Text>
+        <Text style={[type.labelSm, styles.heroCopy]} numberOfLines={2}>
+          Music and mood · commitments · tomorrow{optionalCount ? ` · ${optionalCount} optional` : ''}
+        </Text>
       </View>
-      <SectionLabel>Tonight’s recap</SectionLabel>
-      <Text style={[type.displaySm, styles.heroTitle]}>Finish tonight.{`\n`}Keep tomorrow lighter.</Text>
-      <Text style={[type.bodyMd, styles.heroCopy]}>
-        Your music, mood and {totalHabits ? `${completedHabits} of ${totalHabits} commitments` : 'daily commitments'} are ready to review.
-        {optionalCount ? ` ${optionalCount} optional check${optionalCount === 1 ? '' : 's'} can be skipped.` : ''}
-      </Text>
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
         accessibilityRole="button"
         accessibilityLabel={inProgress ? 'Resume tonight’s ritual' : 'Begin tonight’s ritual'}
       >
-        <Text style={[type.labelMd, styles.primaryButtonText]}>{inProgress ? 'Resume tonight' : 'Begin tonight'}</Text>
-        <Icon name="sparkles" size={17} color={palette.onPrimary} />
+        <Text style={[type.labelMd, styles.primaryButtonText]}>{inProgress ? 'Resume' : 'See tonight'}</Text>
       </Pressable>
     </Card>
   );
@@ -256,46 +255,43 @@ function TonightCard({ inProgress, optionalCount, completedHabits, totalHabits, 
 
 type CommitmentHabit = { id: string; name: string; completedOn: string[] };
 
-function CommitmentsCard({ habits, completedCount, date, onToggle, onOpen }: {
+function CommitmentsCard({ habits, completedCount, date, onToggle, onOpen, onOpenHabit }: {
   habits: CommitmentHabit[];
   completedCount: number;
   date: string;
   onToggle: (id: string, date: string) => void;
   onOpen: () => void;
+  onOpenHabit: (id: string) => void;
 }) {
   return (
     <Card style={styles.commitmentsCard}>
       <Pressable onPress={onOpen} style={styles.cardHeading} accessibilityRole="button" accessibilityLabel="Open commitments hub">
-        <View>
-          <SectionLabel>Commitments</SectionLabel>
-          <Text style={[type.titleLg, styles.cardTitle]}>Small promises, kept visible.</Text>
-        </View>
-        <View style={styles.progressPill}><Text style={[type.labelSm, styles.progressText]}>{completedCount}/{habits.length}</Text></View>
+        <Text style={[type.titleLg, styles.cardTitle]}>Commitments</Text>
+        <Text style={[type.labelSm, styles.progressText]}>{completedCount}/{habits.length} · Open hub</Text>
       </Pressable>
       <View style={styles.habitList}>
         {habits.map((habit) => {
           const done = habit.completedOn.includes(date);
           return (
-            <Pressable
-              key={habit.id}
-              onPress={() => onToggle(habit.id, date)}
-              style={({ pressed }) => [styles.habitRow, pressed && styles.pressed]}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: done }}
-              accessibilityLabel={habit.name}
-            >
-              <View style={[styles.habitToggle, done && styles.habitToggleDone]}>
-                <Icon name={done ? 'check' : getHabitIconName(habit.name)} size={15} color={done ? palette.onPrimary : palette.onSurfaceVariant} />
-              </View>
-              <Text style={[type.bodyMd, styles.habitName, done && styles.habitNameDone]}>{habit.name}</Text>
-            </Pressable>
+            <View key={habit.id} style={styles.habitRow}>
+              <Pressable
+                onPress={() => onToggle(habit.id, date)}
+                style={({ pressed }) => [styles.habitControl, pressed && styles.pressed]}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: done }}
+                accessibilityLabel={`Mark ${habit.name} ${done ? 'open' : 'complete'}`}
+              >
+                <View style={[styles.habitToggle, done && styles.habitToggleDone]}>
+                  <Icon name={done ? 'check' : getHabitIconName(habit.name)} size={spacing.md} color={done ? palette.onPrimary : palette.primary} />
+                </View>
+              </Pressable>
+              <Pressable onPress={() => onOpenHabit(habit.id)} style={styles.habitDetail} accessibilityRole="button" accessibilityLabel={`Open ${habit.name}`}>
+                <Text style={[type.titleMd, styles.habitName, done && styles.habitNameDone]} numberOfLines={2}>{habit.name}</Text>
+              </Pressable>
+            </View>
           );
         })}
       </View>
-      <Pressable onPress={onOpen} style={styles.textButton} accessibilityRole="button">
-        <Text style={[type.labelMd, styles.textButtonText]}>Open commitments</Text>
-        <Icon name="calendar" size={16} color={palette.primary} />
-      </Pressable>
     </Card>
   );
 }
@@ -303,11 +299,10 @@ function CommitmentsCard({ habits, completedCount, date, onToggle, onOpen }: {
 function FocusCard({ signal, onPress }: { signal: RitualSignal; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.focusCard, pressed && styles.pressed]} accessibilityRole="button">
-      <View style={styles.focusIcon}><Icon name={moduleIcon(signal.kind)} size={21} color={palette.onPrimary} /></View>
-      <SectionLabel>Now in focus</SectionLabel>
+      <SectionLabel>Next up · {signal.kind}</SectionLabel>
       <Text style={[type.headlineSm, styles.focusTitle]}>{signal.title}</Text>
       <Text style={[type.bodySm, styles.focusCopy]}>{signal.detail}</Text>
-      <Text style={[type.labelMd, styles.focusAction]}>{signal.action}</Text>
+      <Text style={[type.labelSm, styles.focusAction]}>{signal.action} →</Text>
     </Pressable>
   );
 }
@@ -327,10 +322,14 @@ function ModuleCard({ icon, title, signal, meta, accent, onPress }: {
       accessibilityRole="button"
       accessibilityLabel={`Open ${title}`}
     >
-      <View style={[styles.moduleIcon, { backgroundColor: accent }]}><Icon name={icon} size={20} color={palette.onPrimary} /></View>
-      <Text style={[type.labelSm, styles.moduleLabel]}>{title}</Text>
+      <View style={[styles.moduleAccent, { backgroundColor: accent }]} />
+      <View style={styles.moduleHeading}>
+        <View style={styles.moduleIcon}><Icon name={icon} size={spacing.md} color={accent} /></View>
+        <Text style={[type.labelSm, styles.moduleLabel]}>{title}</Text>
+        <Text style={[type.titleMd, styles.moduleArrow]}>→</Text>
+      </View>
       <Text style={[type.titleMd, styles.moduleSignal]}>{signal}</Text>
-      <Text style={[type.bodySm, styles.moduleMeta]}>{meta}</Text>
+      <Text style={[type.bodySm, styles.moduleMeta]} numberOfLines={2}>{meta}</Text>
     </Pressable>
   );
 }
@@ -372,7 +371,7 @@ function SpotifyHomeCard({
   return (
     <Card variant="recessed" style={styles.musicCard}>
       <View style={styles.musicEmptyState}>
-        <Icon name="sparkles" size={24} color={palette.primary} />
+        <Icon name="sparkles" size={spacing.lg} color={palette.primary} />
         <SectionLabel>Tonight’s soundtrack</SectionLabel>
         <Text style={[type.titleLg, styles.musicEmptyTitle]}>{connected ? 'Your listening recap is catching up' : 'Bring your listening into Luminary'}</Text>
         <Text style={[type.bodySm, styles.musicEmptyCopy]}>
@@ -391,13 +390,7 @@ function mealSignalCopy(now: Date, mealTypes: string[]) {
   const expected = hour < 11 ? 'breakfast' : hour < 16 ? 'lunch' : 'dinner';
   return mealTypes.some((meal) => meal.toLowerCase() === expected)
     ? `${sentenceCase(expected)} is logged.`
-    : `Start ${expected} when you’re ready.`;
-}
-
-function moduleIcon(kind: RitualSignal['kind']): IconName {
-  if (kind === 'meals') return 'meals';
-  if (kind === 'money') return 'money';
-  return 'health';
+    : `${sentenceCase(expected)} is still open.`;
 }
 
 function sentenceCase(value: string) {
@@ -407,58 +400,58 @@ function sentenceCase(value: string) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
   content: { paddingHorizontal: spacing.md, gap: spacing.md },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  greetingBlock: { gap: 1 },
-  date: { color: palette.onSurfaceVariant, marginBottom: spacing.xs },
-  greeting: { color: palette.onSurfaceVariant },
-  name: { color: palette.onSurface, marginTop: -2 },
-  profileButton: { width: 52, height: 52, borderRadius: radii.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
-  profileDot: { position: 'absolute', right: 4, bottom: 4, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
-  heroCard: { gap: spacing.sm, overflow: 'hidden' },
-  heroTopline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  ritualMark: { width: 38, height: 38, borderRadius: radii.sm, backgroundColor: palette.primary, alignItems: 'center', justifyContent: 'center' },
-  heroTime: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerHighest },
-  heroTimeText: { color: palette.primary },
-  heroTitle: { color: palette.onSurface, marginTop: spacing.xs },
-  heroCopy: { color: palette.onSurfaceVariant, maxWidth: 520 },
-  primaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radii.md, paddingHorizontal: spacing.md, marginTop: spacing.sm, backgroundColor: palette.primary },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  greetingBlock: { gap: spacing.xs },
+  date: { color: palette.onSurfaceVariant },
+  greeting: { color: palette.onSurface },
+  profileButton: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  profileDot: { position: 'absolute', right: spacing.xs, bottom: spacing.xs, width: spacing.lg, height: spacing.lg, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
+  homeIntro: { gap: spacing.xs },
+  homeTitle: { color: palette.onSurface },
+  homeCopy: { color: palette.onSurfaceVariant, maxWidth: 520 },
+  heroCard: { minHeight: 120, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: palette.surfaceBright },
+  heroCopyBlock: { flex: 1, gap: spacing.sm },
+  heroTitle: { color: palette.onSurface },
+  heroCopy: { color: palette.onSurfaceVariant },
+  primaryButton: { minWidth: 88, minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, paddingHorizontal: spacing.md, backgroundColor: palette.primary },
   primaryButtonText: { color: palette.onPrimary },
-  cockpitRow: { gap: spacing.md },
+  cockpitRow: { gap: spacing.sm },
   cockpitRowSplit: { flexDirection: 'row', alignItems: 'stretch' },
-  commitmentsColumn: { flex: 1.4 },
-  focusColumn: { flex: 0.8 },
-  commitmentsCard: { minHeight: 250 },
-  cardHeading: { minHeight: 48, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  cardTitle: { color: palette.onSurface, marginTop: spacing.xs },
-  progressPill: { minWidth: 44, height: 30, paddingHorizontal: spacing.sm, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
-  progressText: { color: palette.primary },
-  habitList: { marginTop: spacing.sm },
-  habitRow: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  habitToggle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
-  habitToggleDone: { backgroundColor: palette.tertiaryDim },
+  commitmentsColumn: { flex: 5 },
+  focusColumn: { flex: 3 },
+  commitmentsCard: { minHeight: 216, padding: spacing.sm },
+  cardHeading: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, paddingHorizontal: spacing.xs },
+  cardTitle: { color: palette.onSurface },
+  progressText: { color: palette.primary, textAlign: 'right' },
+  habitList: { gap: spacing.xs },
+  habitRow: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  habitControl: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  habitToggle: { width: 40, height: 40, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
+  habitToggleDone: { backgroundColor: palette.primary },
+  habitDetail: { flex: 1, minHeight: spacing['2xl'], justifyContent: 'center' },
   habitName: { color: palette.onSurface, flex: 1 },
-  habitNameDone: { color: palette.onSurfaceVariant, textDecorationLine: 'line-through' },
-  textButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
-  textButtonText: { color: palette.primary },
-  focusCard: { flex: 1, minHeight: 250, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: palette.primaryContainer },
-  focusIcon: { width: 42, height: 42, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
-  focusTitle: { color: palette.onSurface, marginTop: spacing.sm },
+  habitNameDone: { color: palette.onSurfaceVariant },
+  focusCard: { flex: 1, minHeight: 216, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: palette.surfaceContainerHigh },
+  focusTitle: { color: palette.onSurface, marginTop: spacing.lg },
   focusCopy: { color: palette.onSurfaceVariant, flex: 1 },
   focusAction: { color: palette.primary },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: spacing.sm },
-  sectionTitle: { color: palette.onSurface, marginTop: spacing.xs },
-  sectionMeta: { color: palette.onSurfaceVariant, maxWidth: 120, textAlign: 'right' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
+  sectionTitle: { color: palette.onSurface },
+  sectionMeta: { color: palette.primary },
   signalGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  moduleCard: { width: '48%', flexGrow: 1, minHeight: 192, borderRadius: radii.lg, padding: spacing.md, backgroundColor: palette.surfaceContainer, gap: spacing.sm },
-  moduleIcon: { width: 42, height: 42, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
-  moduleLabel: { color: palette.onSurfaceVariant },
+  moduleCard: { width: '48%', flexGrow: 1, minHeight: 160, borderRadius: radii.md, padding: spacing.md, backgroundColor: palette.surfaceContainerLow, gap: spacing.sm, overflow: 'hidden' },
+  moduleAccent: { position: 'absolute', top: 0, left: 0, right: 0, height: spacing.xs },
+  moduleHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  moduleIcon: { width: spacing.xl, height: spacing.xl, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
+  moduleLabel: { color: palette.onSurfaceVariant, flex: 1 },
+  moduleArrow: { color: palette.onSurfaceVariant },
   moduleSignal: { color: palette.onSurface, flex: 1 },
   moduleMeta: { color: palette.onSurfaceVariant },
   musicCard: { marginBottom: spacing.xs },
   musicEmptyState: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
   musicEmptyTitle: { color: palette.onSurface, textAlign: 'center' },
   musicEmptyCopy: { color: palette.onSurfaceVariant, textAlign: 'center', maxWidth: 320 },
-  secondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.primary, paddingHorizontal: spacing.lg },
+  secondaryButton: { minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.primary, paddingHorizontal: spacing.lg },
   secondaryButtonText: { color: palette.onPrimary },
   pressed: { opacity: 0.72 },
 });
