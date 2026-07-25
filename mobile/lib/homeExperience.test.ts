@@ -101,6 +101,18 @@ test('journal timeline spaces every card and exposes local and synced deletion',
   assert.match(card, /accessibilityLabel="Delete journal entry"/);
 });
 
+test('journal adopts the finite Cadence timeline while keeping prompts and free writing', () => {
+  const screen = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/journal.tsx'), 'utf8');
+
+  assert.match(screen, /const PAGE_SIZE = 5/);
+  assert.match(screen, /function DayBrowser/);
+  assert.match(screen, /label="Free write"/);
+  assert.match(screen, /Your inner weather\./);
+  assert.match(screen, /Open journal patterns/);
+  assert.match(screen, /Older →/);
+  assert.match(screen, /Newer/);
+});
+
 test('journal delete confirmations identify local and synced entries', () => {
   const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/journal.tsx'), 'utf8');
 
