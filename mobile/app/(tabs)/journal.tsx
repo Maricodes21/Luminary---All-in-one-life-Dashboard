@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
@@ -12,6 +12,7 @@ import { useProductionStore } from '@/stores/useProductionStore';
 import { journalPrompts, moodTags } from '@/lib/modulePresets';
 
 type TabView = 'timeline' | 'trends';
+type PeriodMode = 'week' | 'month';
 type EntryDeleteContext = { id: string; title: string | null; body: string };
 type TimelineEntry = EntryDeleteContext & {
   source: 'local' | 'synced';
@@ -19,16 +20,14 @@ type TimelineEntry = EntryDeleteContext & {
   tags: string[];
 };
 
-const PAGE_SIZE = 5;
-
 export default function JournalScreen() {
   const insets = useSafeAreaInsets();
   const [view, setView] = useState<TabView>('timeline');
   const [draft, setDraft] = useState('');
   const [selectedPrompt, setSelectedPrompt] = useState<string | null>(journalPrompts[0]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
+  const [periodMode, setPeriodMode] = useState<PeriodMode>('week');
+  const [periodOffset, setPeriodOffset] = useState(0);
   const { data: remoteEntries = [], isLoading, isError } = useJournalEntries();
   const remoteDeletion = useDeleteJournalEntry();
   const localEntries = useProductionStore((state) => state.journalEntries.filter((entry) => !entry.deletedAt));
@@ -62,35 +61,20 @@ export default function JournalScreen() {
     return [...unique.values()].sort((left, right) => new Date(right.writtenAt).getTime() - new Date(left.writtenAt).getTime());
   }, [localEntries, remoteEntries]);
 
-  const recentDays = useMemo(() => Array.from({ length: 7 }, (_, index) => {
-    const day = new Date();
-    day.setHours(0, 0, 0, 0);
-    day.setDate(day.getDate() - index);
-    return day;
-  }), []);
-
-  const filteredEntries = selectedDay
-    ? entries.filter((entry) => dateKey(new Date(entry.writtenAt)) === selectedDay)
-    : entries;
-  const pageCount = Math.max(1, Math.ceil(filteredEntries.length / PAGE_SIZE));
-  const visibleEntries = filteredEntries.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
+  const periodRange = useMemo(() => getPeriodRange(periodMode, periodOffset), [periodMode, periodOffset]);
+  const visibleEntries = entries.filter((entry) => {
+    const writtenAt = new Date(entry.writtenAt).getTime();
+    return writtenAt >= periodRange.start.getTime() && writtenAt < periodRange.end.getTime();
+  });
   const entriesNeeded = Math.max(0, 3 - entries.length);
-
-  useEffect(() => {
-    setPage(0);
-  }, [selectedDay]);
-
-  useEffect(() => {
-    if (page >= pageCount) setPage(pageCount - 1);
-  }, [page, pageCount]);
 
   function onSave() {
     if (!draft.trim()) return;
     addJournalEntry(draft.trim(), selectedPrompt ?? '', selectedTags);
     setDraft('');
     setSelectedTags([]);
-    setSelectedDay(null);
-    setPage(0);
+    setPeriodMode('week');
+    setPeriodOffset(0);
   }
 
   const entryContext = (entry: EntryDeleteContext) => entry.title?.trim() || entry.body.trim().slice(0, 80);
@@ -132,7 +116,7 @@ export default function JournalScreen() {
 
             <TimelineBlock marker="current" style={styles.heroBlock}>
               <View style={styles.heroTopline}>
-                <Text style={[type.labelSm, styles.timelineDate]}>{selectedDay ? formatSelectedDay(selectedDay) : 'Today'}</Text>
+                <Text style={[type.labelSm, styles.timelineDate]}>{formatPeriodLabel(periodMode, periodOffset, periodRange)}</Text>
                 <Pressable onPress={() => setView('trends')} style={styles.headerAction} accessibilityRole="button" accessibilityLabel="Open journal patterns">
                   <Icon name="trend" size={spacing.md} color={palette.primary} />
                   <Text style={[type.labelSm, styles.accentText]}>Patterns</Text>
@@ -144,7 +128,18 @@ export default function JournalScreen() {
             </TimelineBlock>
 
             <TimelineBlock marker="quiet">
-              <DayBrowser days={recentDays} selectedDay={selectedDay} onSelect={setSelectedDay} />
+              <PeriodNavigator
+                mode={periodMode}
+                offset={periodOffset}
+                range={periodRange}
+                entryCount={visibleEntries.length}
+                onModeChange={(nextMode) => {
+                  setPeriodMode(nextMode);
+                  setPeriodOffset(0);
+                }}
+                onNewer={() => setPeriodOffset((value) => Math.max(0, value - 1))}
+                onOlder={() => setPeriodOffset((value) => value + 1)}
+              />
             </TimelineBlock>
 
             <TimelineBlock marker="active">
@@ -189,22 +184,8 @@ export default function JournalScreen() {
               <TimelineBlock marker="quiet"><View style={styles.loadingState}><ActivityIndicator color={palette.primary} /><Text style={[type.bodySm, styles.mutedText]}>Bringing your synced notes into the timeline…</Text></View></TimelineBlock>
             ) : isError ? (
               <TimelineBlock marker="quiet"><Card variant="recessed"><Text style={[type.bodyMd, styles.mutedText]}>Your synced entries could not load. Your local notes are still here.</Text></Card></TimelineBlock>
-            ) : filteredEntries.length === 0 ? (
-              <TimelineBlock marker="quiet"><Card variant="recessed"><Text style={[type.titleMd, styles.entryTitle]}>No notes on this day.</Text><Text style={[type.bodySm, styles.mutedText, styles.emptyCopy]}>Choose another day, or keep one honest sentence above.</Text></Card></TimelineBlock>
-            ) : null}
-
-            {pageCount > 1 ? (
-              <TimelineBlock marker="quiet">
-                <View style={styles.pagination}>
-                  <Pressable onPress={() => setPage((value) => Math.max(0, value - 1))} disabled={page === 0} style={[styles.pageButton, page === 0 && styles.buttonMuted]} accessibilityRole="button">
-                    <Text style={[type.labelSm, styles.accentText]}>← Newer</Text>
-                  </Pressable>
-                  <Text style={[type.labelSm, styles.mutedText]}>{page + 1} of {pageCount}</Text>
-                  <Pressable onPress={() => setPage((value) => Math.min(pageCount - 1, value + 1))} disabled={page >= pageCount - 1} style={[styles.pageButton, page >= pageCount - 1 && styles.buttonMuted]} accessibilityRole="button">
-                    <Text style={[type.labelSm, styles.accentText]}>Older →</Text>
-                  </Pressable>
-                </View>
-              </TimelineBlock>
+            ) : visibleEntries.length === 0 ? (
+              <TimelineBlock marker="quiet"><Card variant="recessed"><Text style={[type.titleMd, styles.entryTitle]}>No notes in this {periodMode}.</Text><Text style={[type.bodySm, styles.mutedText, styles.emptyCopy]}>Move to another period, or keep one honest sentence above.</Text></Card></TimelineBlock>
             ) : null}
           </View>
         ) : (
@@ -224,25 +205,53 @@ function TimelineBlock({ marker, style, children }: { marker: 'current' | 'activ
   );
 }
 
-function DayBrowser({ days, selectedDay, onSelect }: { days: Date[]; selectedDay: string | null; onSelect: (day: string | null) => void }) {
+function PeriodNavigator({
+  mode,
+  offset,
+  range,
+  entryCount,
+  onModeChange,
+  onNewer,
+  onOlder,
+}: {
+  mode: PeriodMode;
+  offset: number;
+  range: { start: Date; end: Date };
+  entryCount: number;
+  onModeChange: (mode: PeriodMode) => void;
+  onNewer: () => void;
+  onOlder: () => void;
+}) {
   return (
-    <View style={styles.dayBrowser}>
-      <View style={styles.dayBrowserHeader}>
-        <Text style={[type.labelSm, styles.mutedText]}>Browse days</Text>
-        {selectedDay ? <Pressable onPress={() => onSelect(null)} style={styles.clearDay} accessibilityRole="button"><Text style={[type.labelSm, styles.accentText]}>Show all</Text></Pressable> : <Text style={[type.labelSm, styles.accentText]}>Recent week</Text>}
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayStrip}>
-        {days.map((day, index) => {
-          const key = dateKey(day);
-          const selected = selectedDay === key;
+    <View style={styles.periodNavigator}>
+      <View style={styles.periodModes} accessibilityRole="radiogroup">
+        {(['week', 'month'] as const).map((option) => {
+          const selected = mode === option;
           return (
-            <Pressable key={key} onPress={() => onSelect(selected ? null : key)} style={[styles.dayChip, selected && styles.dayChipSelected]} accessibilityRole="button" accessibilityState={{ selected }}>
-              <Text style={[type.labelSm, selected ? styles.dayChipTextSelected : styles.mutedText]}>{index === 0 ? 'Today' : day.toLocaleDateString(undefined, { weekday: 'short' })}</Text>
-              <Text style={[type.titleMd, selected ? styles.dayChipTextSelected : styles.entryTitle]}>{day.getDate()}</Text>
+            <Pressable
+              key={option}
+              onPress={() => onModeChange(option)}
+              style={[styles.periodMode, selected && styles.periodModeActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected }}
+            >
+              <Text numberOfLines={1} style={[type.labelSm, selected ? styles.promptChipTextActive : styles.mutedText]}>{option === 'week' ? 'Week' : 'Month'}</Text>
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
+      <View style={styles.periodPager}>
+        <Pressable onPress={onNewer} disabled={offset === 0} style={[styles.periodArrow, offset === 0 && styles.buttonMuted]} accessibilityRole="button" accessibilityLabel={`Newer ${mode}`}>
+          <Icon name="back" size={spacing.md} color={palette.primary} />
+        </Pressable>
+        <View style={styles.periodSummary}>
+          <Text style={[type.titleMd, styles.entryTitle]}>{formatPeriodRange(mode, range)}</Text>
+          <Text style={[type.bodySm, styles.mutedText]}>{entryCount} {entryCount === 1 ? 'note' : 'notes'} · scroll the timeline</Text>
+        </View>
+        <Pressable onPress={onOlder} style={styles.periodArrow} accessibilityRole="button" accessibilityLabel={`Older ${mode}`}>
+          <View style={styles.forwardIcon}><Icon name="back" size={spacing.md} color={palette.primary} /></View>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -313,16 +322,37 @@ function promptLabel(prompt: string, index: number) {
   return `Prompt ${index + 1}`;
 }
 
-function dateKey(day: Date) {
-  const year = day.getFullYear();
-  const month = String(day.getMonth() + 1).padStart(2, '0');
-  const date = String(day.getDate()).padStart(2, '0');
-  return `${year}-${month}-${date}`;
+function getPeriodRange(mode: PeriodMode, offset: number) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (mode === 'week') {
+    const daysSinceMonday = (start.getDay() + 6) % 7;
+    start.setDate(start.getDate() - daysSinceMonday - offset * 7);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 7);
+    return { start, end };
+  }
+  start.setDate(1);
+  start.setMonth(start.getMonth() - offset);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + 1);
+  return { start, end };
 }
 
-function formatSelectedDay(value: string) {
-  const day = new Date(`${value}T12:00:00`);
-  return day.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+function formatPeriodLabel(mode: PeriodMode, offset: number, range: { start: Date; end: Date }) {
+  if (offset === 0) return mode === 'week' ? 'This week' : 'This month';
+  if (offset === 1) return mode === 'week' ? 'Last week' : 'Last month';
+  return formatPeriodRange(mode, range);
+}
+
+function formatPeriodRange(mode: PeriodMode, range: { start: Date; end: Date }) {
+  if (mode === 'month') return range.start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const lastDay = new Date(range.end);
+  lastDay.setDate(lastDay.getDate() - 1);
+  const sameMonth = range.start.getMonth() === lastDay.getMonth();
+  const startLabel = range.start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const endLabel = lastDay.toLocaleDateString(undefined, sameMonth ? { day: 'numeric' } : { month: 'short', day: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
 }
 
 function relativeDateLabel(value: string) {
@@ -357,13 +387,14 @@ const styles = StyleSheet.create({
   mutedText: { color: palette.onSurfaceVariant },
   entryTitle: { color: palette.onSurface },
   entryBody: { color: palette.onSurface, marginTop: spacing.sm },
-  dayBrowser: { gap: spacing.sm },
-  dayBrowserHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clearDay: { minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  dayStrip: { gap: spacing.sm, paddingRight: spacing.md },
-  dayChip: { minWidth: 64, minHeight: spacing['3xl'], alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
-  dayChipSelected: { backgroundColor: palette.primary },
-  dayChipTextSelected: { color: palette.onPrimary },
+  periodNavigator: { gap: spacing.sm },
+  periodModes: { flexDirection: 'row', alignSelf: 'stretch', gap: spacing.xs, padding: spacing.xs, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerLow },
+  periodMode: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill },
+  periodModeActive: { backgroundColor: palette.primary },
+  periodPager: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
+  periodArrow: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.pill, backgroundColor: palette.surfaceContainerHigh },
+  periodSummary: { flex: 1, alignItems: 'center', gap: spacing.xs },
+  forwardIcon: { transform: [{ rotate: '180deg' }] },
   composer: { gap: spacing.md },
   composerLabel: { color: palette.onSurfaceVariant },
   composerPrompt: { color: palette.onSurface },
@@ -384,8 +415,6 @@ const styles = StyleSheet.create({
   tag: { minHeight: 32, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerLowest },
   emptyCopy: { marginTop: spacing.xs },
   loadingState: { minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
-  pagination: { minHeight: spacing['3xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
-  pageButton: { minWidth: 88, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   backAction: { alignSelf: 'flex-start', minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.sm, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerLow, marginBottom: spacing.sm },
   patternCard: { gap: spacing.sm },
   trendBars: { height: 132, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: spacing.sm, paddingTop: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
