@@ -206,6 +206,30 @@ test('workout plans respect level, duration, and home progressions', () => {
   assert.ok(advancedNames.includes('Pike push-up'));
 });
 
+test('workout plans respect selected training days and weekly priority', () => {
+  const mobilityWeek = buildWorkoutPlan({
+    category: 'calisthenics',
+    level: 'beginner',
+    durationMinutes: 40,
+    daysPerWeek: 5,
+    weeklyFocus: 'mobility',
+    seed: '2026-07-06',
+  });
+  const strengthWeek = buildWorkoutPlan({
+    category: 'gym',
+    level: 'advanced',
+    durationMinutes: 40,
+    daysPerWeek: 2,
+    weeklyFocus: 'strength',
+    seed: '2026-07-06',
+  });
+
+  assert.equal(mobilityWeek.length, 5);
+  assert.match(mobilityWeek[0].focus, /Mobility/i);
+  assert.equal(strengthWeek.length, 2);
+  assert.ok(strengthWeek.every((session) => /hinge|push|pull|squat|legs/i.test(session.focus)));
+});
+
 test('workout generation is stable per week but rotates with a new seed', () => {
   const first = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });
   const repeated = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });

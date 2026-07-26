@@ -1,5 +1,6 @@
 export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym';
 export type WorkoutLevel = 'beginner' | 'steady' | 'advanced';
+export type WorkoutFocus = 'strength' | 'mobility' | 'energy' | 'momentum';
 
 export type PlannedExercise = {
   id: string;
@@ -28,6 +29,8 @@ export type WorkoutPlanInput = {
   category: WorkoutCategory;
   level: WorkoutLevel;
   durationMinutes: number;
+  daysPerWeek?: number;
+  weeklyFocus?: WorkoutFocus;
   seed?: string;
 };
 
@@ -258,9 +261,12 @@ export function getWorkoutVisualIds() {
 
 export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
   const seed = input.seed ?? new Date().toISOString().slice(0, 10);
-  const sessionCount = input.level === 'advanced' ? 5 : input.level === 'steady' ? 4 : 3;
+  const defaultSessionCount = input.level === 'advanced' ? 5 : input.level === 'steady' ? 4 : 3;
+  const sessionCount = input.daysPerWeek == null
+    ? defaultSessionCount
+    : Math.min(6, Math.max(2, Math.round(input.daysPerWeek)));
   const exerciseCount = input.durationMinutes <= 25 ? 4 : input.durationMinutes >= 55 ? 6 : 5;
-  const templates = focusTemplates[input.category];
+  const templates = orderTemplatesForFocus(focusTemplates[input.category], input.weeklyFocus ?? 'momentum');
   const used = new Set<string>();
   const progression = progressionFor(seed, input.category, input.level);
   const pool = movements.filter((item) => item.category === input.category && levelRank(item.minLevel) <= levelRank(input.level));
@@ -296,6 +302,25 @@ export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
       progression: progression.guidance,
     };
   });
+}
+
+function orderTemplatesForFocus(templates: FocusTemplate[], focus: WorkoutFocus) {
+  if (focus === 'momentum') return templates;
+
+  const preferredTags: Record<Exclude<WorkoutFocus, 'momentum'>, string[]> = {
+    strength: ['hinge', 'push', 'pull', 'squat', 'strength'],
+    mobility: ['mobility', 'recovery', 'technique'],
+    energy: ['conditioning', 'speed', 'tempo', 'base', 'cadence'],
+  };
+  const tags = preferredTags[focus];
+  return templates
+    .map((template, index) => ({
+      template,
+      index,
+      score: template.focus.reduce((total, tag) => total + (tags.includes(tag) ? tags.length - tags.indexOf(tag) : 0), 0),
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ template }) => template);
 }
 
 function plannedExercise(

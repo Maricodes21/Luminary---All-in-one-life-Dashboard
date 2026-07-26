@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BodyProfile } from '@/lib/nutrition';
 import { parseExpenseNotification } from '@/lib/expenseNotifications';
 import { buildMealPlanWeek } from '@/lib/planning';
-import { buildWorkoutPlan, type WorkoutSession } from '@/lib/workoutPlanning';
+import { buildWorkoutPlan, type WorkoutFocus, type WorkoutSession } from '@/lib/workoutPlanning';
 
 type SyncAction = 'create' | 'update' | 'delete';
 type SyncEntity =
@@ -103,9 +103,17 @@ export type WorkoutPlan = {
   category: 'calisthenics' | 'cardio' | 'cycling' | 'gym';
   level: 'beginner' | 'steady' | 'advanced';
   durationMinutes?: number;
+  scheduledWeekdays?: number[];
+  weeklyFocus?: WorkoutFocus;
   days: string[];
   sessions?: WorkoutSession[];
   createdAt: string;
+};
+
+export type WorkoutPlanSetup = Pick<WorkoutPlan, 'category' | 'level'> & {
+  durationMinutes: number;
+  scheduledWeekdays: number[];
+  weeklyFocus: WorkoutFocus;
 };
 
 export type LocalWorkoutLog = {
@@ -193,7 +201,7 @@ type ProductionState = {
   generateMealPlan: () => void;
   deleteMealPlanDay: (id: string) => void;
   clearMealPlan: () => void;
-  createWorkoutPlan: (category: WorkoutPlan['category'], level: WorkoutPlan['level'], durationMinutes?: number) => void;
+  createWorkoutPlan: (setup: WorkoutPlanSetup) => void;
   completeWorkout: (workout: Omit<LocalWorkoutLog, 'id' | 'workoutDate'> & { workoutDate?: string }) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'transactionDate' | 'source'> & Partial<Pick<Expense, 'transactionDate' | 'source'>>) => void;
   addBudget: (category: ExpenseCategory, limit: number) => void;
@@ -366,15 +374,24 @@ export const useProductionStore = create<ProductionState>()(
           mealPlan: [],
           syncQueue: [...state.syncQueue, enqueue('meal_plan', 'delete', { weekOf: today(), ids: state.mealPlan.map((day) => day.id) })],
         })),
-      createWorkoutPlan: (category, level, durationMinutes = 40) =>
+      createWorkoutPlan: ({ category, level, durationMinutes, scheduledWeekdays, weeklyFocus }) =>
         set((state) => {
-          const sessions = buildWorkoutPlan({ category, level, durationMinutes, seed: today() });
+          const sessions = buildWorkoutPlan({
+            category,
+            level,
+            durationMinutes,
+            daysPerWeek: scheduledWeekdays.length,
+            weeklyFocus,
+            seed: today(),
+          });
           const plan = {
             id: id('workout'),
             weekOf: today(),
             category,
             level,
             durationMinutes,
+            scheduledWeekdays,
+            weeklyFocus,
             days: sessions.map((session) => session.title),
             sessions,
             createdAt: now(),
