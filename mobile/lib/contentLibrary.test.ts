@@ -11,6 +11,7 @@ import {
 import { getDailyFocusNote } from './dailyFocus';
 import { getHabitIconName } from './habitIcons';
 import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays, coerceMealPlanSlot } from './planning';
+import { buildWorkoutPlan } from './workoutPlanning';
 
 test('meal search returns local and provider-backed options with attribution', () => {
   const results = searchContentLibrary('chicken');
@@ -173,4 +174,42 @@ test('workout generation varies sessions by category and volume', () => {
   assert.equal(new Set(advanced).size, advanced.length);
   assert.equal(new Set(cycling).size, cycling.length);
   assert.notDeepEqual(advanced, cycling);
+});
+
+test('workout plans generate distinct exercises for each day focus', () => {
+  const sessions = buildWorkoutPlan({ category: 'gym', level: 'steady', durationMinutes: 40, seed: '2026-07-06' });
+  const names = sessions.flatMap((session) => session.exercises.map((exercise) => exercise.name));
+  const hingeDay = sessions.find((session) => session.title === 'Hinge + core');
+  const pushDay = sessions.find((session) => session.title === 'Push strength');
+
+  assert.equal(sessions.length, 4);
+  assert.ok(sessions.every((session) => session.exercises.length === 5));
+  assert.equal(new Set(names).size, names.length);
+  assert.ok(hingeDay?.exercises.some((exercise) => /deadlift|hinge|thrust|core|bug|press/i.test(exercise.name)));
+  assert.ok(pushDay?.exercises.some((exercise) => /press/i.test(exercise.name)));
+  assert.ok(sessions.every((session) => session.progression.length > 30));
+});
+
+test('workout plans respect level, duration, and home progressions', () => {
+  const beginner = buildWorkoutPlan({ category: 'calisthenics', level: 'beginner', durationMinutes: 25, seed: '2026-07-06' });
+  const advanced = buildWorkoutPlan({ category: 'calisthenics', level: 'advanced', durationMinutes: 55, seed: '2026-07-06' });
+  const beginnerNames = beginner.flatMap((session) => session.exercises.map((exercise) => exercise.name));
+  const advancedNames = advanced.flatMap((session) => session.exercises.map((exercise) => exercise.name));
+
+  assert.equal(beginner.length, 3);
+  assert.ok(beginner.every((session) => session.durationMinutes === 25 && session.exercises.length === 4));
+  assert.ok(beginnerNames.includes('Wall push-up') || beginnerNames.includes('Incline push-up'));
+  assert.ok(!beginnerNames.includes('Pike push-up'));
+  assert.equal(advanced.length, 5);
+  assert.ok(advanced.every((session) => session.durationMinutes === 55 && session.exercises.length === 6));
+  assert.ok(advancedNames.includes('Pike push-up'));
+});
+
+test('workout generation is stable per week but rotates with a new seed', () => {
+  const first = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });
+  const repeated = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });
+  const nextWeek = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-13' });
+
+  assert.deepEqual(first, repeated);
+  assert.notDeepEqual(first, nextWeek);
 });

@@ -3,7 +3,8 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { BodyProfile } from '@/lib/nutrition';
 import { parseExpenseNotification } from '@/lib/expenseNotifications';
-import { buildMealPlanWeek, buildWorkoutDays } from '@/lib/planning';
+import { buildMealPlanWeek } from '@/lib/planning';
+import { buildWorkoutPlan, type WorkoutSession } from '@/lib/workoutPlanning';
 
 type SyncAction = 'create' | 'update' | 'delete';
 type SyncEntity =
@@ -101,7 +102,9 @@ export type WorkoutPlan = {
   weekOf: string;
   category: 'calisthenics' | 'cardio' | 'cycling' | 'gym';
   level: 'beginner' | 'steady' | 'advanced';
+  durationMinutes?: number;
   days: string[];
+  sessions?: WorkoutSession[];
   createdAt: string;
 };
 
@@ -190,7 +193,7 @@ type ProductionState = {
   generateMealPlan: () => void;
   deleteMealPlanDay: (id: string) => void;
   clearMealPlan: () => void;
-  createWorkoutPlan: (category: WorkoutPlan['category'], level: WorkoutPlan['level']) => void;
+  createWorkoutPlan: (category: WorkoutPlan['category'], level: WorkoutPlan['level'], durationMinutes?: number) => void;
   completeWorkout: (workout: Omit<LocalWorkoutLog, 'id' | 'workoutDate'> & { workoutDate?: string }) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'transactionDate' | 'source'> & Partial<Pick<Expense, 'transactionDate' | 'source'>>) => void;
   addBudget: (category: ExpenseCategory, limit: number) => void;
@@ -363,14 +366,17 @@ export const useProductionStore = create<ProductionState>()(
           mealPlan: [],
           syncQueue: [...state.syncQueue, enqueue('meal_plan', 'delete', { weekOf: today(), ids: state.mealPlan.map((day) => day.id) })],
         })),
-      createWorkoutPlan: (category, level) =>
+      createWorkoutPlan: (category, level, durationMinutes = 40) =>
         set((state) => {
+          const sessions = buildWorkoutPlan({ category, level, durationMinutes, seed: today() });
           const plan = {
             id: id('workout'),
             weekOf: today(),
             category,
             level,
-            days: buildWorkoutDays(category, level, today()),
+            durationMinutes,
+            days: sessions.map((session) => session.title),
+            sessions,
             createdAt: now(),
           };
           return {

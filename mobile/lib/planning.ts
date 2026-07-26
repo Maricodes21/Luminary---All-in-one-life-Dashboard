@@ -1,4 +1,7 @@
 import type { BodyGoal } from '@/lib/nutrition';
+import { buildWorkoutPlan, type WorkoutCategory, type WorkoutLevel } from './workoutPlanning';
+
+export type { WorkoutCategory, WorkoutLevel } from './workoutPlanning';
 
 export type PlanSlot = {
   name: string;
@@ -24,9 +27,6 @@ export type PlanDay = {
   snacks: PlanSlot[];
   prep: string;
 };
-
-export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym';
-export type WorkoutLevel = 'beginner' | 'steady' | 'advanced';
 
 const mealTemplates: Record<BodyGoal, PlanDay[]> = {
   lose: [
@@ -109,29 +109,6 @@ const mealTemplates: Record<BodyGoal, PlanDay[]> = {
   ],
 };
 
-const workoutTemplates: Record<WorkoutCategory, Record<WorkoutLevel, string[]>> = {
-  calisthenics: {
-    beginner: ['Push + core basics', 'Legs + mobility', 'Pull pattern practice', 'Full-body flow', 'Walk + stretch reset', 'Core control'],
-    steady: ['Tempo push strength', 'Single-leg control', 'Pull + posterior chain', 'Conditioning circuit', 'Skill balance practice', 'Mobility strength blend'],
-    advanced: ['Density push session', 'Pistol progression', 'Pull volume ladder', 'Explosive full body', 'Skill endurance circuit', 'Core compression'],
-  },
-  cardio: {
-    beginner: ['Easy run-walk', 'Incline walk intervals', 'Zone 2 base', 'Recovery walk', 'Short hill walk', 'Breath-paced jog'],
-    steady: ['Tempo intervals', 'Long zone 2 run', 'Fartlek session', 'Hill repeats', 'Progression run', 'Recovery aerobic walk'],
-    advanced: ['Threshold repeats', 'Long aerobic build', 'VO2 interval set', 'Hill sprint session', 'Tempo progression', 'Easy flush run'],
-  },
-  cycling: {
-    beginner: ['Easy spin', 'Cadence practice', 'Endurance ride', 'Gentle hill repeats', 'Recovery roll', 'Bike handling loop'],
-    steady: ['Sweet spot blocks', 'Hill repeat ride', 'Tempo endurance', 'Cadence ladder', 'Long steady ride', 'Recovery spin'],
-    advanced: ['VO2 climb repeats', 'Long endurance ride', 'Over-under intervals', 'Sprint cadence set', 'Threshold tempo ride', 'Recovery spin'],
-  },
-  gym: {
-    beginner: ['Upper body foundation', 'Lower body foundation', 'Full-body machines', 'Dumbbell technique', 'Core + carry session', 'Posterior chain basics'],
-    steady: ['Push strength', 'Pull strength', 'Leg hypertrophy', 'Upper volume', 'Full-body conditioning', 'Hinge + core'],
-    advanced: ['Heavy upper strength', 'Heavy lower strength', 'Push volume', 'Pull volume', 'Full-body power', 'Posterior chain intensity'],
-  },
-};
-
 export function buildMealPlanDay(goal: BodyGoal, index: number): PlanDay {
   const options = mealTemplates[goal];
   return options[index % options.length];
@@ -180,10 +157,7 @@ export function buildMealPlanWeek(goal: BodyGoal, seed = new Date().toISOString(
 }
 
 export function buildWorkoutDays(category: WorkoutCategory, level: WorkoutLevel, seed = new Date().toISOString().slice(0, 10)): string[] {
-  const volume = level === 'advanced' ? 5 : level === 'steady' ? 4 : 3;
-  const sessions = workoutTemplates[category][level];
-  const offset = stableIndex(`${seed}:${category}:${level}`, sessions.length);
-  return Array.from({ length: volume }, (_, index) => sessions[(offset + index) % sessions.length]);
+  return buildWorkoutPlan({ category, level, durationMinutes: 40, seed }).map((session) => session.title);
 }
 
 function day(breakfast: PlanSlot, lunch: PlanSlot, dinner: PlanSlot, snacks: PlanSlot[], prep: string): PlanDay {

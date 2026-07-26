@@ -11,7 +11,7 @@ import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { ChoiceGroup } from '@/components/ui';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
-import { exerciseAlternates, workoutExercises, type ExercisePreset } from '@/lib/modulePresets';
+import { buildWorkoutPlan, type PlannedExercise, type WorkoutSession } from '@/lib/workoutPlanning';
 
 const categories: WorkoutPlan['category'][] = ['calisthenics', 'cardio', 'cycling', 'gym'];
 const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
@@ -34,7 +34,20 @@ export default function HealthScreen() {
   const latestPlan = workoutPlans[0];
   const hasLiveMetrics = !!latestMetric;
   const planCategory = latestPlan?.category ?? category;
-  const exerciseList = useMemo(() => workoutExercises[planCategory], [planCategory]);
+  const selectedDuration = Number(timeAvailable.replace(/\D/g, '')) || 40;
+  const previewSessions = useMemo(
+    () => buildWorkoutPlan({ category, level, durationMinutes: selectedDuration }),
+    [category, level, selectedDuration],
+  );
+  const planSessions = useMemo(
+    () => latestPlan?.sessions?.length
+      ? latestPlan.sessions
+      : latestPlan
+        ? buildWorkoutPlan({ category: latestPlan.category, level: latestPlan.level, durationMinutes: latestPlan.durationMinutes ?? 40, seed: latestPlan.weekOf })
+        : previewSessions,
+    [latestPlan, previewSessions],
+  );
+  const todaySession = planSessions[0];
   const metricTiles = hasLiveMetrics
     ? [
         { value: formatNumber(latestMetric.steps), label: 'steps' },
@@ -64,7 +77,8 @@ export default function HealthScreen() {
   ];
 
   const onCreatePlan = () => {
-    createWorkoutPlan(category, level);
+    createWorkoutPlan(category, level, selectedDuration);
+    setReplacements({});
     setPlannerOpen(true);
   };
 
@@ -75,20 +89,21 @@ export default function HealthScreen() {
     });
   };
 
-  const onReplaceExercise = (exerciseName: string) => {
-    const current = replacements[exerciseName] ?? exerciseName;
-    const currentIndex = exerciseAlternates.indexOf(current);
-    const next = exerciseAlternates[(currentIndex + 1) % exerciseAlternates.length];
-    setReplacements((state) => ({ ...state, [exerciseName]: next }));
+  const onReplaceExercise = (session: WorkoutSession, exercise: PlannedExercise) => {
+    const key = `${session.id}:${exercise.id}`;
+    const options = [exercise.name, ...exercise.alternatives];
+    const current = replacements[key] ?? exercise.name;
+    const currentIndex = options.indexOf(current);
+    const next = options[(currentIndex + 1) % options.length];
+    setReplacements((state) => ({ ...state, [key]: next }));
   };
 
-  const onCompleteWorkout = (day: string) => {
-    const durationMinutes = Number(timeAvailable.replace(/\D/g, '')) || 40;
+  const onCompleteWorkout = (session: WorkoutSession) => {
     completeWorkout({
-      title: day,
+      title: session.title,
       workoutType: planCategory,
-      durationMinutes,
-      notes: exerciseList.slice(0, 3).map((exercise) => replacements[exercise.name] ?? exercise.name).join(', '),
+      durationMinutes: session.durationMinutes,
+      notes: session.exercises.map((exercise) => replacements[`${session.id}:${exercise.id}`] ?? exercise.name).join(', '),
     });
   };
 
@@ -118,14 +133,14 @@ export default function HealthScreen() {
             <Text style={[type.labelSm, { color: palette.primary }]}>Recommended</Text>
           </View>
           <Card variant="featured" padding="sm">
-            <Image source={{ uri: exerciseList[0].imageUrl }} style={styles.heroImage} />
+            <Image source={{ uri: todaySession.exercises[0]?.imageUrl }} style={styles.heroImage} />
             <View style={styles.workoutHeroContent}>
               <View style={{ flex: 1 }}>
                 <Text style={[type.titleLg, { color: palette.onSurface }]}>
-                  {latestPlan ? `${formatLabel(latestPlan.category)} strength` : 'Build your week'}
+                  {latestPlan ? todaySession.title : 'Build your week'}
                 </Text>
                 <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
-                  {timeAvailable} / {latestPlan?.level ?? level}
+                  {latestPlan?.durationMinutes ?? selectedDuration} min / {latestPlan?.level ?? level} / {categoryLabel(planCategory)}
                 </Text>
               </View>
               <Pressable onPress={latestPlan ? () => setPlannerOpen(true) : onCreatePlan} style={styles.inlineButton}>
@@ -166,13 +181,13 @@ export default function HealthScreen() {
           <Card>
             <SectionLabel>Exercise variety</SectionLabel>
             <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-              Build a week from familiar movements, then swap exercises when equipment, energy, or recovery changes.
+              Each day gets movements that match its focus, your setting, level, available time, and progression week.
             </Text>
             <View style={styles.choiceFields}>
               <ChoiceGroup
                 label="Category"
                 value={category}
-                options={categories.map((item) => ({ value: item, label: formatLabel(item) }))}
+                options={categories.map((item) => ({ value: item, label: categoryLabel(item) }))}
                 onChange={setCategory}
               />
               <ChoiceGroup
@@ -200,20 +215,23 @@ export default function HealthScreen() {
               <View>
                 <SectionLabel>This week</SectionLabel>
                 <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>
-                  {latestPlan.category} / {latestPlan.level}
+                  {categoryLabel(latestPlan.category)} / {latestPlan.level}
                 </Text>
               </View>
               <Pressable onPress={() => setPlannerOpen(true)}>
                 <Text style={[type.labelMd, { color: palette.primary }]}>View full</Text>
               </Pressable>
             </View>
-            {latestPlan.days.map((day, index) => (
-              <View key={day} style={{ marginTop: spacing.sm }}>
+            {planSessions.map((session, index) => (
+              <View key={session.id} style={{ marginTop: spacing.sm }}>
                 <View style={styles.planRow}>
                   <Text style={[type.labelMd, { color: palette.onSurface }]}>Day {index + 1}</Text>
-                  <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>{day}</Text>
+                  <View style={styles.planRowDetail}>
+                    <Text style={[type.bodySm, { color: palette.onSurface }]}>{session.title}</Text>
+                    <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>{session.durationMinutes} min · {session.exercises.length} movements</Text>
+                  </View>
                 </View>
-                <ProgressBar value={index + 1} max={latestPlan.days.length} color={palette.tertiary} style={{ marginTop: spacing.xs }} />
+                <ProgressBar value={index + 1} max={planSessions.length} color={palette.tertiary} style={{ marginTop: spacing.xs }} />
               </View>
             ))}
           </Card>
@@ -263,24 +281,33 @@ export default function HealthScreen() {
       </ActionSheet>
 
       <ActionSheet visible={plannerOpen} onClose={() => setPlannerOpen(false)} eyebrow="Workout plan" title="Review and substitute">
-        {(latestPlan?.days ?? buildPreviewDays(category, level)).map((day, index) => (
-          <Card key={`${day}-${index}`} variant="featured">
+        {planSessions.map((session, index) => (
+          <Card key={session.id} variant="featured">
             <SectionLabel>Day {index + 1}</SectionLabel>
-            <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>{day}</Text>
+            <Text style={[type.titleLg, { color: palette.onSurface, marginTop: spacing.xs }]}>{session.title}</Text>
             <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: spacing.xs }]}>
-              {timeAvailable}
+              {session.durationMinutes} min · {session.focus}
             </Text>
+            <View style={styles.sessionNote}>
+              <Text style={[type.labelSm, { color: palette.primary }]}>Warm up</Text>
+              <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>{session.warmup}</Text>
+            </View>
             <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-              {exerciseList.map((exercise) => (
+              {session.exercises.map((exercise) => (
                 <ExerciseRow
-                  key={`${day}-${exercise.name}`}
+                  key={exercise.id}
                   exercise={exercise}
-                  replacement={replacements[exercise.name]}
-                  onReplace={() => onReplaceExercise(exercise.name)}
+                  replacement={replacements[`${session.id}:${exercise.id}`]}
+                  onReplace={() => onReplaceExercise(session, exercise)}
                 />
               ))}
             </View>
-            <Pressable onPress={() => onCompleteWorkout(day)} style={styles.primaryButton}>
+            <View style={styles.progressionNote}>
+              <Text style={[type.labelSm, { color: palette.primary }]}>Progressive overload</Text>
+              <Text style={[type.bodySm, { color: palette.onSurface }]}>{session.progression}</Text>
+              <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>{session.cooldown}</Text>
+            </View>
+            <Pressable onPress={() => onCompleteWorkout(session)} style={styles.primaryButton}>
               <Text style={[type.labelMd, { color: palette.onPrimary }]}>Complete workout</Text>
             </Pressable>
           </Card>
@@ -295,7 +322,7 @@ function ExerciseRow({
   replacement,
   onReplace,
 }: {
-  exercise: ExercisePreset;
+  exercise: PlannedExercise;
   replacement?: string;
   onReplace: () => void;
 }) {
@@ -304,7 +331,8 @@ function ExerciseRow({
       <Image source={{ uri: exercise.imageUrl }} style={styles.exerciseImage} />
       <View style={{ flex: 1 }}>
         <Text style={[type.titleMd, { color: palette.onSurface }]}>{replacement ?? exercise.name}</Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{exercise.detail}</Text>
+        <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{exercise.prescription}</Text>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{exercise.cue}</Text>
       </View>
       <Pressable onPress={onReplace} style={styles.replaceButton}>
         <Icon name="swap" size={16} color={palette.primary} />
@@ -332,21 +360,15 @@ function formatLabel(value: string) {
     .join(' ');
 }
 
+function categoryLabel(category: WorkoutPlan['category']) {
+  if (category === 'calisthenics') return 'Home';
+  return formatLabel(category);
+}
+
 function estimateWeeklyMinutes(plan: WorkoutPlan | undefined, workouts: { duration_minutes: number | null }[]) {
   const remoteMinutes = workouts.reduce((sum, workout) => sum + (workout.duration_minutes ?? 0), 0);
   if (remoteMinutes > 0) return remoteMinutes;
-  return (plan?.days.length ?? 0) * 45;
-}
-
-function buildPreviewDays(category: WorkoutPlan['category'], level: WorkoutPlan['level']) {
-  const volume = level === 'advanced' ? 5 : level === 'steady' ? 4 : 3;
-  const templates: Record<WorkoutPlan['category'], string[]> = {
-    calisthenics: ['Push + core', 'Legs + mobility', 'Pull + core', 'Full body', 'Skill practice'],
-    cardio: ['Easy run', 'Intervals', 'Zone 2 walk/run', 'Tempo session', 'Recovery walk'],
-    cycling: ['Endurance ride', 'Hill repeats', 'Easy spin', 'Tempo ride', 'Long ride'],
-    gym: ['Upper body', 'Lower body', 'Push', 'Pull', 'Full body'],
-  };
-  return templates[category].slice(0, volume);
+  return (plan?.days.length ?? 0) * (plan?.durationMinutes ?? 40);
 }
 
 const styles = StyleSheet.create({
@@ -400,6 +422,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   planRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+  planRowDetail: { flex: 1, alignItems: 'flex-end', gap: spacing.xs },
+  sessionNote: { gap: spacing.xs, marginTop: spacing.md, padding: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
+  progressionNote: { gap: spacing.xs, marginTop: spacing.md, padding: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
