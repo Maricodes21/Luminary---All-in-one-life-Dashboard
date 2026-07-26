@@ -19,7 +19,7 @@ The current working tree includes uncommitted design-touchup work. Treat the sta
 | 4 - Life Modules | Meals, Health, Money | Local-first scaffold plus touchup WIP | Module UX is active, not backend-blocked. |
 | 5 - Polish & Launch | Performance, accessibility, stores, beta | Not started | Begins after module and ritual verification. |
 
-## Current Branch: `codex/design-touchup`
+## Current Branch: `codex/health-dynamic-workouts`
 
 Committed baseline:
 
@@ -55,6 +55,8 @@ Meals:
 Health:
 
 - Steps and workout metrics hook, Health Connect setup surface, workout plan generation, exercise cards, substitutions, and local workout completion logs.
+- Dynamic weekly plans now draw from 157 level- and focus-aware movements. The longest plans avoid duplicates and substitutions exclude every movement already scheduled that week.
+- Ten locally bundled instructional atlases give every catalog movement a dedicated offline visual; substitutions update the visual, cue, and prescription together.
 - Native Health Connect permissions are staged through Android settings until a native permission integration lands.
 
 Money:

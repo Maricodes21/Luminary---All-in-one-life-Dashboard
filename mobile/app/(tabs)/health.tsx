@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Image } from 'react-native';
+import { Linking, ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -9,9 +9,10 @@ import { Icon } from '@/components/ui/Icon';
 import { ActionSheet } from '@/components/ui/ActionSheet';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { ChoiceGroup } from '@/components/ui';
+import { ExerciseVisual } from '@/components/health/ExerciseVisual';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
-import { buildWorkoutPlan, type PlannedExercise, type WorkoutSession } from '@/lib/workoutPlanning';
+import { buildWorkoutPlan, type PlannedExercise, type PlannedExerciseAlternative, type WorkoutSession } from '@/lib/workoutPlanning';
 
 const categories: WorkoutPlan['category'][] = ['calisthenics', 'cardio', 'cycling', 'gym'];
 const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
@@ -26,7 +27,7 @@ export default function HealthScreen() {
   const [connectOpen, setConnectOpen] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
   const [healthPermissionMessage, setHealthPermissionMessage] = useState<string | null>(null);
-  const [replacements, setReplacements] = useState<Record<string, string>>({});
+  const [replacements, setReplacements] = useState<Record<string, PlannedExerciseAlternative>>({});
   const workoutPlans = useProductionStore((s) => s.workoutPlans);
   const workoutLogs = useProductionStore((s) => s.workoutLogs);
   const createWorkoutPlan = useProductionStore((s) => s.createWorkoutPlan);
@@ -40,7 +41,7 @@ export default function HealthScreen() {
     [category, level, selectedDuration],
   );
   const planSessions = useMemo(
-    () => latestPlan?.sessions?.length
+    () => hasCurrentWorkoutSessions(latestPlan?.sessions)
       ? latestPlan.sessions
       : latestPlan
         ? buildWorkoutPlan({ category: latestPlan.category, level: latestPlan.level, durationMinutes: latestPlan.durationMinutes ?? 40, seed: latestPlan.weekOf })
@@ -91,11 +92,19 @@ export default function HealthScreen() {
 
   const onReplaceExercise = (session: WorkoutSession, exercise: PlannedExercise) => {
     const key = `${session.id}:${exercise.id}`;
-    const options = [exercise.name, ...exercise.alternatives];
-    const current = replacements[key] ?? exercise.name;
-    const currentIndex = options.indexOf(current);
+    const original = withoutAlternatives(exercise);
+    const options = [original, ...exercise.alternatives];
+    const current = replacements[key] ?? original;
+    const currentIndex = options.findIndex((option) => option.id === current.id);
     const next = options[(currentIndex + 1) % options.length];
-    setReplacements((state) => ({ ...state, [key]: next }));
+    setReplacements((state) => {
+      if (next.id === exercise.id) {
+        const updated = { ...state };
+        delete updated[key];
+        return updated;
+      }
+      return { ...state, [key]: next };
+    });
   };
 
   const onCompleteWorkout = (session: WorkoutSession) => {
@@ -103,7 +112,7 @@ export default function HealthScreen() {
       title: session.title,
       workoutType: planCategory,
       durationMinutes: session.durationMinutes,
-      notes: session.exercises.map((exercise) => replacements[`${session.id}:${exercise.id}`] ?? exercise.name).join(', '),
+      notes: session.exercises.map((exercise) => replacements[`${session.id}:${exercise.id}`]?.name ?? exercise.name).join(', '),
     });
   };
 
@@ -133,7 +142,7 @@ export default function HealthScreen() {
             <Text style={[type.labelSm, { color: palette.primary }]}>Recommended</Text>
           </View>
           <Card variant="featured" padding="sm">
-            <Image source={{ uri: todaySession.exercises[0]?.imageUrl }} style={styles.heroImage} />
+            <ExerciseVisual visualId={todaySession.exercises[0]?.visualId ?? 'home_pushup'} style={styles.heroImage} />
             <View style={styles.workoutHeroContent}>
               <View style={{ flex: 1 }}>
                 <Text style={[type.titleLg, { color: palette.onSurface }]}>
@@ -323,16 +332,17 @@ function ExerciseRow({
   onReplace,
 }: {
   exercise: PlannedExercise;
-  replacement?: string;
+  replacement?: PlannedExerciseAlternative;
   onReplace: () => void;
 }) {
+  const shown = replacement ?? exercise;
   return (
     <View style={styles.exerciseRow}>
-      <Image source={{ uri: exercise.imageUrl }} style={styles.exerciseImage} />
+      <ExerciseVisual visualId={shown.visualId} style={styles.exerciseImage} />
       <View style={{ flex: 1 }}>
-        <Text style={[type.titleMd, { color: palette.onSurface }]}>{replacement ?? exercise.name}</Text>
-        <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{exercise.prescription}</Text>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{exercise.cue}</Text>
+        <Text style={[type.titleMd, { color: palette.onSurface }]}>{shown.name}</Text>
+        <Text style={[type.labelSm, { color: palette.primary, marginTop: 2 }]}>{shown.prescription}</Text>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{shown.cue}</Text>
       </View>
       <Pressable onPress={onReplace} style={styles.replaceButton}>
         <Icon name="swap" size={16} color={palette.primary} />
@@ -358,6 +368,21 @@ function formatLabel(value: string) {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function withoutAlternatives(exercise: PlannedExercise): PlannedExerciseAlternative {
+  const { alternatives: _alternatives, ...details } = exercise;
+  return details;
+}
+
+function hasCurrentWorkoutSessions(sessions: WorkoutSession[] | undefined): sessions is WorkoutSession[] {
+  return Boolean(
+    sessions?.length
+    && sessions.every((session) => session.exercises.every((exercise) =>
+      typeof exercise.visualId === 'string'
+      && exercise.alternatives.every((alternative) => typeof alternative === 'object' && typeof alternative.visualId === 'string'),
+    )),
+  );
 }
 
 function categoryLabel(category: WorkoutPlan['category']) {

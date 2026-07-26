@@ -112,7 +112,7 @@ Implemented or in progress:
 - Health metrics hook and fallback state.
 - Health Connect prompt and settings handoff.
 - Workout plan generation by category, level, and time.
-- Exercise library, substitution controls, and local workout completion logs.
+- A 157-movement exercise library with level/focus-aware weekly variety, plan-safe substitutions, locally bundled instructional visuals, and local workout completion logs.
 
 Remaining:
 
@@ -174,3 +174,4 @@ Remaining:
 - 2026-06-27: Expo Android dev-client diagnosis confirmed `mobile/app.json` as authoritative config and `app.luminary.mobile` as current package id.
 - 2026-06-30: Production modules reached local-first scaffold state; `codex/design-touchup` created to deepen Home, Habits, Meals, Health, Money, and Journal.
 - 2026-07-04: Documentation refreshed to reflect Settings, content library, profile/money schema migration `0008`, Spotify audio-features fallback, and current design-touchup verification needs.
+- 2026-07-26: Health planning expanded to 157 movements with offline visual atlases and substitutions that never recycle another exercise already scheduled in the same week.

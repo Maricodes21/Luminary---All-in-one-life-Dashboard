@@ -7,9 +7,11 @@ export type PlannedExercise = {
   prescription: string;
   cue: string;
   equipment: string[];
-  imageUrl: string;
-  alternatives: string[];
+  visualId: string;
+  alternatives: PlannedExerciseAlternative[];
 };
+
+export type PlannedExerciseAlternative = Omit<PlannedExercise, 'alternatives'>;
 
 export type WorkoutSession = {
   id: string;
@@ -39,13 +41,14 @@ type Movement = {
   equipment: string[];
   reps: Record<WorkoutLevel, string>;
   cue: string;
-  imageUrl: string;
+  visualId: string;
 };
 
-const strengthImage = 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?w=400&auto=format&fit=crop';
-const bodyweightImage = 'https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=400&auto=format&fit=crop';
-const runImage = 'https://images.unsplash.com/photo-1502904550040-7534597429ae?w=400&auto=format&fit=crop';
-const bikeImage = 'https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=400&auto=format&fit=crop';
+const visual = (id: string) => id;
+const strengthImage = visual('gym');
+const bodyweightImage = visual('home');
+const runImage = visual('run');
+const bikeImage = visual('bike');
 
 const focusTemplates: Record<WorkoutCategory, FocusTemplate[]> = {
   gym: [
@@ -115,6 +118,14 @@ const movements: Movement[] = [
   movement('gym_ab_wheel', 'Ab-wheel rollout', 'gym', 'advanced', ['core'], ['bodyweight'], ['5 reps', '6–10 reps', '8–12 reps'], 'Keep the ribs down as the arms travel forward.', strengthImage),
   movement('gym_farmer_carry', 'Farmer carry', 'gym', 'beginner', ['carry', 'core'], ['dumbbells'], ['3 × 20 m', '3 × 30 m', '4 × 30 m'], 'Walk tall without letting the weights pull you sideways.', strengthImage),
   movement('gym_woodchop', 'Cable woodchop', 'gym', 'steady', ['core'], ['machine'], ['8 each side', '10 each side', '12 each side'], 'Turn through the upper back while the hips stay controlled.', strengthImage),
+  movement('gym_good_morning', 'Barbell good morning', 'gym', 'steady', ['hinge'], ['barbell'], ['8 reps', '8–10 reps', '6–8 reps'], 'Keep the bar settled and send the hips back before the knees bend.', strengthImage),
+  movement('gym_cable_pull_through', 'Cable pull-through', 'gym', 'beginner', ['hinge'], ['machine'], ['10 reps', '10–15 reps', '8–12 reps'], 'Let the cable travel between the legs, then stand tall with the glutes.', strengthImage),
+  movement('gym_hack_squat', 'Hack squat', 'gym', 'steady', ['squat', 'legs'], ['machine'], ['8 reps', '8–12 reps', '6–10 reps'], 'Keep the back supported and drive through the whole foot.', strengthImage),
+  movement('gym_step_up', 'Dumbbell step-up', 'gym', 'beginner', ['squat', 'legs'], ['dumbbells'], ['6 each side', '8–10 each side', '8–12 each side'], 'Finish each rep balanced on the box before stepping down.', strengthImage),
+  movement('gym_close_grip_bench', 'Close-grip bench press', 'gym', 'steady', ['push'], ['barbell'], ['6 reps', '6–10 reps', '5–8 reps'], 'Keep the wrists stacked and the elbows comfortably close.', strengthImage),
+  movement('gym_landmine_press', 'Half-kneeling landmine press', 'gym', 'beginner', ['push', 'core'], ['barbell'], ['8 each side', '10 each side', '8–12 each side'], 'Stay tall through the kneeling hip as the bar travels forward.', strengthImage),
+  movement('gym_assisted_pullup', 'Assisted pull-up', 'gym', 'beginner', ['pull'], ['machine'], ['6 reps', '8–12 reps', '8–12 reps'], 'Use only enough assistance to keep the pull smooth.', strengthImage),
+  movement('gym_reverse_fly', 'Cable reverse fly', 'gym', 'beginner', ['pull'], ['machine'], ['10 reps', '12–15 reps', '12–20 reps'], 'Open the arms without lifting the shoulders.', strengthImage),
 
   movement('home_wall_pushup', 'Wall push-up', 'calisthenics', 'beginner', ['push'], ['bodyweight'], ['8–12 reps', '12–15 reps', '15–20 reps'], 'Move the chest and hips as one unit.', bodyweightImage),
   movement('home_incline_pushup', 'Incline push-up', 'calisthenics', 'beginner', ['push'], ['bodyweight'], ['6–10 reps', '10–15 reps', '12–20 reps'], 'Choose a height that keeps every rep clean.', bodyweightImage),
@@ -150,6 +161,13 @@ const movements: Movement[] = [
   movement('home_burpee', 'Burpee', 'calisthenics', 'advanced', ['conditioning'], ['bodyweight'], ['5 reps', '8 reps', '10–15 reps'], 'Keep the pace repeatable instead of sprinting the first set.', bodyweightImage),
   movement('home_mountain_climber', 'Mountain climber', 'calisthenics', 'beginner', ['conditioning', 'core'], ['bodyweight'], ['20 sec', '30 sec', '45 sec'], 'Keep the shoulders over the hands and move quietly.', bodyweightImage),
   movement('home_handstand_hold', 'Wall handstand hold', 'calisthenics', 'advanced', ['skill', 'push'], ['bodyweight'], ['10 sec', '20 sec', '30–45 sec'], 'Push tall through the shoulders and keep the ribs tucked.', bodyweightImage),
+  movement('home_chair_squat', 'Chair squat', 'calisthenics', 'beginner', ['squat', 'legs'], ['bodyweight'], ['8 reps', '12 reps', '15 reps'], 'Touch the chair softly, then stand through the whole foot.', bodyweightImage),
+  movement('home_wall_sit', 'Wall sit', 'calisthenics', 'beginner', ['squat', 'legs'], ['bodyweight'], ['20 sec', '30–45 sec', '45–60 sec'], 'Keep the back settled and breathe without bracing the neck.', bodyweightImage),
+  movement('home_calf_raise', 'Single-leg calf raise', 'calisthenics', 'steady', ['legs'], ['bodyweight'], ['8 each side', '12 each side', '15–20 each side'], 'Pause at the top and lower the heel slowly.', bodyweightImage),
+  movement('home_scapular_pushup', 'Scapular push-up', 'calisthenics', 'beginner', ['push', 'mobility'], ['bodyweight'], ['8 reps', '12 reps', '15 reps'], 'Keep the elbows straight while the shoulder blades glide.', bodyweightImage),
+  movement('home_band_pull_apart', 'Band pull-apart', 'calisthenics', 'beginner', ['pull', 'mobility'], ['bands'], ['10 reps', '15 reps', '20 reps'], 'Open the band at chest height without arching the back.', bodyweightImage),
+  movement('home_superman_hold', 'Superman hold', 'calisthenics', 'beginner', ['hinge', 'core'], ['bodyweight'], ['15 sec', '20–30 sec', '30–40 sec'], 'Reach long rather than lifting as high as possible.', bodyweightImage),
+  movement('home_skater_hop', 'Skater hop', 'calisthenics', 'steady', ['conditioning', 'legs'], ['bodyweight'], ['6 each side', '10 each side', '12–16 each side'], 'Land quietly and own the balance before crossing back.', bodyweightImage),
 
   movement('run_walk', 'Run-walk intervals', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['1 min run / 2 min walk', '2 min run / 1 min walk', '4 min run / 1 min walk'], 'Finish each run segment able to repeat it.', runImage),
   movement('run_easy', 'Easy conversational run', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['easy effort', 'zone 2', 'zone 2'], 'Keep the effort easy enough for short sentences.', runImage),
@@ -161,6 +179,26 @@ const movements: Movement[] = [
   movement('run_threshold', 'Threshold repeats', 'cardio', 'advanced', ['tempo', 'speed'], ['bodyweight'], ['3 × 4 min', '4 × 6 min', '5 × 6 min'], 'Keep the final repeat as controlled as the first.', runImage),
   movement('run_hill_sprint', 'Hill sprints', 'cardio', 'advanced', ['hills', 'speed'], ['bodyweight'], ['4 × 8 sec', '6 × 10 sec', '8 × 12 sec'], 'Use full walking recovery and stop before speed drops.', runImage),
   movement('run_mobility', 'Ankle + hip mobility', 'cardio', 'beginner', ['mobility', 'recovery'], ['bodyweight'], ['4 minutes', '6 minutes', '8 minutes'], 'Move slowly through comfortable ranges.', runImage),
+  movement('run_recovery_walk', 'Recovery walk', 'cardio', 'beginner', ['recovery', 'base'], ['bodyweight'], ['15 min easy', '20 min easy', '25 min easy'], 'Let the arms swing and keep the breath completely unforced.', runImage),
+  movement('run_long_easy', 'Long easy run', 'cardio', 'steady', ['base'], ['bodyweight'], ['25 min easy', '40 min easy', '60 min easy'], 'Stay slower than you think you need to for the first third.', runImage),
+  movement('run_progression', 'Progression run', 'cardio', 'steady', ['base', 'tempo'], ['bodyweight'], ['15 min build', '25 min build', '40 min build'], 'Let the pace rise gradually while the form stays relaxed.', runImage),
+  movement('run_negative_split', 'Negative-split run', 'cardio', 'steady', ['base', 'tempo'], ['bodyweight'], ['2 × 8 min', '2 × 12 min', '2 × 20 min'], 'Make the second half controlled and slightly quicker than the first.', runImage),
+  movement('run_cruise_intervals', 'Cruise intervals', 'cardio', 'steady', ['tempo'], ['bodyweight'], ['3 × 3 min', '4 × 5 min', '5 × 6 min'], 'Float through the short recovery instead of stopping.', runImage),
+  movement('run_400_repeats', '400 m repeats', 'cardio', 'advanced', ['speed'], ['bodyweight'], ['4 repeats', '6 repeats', '8 repeats'], 'Run evenly enough that the final repeat matches the first.', runImage),
+  movement('run_800_repeats', '800 m repeats', 'cardio', 'advanced', ['speed', 'tempo'], ['bodyweight'], ['3 repeats', '5 repeats', '6 repeats'], 'Settle early and keep the shoulders quiet.', runImage),
+  movement('run_1k_repeats', '1 km repeats', 'cardio', 'advanced', ['tempo', 'speed'], ['bodyweight'], ['3 repeats', '4 repeats', '5 repeats'], 'Aim for repeatable rhythm rather than a fast opening split.', runImage),
+  movement('run_track_ladder', 'Track ladder', 'cardio', 'advanced', ['speed'], ['bodyweight'], ['200–400–200 m', '200–400–600–400–200 m', '400–800–1200–800–400 m'], 'Change distance, not running form.', runImage),
+  movement('run_trail', 'Easy trail run', 'cardio', 'beginner', ['base', 'technique'], ['bodyweight'], ['20 min easy', '30 min easy', '45 min easy'], 'Shorten the stride when the ground becomes uneven.', runImage),
+  movement('run_steady_state', 'Steady-state run', 'cardio', 'steady', ['base', 'tempo'], ['bodyweight'], ['15 min steady', '25 min steady', '35 min steady'], 'Hold one quiet pace that never turns into a race.', runImage),
+  movement('run_aerobic_intervals', 'Aerobic intervals', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['4 × 2 min', '6 × 3 min', '8 × 3 min'], 'Use easy jogging recoveries and finish with room left.', runImage),
+  movement('run_downhill_technique', 'Downhill technique', 'cardio', 'steady', ['hills', 'technique'], ['bodyweight'], ['4 passes', '6 passes', '8 passes'], 'Keep the steps quick and land beneath the hips.', runImage),
+  movement('run_cadence_strides', 'Cadence strides', 'cardio', 'steady', ['speed', 'technique'], ['bodyweight'], ['4 × 20 sec', '6 × 20 sec', '8 × 30 sec'], 'Think quick feet, not a longer reach.', runImage),
+  movement('run_shakeout', 'Easy shakeout jog', 'cardio', 'beginner', ['recovery'], ['bodyweight'], ['10 min easy', '15 min easy', '20 min easy'], 'Keep this genuinely gentle and stop if the legs feel worse.', runImage),
+  movement('run_commute', 'Run commute', 'cardio', 'steady', ['base'], ['bodyweight'], ['20 min route', '30 min route', '45 min route'], 'Choose a familiar route and leave the pace open.', runImage),
+  movement('run_5k_rehearsal', '5 km pace rehearsal', 'cardio', 'advanced', ['tempo', 'speed'], ['bodyweight'], ['3 × 3 min', '4 × 5 min', '3 × 8 min'], 'Practice goal rhythm without completing the full race effort.', runImage),
+  movement('run_fartlek_pyramid', 'Fartlek pyramid', 'cardio', 'steady', ['speed', 'base'], ['bodyweight'], ['1–2–1 min', '1–2–3–2–1 min', '1–2–3–4–3–2–1 min'], 'Keep the changes playful and the easy sections truly easy.', runImage),
+  movement('run_uphill_tempo', 'Uphill tempo', 'cardio', 'advanced', ['hills', 'tempo'], ['bodyweight'], ['2 × 4 min', '3 × 6 min', '3 × 8 min'], 'Use effort rather than flat-ground pace to guide the climb.', runImage),
+  movement('run_technique_reset', 'Running form reset', 'cardio', 'beginner', ['technique', 'mobility'], ['bodyweight'], ['6 minutes', '8 minutes', '10 minutes'], 'Use marching, skips, and short relaxed accelerations.', runImage),
 
   movement('bike_easy', 'Easy spin', 'cycling', 'beginner', ['base', 'recovery'], ['bike'], ['easy gear', 'zone 2', 'zone 2'], 'Keep the pedals quiet and the effort conversational.', bikeImage),
   movement('bike_cadence', 'Cadence practice', 'cycling', 'beginner', ['cadence', 'technique'], ['bike'], ['4 × 30 sec', '6 × 45 sec', '8 × 60 sec'], 'Spin smoothly without bouncing in the saddle.', bikeImage),
@@ -171,7 +209,52 @@ const movements: Movement[] = [
   movement('bike_over_under', 'Over-under intervals', 'cycling', 'advanced', ['tempo', 'speed'], ['bike'], ['3 × 5 min', '4 × 6 min', '4 × 8 min'], 'Move just above and below threshold without surging.', bikeImage),
   movement('bike_sprints', 'Sprint cadence set', 'cycling', 'advanced', ['speed'], ['bike'], ['4 × 10 sec', '6 × 12 sec', '8 × 15 sec'], 'Use full recovery so every sprint stays crisp.', bikeImage),
   movement('bike_mobility', 'Hip + back reset', 'cycling', 'beginner', ['mobility', 'recovery'], ['bodyweight'], ['4 minutes', '6 minutes', '8 minutes'], 'Breathe slowly and release the riding position.', bikeImage),
+  movement('bike_recovery_ride', 'Recovery ride', 'cycling', 'beginner', ['recovery', 'base'], ['bike'], ['15 min easy', '25 min easy', '35 min easy'], 'Choose a light gear and let the legs turn without pressure.', bikeImage),
+  movement('bike_long_endurance', 'Long endurance ride', 'cycling', 'steady', ['base'], ['bike'], ['35 min steady', '60 min steady', '90 min steady'], 'Fuel early and keep the effort below the point of strain.', bikeImage),
+  movement('bike_sweet_spot', 'Sweet-spot blocks', 'cycling', 'steady', ['tempo', 'strength'], ['bike'], ['2 × 6 min', '3 × 10 min', '3 × 15 min'], 'Ride firmly while keeping breathing and cadence controlled.', bikeImage),
+  movement('bike_standing_climbs', 'Standing climb repeats', 'cycling', 'steady', ['hills', 'strength'], ['bike'], ['4 climbs', '6 climbs', '8 climbs'], 'Stand smoothly with quiet hips and steady pressure.', bikeImage),
+  movement('bike_low_cadence', 'Low-cadence strength', 'cycling', 'steady', ['strength', 'hills'], ['bike'], ['4 × 2 min', '5 × 3 min', '6 × 4 min'], 'Use a heavy but smooth gear without grinding the knees.', bikeImage),
+  movement('bike_spinups', 'High-cadence spin-ups', 'cycling', 'beginner', ['cadence', 'technique'], ['bike'], ['4 × 20 sec', '6 × 30 sec', '8 × 40 sec'], 'Increase leg speed while the upper body stays still.', bikeImage),
+  movement('bike_vo2', 'VO2 intervals', 'cycling', 'advanced', ['speed'], ['bike'], ['4 × 2 min', '5 × 3 min', '6 × 4 min'], 'Start controlled enough to finish every interval at the same power.', bikeImage),
+  movement('bike_threshold', 'Threshold blocks', 'cycling', 'advanced', ['tempo', 'speed'], ['bike'], ['2 × 8 min', '3 × 10 min', '2 × 20 min'], 'Settle into a hard, sustainable effort without surging.', bikeImage),
+  movement('bike_descending', 'Descending skills', 'cycling', 'steady', ['technique', 'recovery'], ['bike'], ['4 descents', '6 descents', '8 descents'], 'Look through the turn and keep weight balanced over both wheels.', bikeImage),
+  movement('bike_cornering', 'Cornering practice', 'cycling', 'beginner', ['technique'], ['bike'], ['6 turns', '10 turns', '14 turns'], 'Brake before the turn and look toward the exit.', bikeImage),
+  movement('bike_single_leg', 'Single-leg pedal drills', 'cycling', 'steady', ['cadence', 'technique'], ['bike'], ['4 × 20 sec', '6 × 30 sec', '8 × 40 sec'], 'Keep pressure smooth through the full circle.', bikeImage),
+  movement('bike_rolling_terrain', 'Rolling-terrain ride', 'cycling', 'beginner', ['base', 'hills'], ['bike'], ['20 min', '35 min', '50 min'], 'Shift early and let the effort stay even over each rise.', bikeImage),
+  movement('bike_negative_split', 'Negative-split ride', 'cycling', 'steady', ['base', 'tempo'], ['bike'], ['2 × 10 min', '2 × 20 min', '2 × 30 min'], 'Make the second half slightly stronger without sprinting.', bikeImage),
+  movement('bike_aerobic_intervals', 'Aerobic ride intervals', 'cycling', 'beginner', ['base', 'recovery'], ['bike'], ['4 × 3 min', '6 × 4 min', '8 × 5 min'], 'Recover in an easy gear and keep every work block conversational.', bikeImage),
+  movement('bike_group_sim', 'Group-ride simulation', 'cycling', 'advanced', ['speed', 'base'], ['bike'], ['6 changes', '10 changes', '14 changes'], 'Respond to pace changes, then settle instead of continuing to surge.', bikeImage),
+  movement('bike_indoor_pyramid', 'Indoor interval pyramid', 'cycling', 'steady', ['tempo', 'cadence'], ['bike'], ['1–2–1 min', '2–4–6–4–2 min', '3–6–9–6–3 min'], 'Build duration while keeping cadence inside a narrow range.', bikeImage),
+  movement('bike_sprint_leadins', 'Sprint lead-ins', 'cycling', 'advanced', ['speed', 'technique'], ['bike'], ['4 efforts', '6 efforts', '8 efforts'], 'Build for ten seconds before opening the sprint.', bikeImage),
+  movement('bike_tempo_finish', 'Tempo-finish ride', 'cycling', 'steady', ['base', 'tempo'], ['bike'], ['10 min finish', '15 min finish', '20 min finish'], 'Keep the opening easy so the closing block stays composed.', bikeImage),
+  movement('bike_commute', 'Easy commute ride', 'cycling', 'beginner', ['base', 'recovery'], ['bike'], ['15 min route', '25 min route', '40 min route'], 'Choose an easy route and leave extra time for a calm pace.', bikeImage),
+  movement('bike_gravel', 'Gravel endurance ride', 'cycling', 'steady', ['base', 'technique'], ['bike'], ['30 min', '50 min', '75 min'], 'Stay loose through the arms and let the bike move beneath you.', bikeImage),
+  movement('bike_mobility_flow', 'Cyclist mobility flow', 'cycling', 'beginner', ['mobility', 'recovery'], ['bodyweight'], ['6 minutes', '10 minutes', '12 minutes'], 'Open the hips, upper back, and ankles with unhurried breathing.', bikeImage),
+  movement('run_stadium_stairs', 'Stadium stair repeats', 'cardio', 'steady', ['hills', 'strength'], ['bodyweight'], ['4 climbs', '6 climbs', '8 climbs'], 'Keep the steps compact and walk down for recovery.', runImage),
+  movement('run_beach', 'Easy beach run', 'cardio', 'steady', ['base', 'technique'], ['bodyweight'], ['15 min easy', '25 min easy', '35 min easy'], 'Choose firm sand and shorten the stride.', runImage),
+  movement('run_treadmill_incline', 'Treadmill incline blocks', 'cardio', 'beginner', ['hills', 'base'], ['bodyweight'], ['4 × 2 min', '6 × 3 min', '8 × 4 min'], 'Raise the incline before the speed and keep the posture tall.', runImage),
+  movement('run_treadmill_easy', 'Easy treadmill run', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['15 min easy', '25 min easy', '40 min easy'], 'Use a pace that lets the shoulders and hands stay loose.', runImage),
+  movement('run_relay_intervals', 'Relay-style intervals', 'cardio', 'advanced', ['speed', 'recovery'], ['bodyweight'], ['6 efforts', '8 efforts', '12 efforts'], 'Run each effort as if handing off to an equally strong next rep.', runImage),
+  movement('run_metronome', 'Cadence metronome run', 'cardio', 'steady', ['technique', 'speed'], ['bodyweight'], ['4 × 2 min', '6 × 3 min', '8 × 3 min'], 'Match the rhythm with shorter steps instead of forcing pace.', runImage),
+  movement('run_cross_country', 'Cross-country loop', 'cardio', 'steady', ['base', 'hills', 'technique'], ['bodyweight'], ['20 min', '35 min', '50 min'], 'Let effort rise on the hills and settle on open ground.', runImage),
+  movement('run_marathon_pace', 'Marathon-pace block', 'cardio', 'advanced', ['tempo', 'base'], ['bodyweight'], ['10 min', '20 min', '35 min'], 'Hold a patient rhythm that feels sustainable beyond the block.', runImage),
+  movement('bike_criterium', 'Criterium corner repeats', 'cycling', 'advanced', ['technique', 'speed'], ['bike'], ['6 laps', '10 laps', '14 laps'], 'Brake early, look through the corner, then accelerate smoothly.', bikeImage),
+  movement('bike_gravel_climbs', 'Gravel climb repeats', 'cycling', 'steady', ['hills', 'strength', 'technique'], ['bike'], ['4 climbs', '6 climbs', '8 climbs'], 'Stay seated where traction is limited and keep pressure even.', bikeImage),
+  movement('bike_aero_position', 'Aero-position practice', 'cycling', 'steady', ['technique', 'tempo'], ['bike'], ['4 × 3 min', '6 × 4 min', '8 × 5 min'], 'Settle the shoulders and keep vision forward without craning the neck.', bikeImage),
+  movement('bike_seated_accel', 'Seated accelerations', 'cycling', 'steady', ['speed', 'cadence'], ['bike'], ['4 efforts', '6 efforts', '8 efforts'], 'Build cadence smoothly while the hips stay planted.', bikeImage),
+  movement('bike_standing_accel', 'Standing accelerations', 'cycling', 'advanced', ['speed', 'strength'], ['bike'], ['4 efforts', '6 efforts', '8 efforts'], 'Rise smoothly and keep the bicycle controlled beneath you.', bikeImage),
+  movement('bike_endurance_cadence', 'Endurance cadence hold', 'cycling', 'beginner', ['base', 'cadence'], ['bike'], ['10 min', '20 min', '30 min'], 'Choose one comfortable cadence and let the effort stay quiet.', bikeImage),
+  movement('bike_recovery_cadence', 'Recovery cadence reset', 'cycling', 'beginner', ['recovery', 'cadence'], ['bike'], ['6 minutes', '10 minutes', '15 minutes'], 'Use a light gear and let leg speed return without pressure.', bikeImage),
+  movement('bike_mixed_terrain', 'Mixed-terrain skills ride', 'cycling', 'steady', ['base', 'technique', 'hills'], ['bike'], ['20 min', '35 min', '50 min'], 'Adjust position early as the surface and gradient change.', bikeImage),
 ];
+
+export function getWorkoutCatalogSize() {
+  return movements.length;
+}
+
+export function getWorkoutVisualIds() {
+  return movements.map((item) => item.visualId);
+}
 
 export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
   const seed = input.seed ?? new Date().toISOString().slice(0, 10);
@@ -180,10 +263,10 @@ export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
   const templates = focusTemplates[input.category];
   const used = new Set<string>();
   const progression = progressionFor(seed, input.category, input.level);
+  const pool = movements.filter((item) => item.category === input.category && levelRank(item.minLevel) <= levelRank(input.level));
 
-  return Array.from({ length: sessionCount }, (_, index) => {
+  const selections = Array.from({ length: sessionCount }, (_, index) => {
     const template = templates[index % templates.length];
-    const pool = movements.filter((item) => item.category === input.category && levelRank(item.minLevel) <= levelRank(input.level));
     const unusedPool = pool.filter((item) => !used.has(item.id));
     const candidatePool = unusedPool.length >= exerciseCount ? unusedPool : pool;
     const ordered = [...candidatePool].sort((left, right) => {
@@ -194,28 +277,49 @@ export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
     const selected = ordered.slice(0, exerciseCount);
     selected.forEach((item) => used.add(item.id));
 
+    return { template, selected };
+  });
+
+  const scheduledIds = new Set(selections.flatMap((selection) => selection.selected.map((item) => item.id)));
+
+  return selections.map(({ template, selected }, index) => {
     return {
       id: `${seed}_${input.category}_${index + 1}`,
       title: template.title,
       focus: template.focus.map(titleCase).join(' + '),
       durationMinutes: input.durationMinutes,
       warmup: warmupFor(input.category, input.durationMinutes),
-      exercises: selected.map((item, exerciseIndex) => plannedExercise(item, input, progression.setAdjustment, pool, exerciseIndex)),
+      exercises: selected.map((item, exerciseIndex) =>
+        plannedExercise(item, input, progression.setAdjustment, pool, scheduledIds, exerciseIndex, `${seed}:${index}:${item.id}`),
+      ),
       cooldown: cooldownFor(input.category),
       progression: progression.guidance,
     };
   });
 }
 
-function plannedExercise(item: Movement, input: WorkoutPlanInput, setAdjustment: number, pool: Movement[], index: number): PlannedExercise {
+function plannedExercise(
+  item: Movement,
+  input: WorkoutPlanInput,
+  setAdjustment: number,
+  pool: Movement[],
+  scheduledIds: Set<string>,
+  index: number,
+  seed: string,
+): PlannedExercise {
   const baseSets = input.durationMinutes <= 25 ? 2 : input.durationMinutes >= 55 ? 4 : 3;
   const levelSets = input.level === 'advanced' && index < 2 ? 1 : 0;
   const sets = Math.max(2, baseSets + levelSets + setAdjustment);
-  const alternatives = pool
-    .filter((candidate) => candidate.id !== item.id && candidate.focus.some((focus) => item.focus.includes(focus)))
-    .sort((left, right) => levelRank(right.minLevel) - levelRank(left.minLevel))
-    .slice(0, 2)
-    .map((candidate) => candidate.name);
+  const unscheduled = pool.filter((candidate) => !scheduledIds.has(candidate.id));
+  const focusedAlternatives = unscheduled.filter((candidate) => candidate.focus.some((focus) => item.focus.includes(focus)));
+  const alternatives = (focusedAlternatives.length > 0 ? focusedAlternatives : unscheduled)
+    .sort((left, right) => {
+      const focusDifference = right.focus.filter((focus) => item.focus.includes(focus)).length - left.focus.filter((focus) => item.focus.includes(focus)).length;
+      if (focusDifference !== 0) return focusDifference;
+      return stableIndex(`${seed}:${left.id}`, 101) - stableIndex(`${seed}:${right.id}`, 101);
+    })
+    .slice(0, 4)
+    .map((candidate) => exerciseDetails(candidate, input, sets));
   const timedCategory = input.category === 'cardio' || input.category === 'cycling';
   return {
     id: item.id,
@@ -223,8 +327,20 @@ function plannedExercise(item: Movement, input: WorkoutPlanInput, setAdjustment:
     prescription: timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`,
     cue: item.cue,
     equipment: item.equipment,
-    imageUrl: item.imageUrl,
+    visualId: item.visualId,
     alternatives,
+  };
+}
+
+function exerciseDetails(item: Movement, input: WorkoutPlanInput, sets: number): PlannedExerciseAlternative {
+  const timedCategory = input.category === 'cardio' || input.category === 'cycling';
+  return {
+    id: item.id,
+    name: item.name,
+    prescription: timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`,
+    cue: item.cue,
+    equipment: item.equipment,
+    visualId: item.visualId,
   };
 }
 
@@ -273,9 +389,9 @@ function movement(
   equipment: string[],
   reps: [string, string, string],
   cue: string,
-  imageUrl: string,
+  _legacyVisual: string,
 ): Movement {
-  return { id, name, category, minLevel, focus, equipment, reps: { beginner: reps[0], steady: reps[1], advanced: reps[2] }, cue, imageUrl };
+  return { id, name, category, minLevel, focus, equipment, reps: { beginner: reps[0], steady: reps[1], advanced: reps[2] }, cue, visualId: visual(id) };
 }
 
 function levelRank(level: WorkoutLevel) {

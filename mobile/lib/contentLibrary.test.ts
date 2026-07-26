@@ -11,7 +11,8 @@ import {
 import { getDailyFocusNote } from './dailyFocus';
 import { getHabitIconName } from './habitIcons';
 import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays, coerceMealPlanSlot } from './planning';
-import { buildWorkoutPlan } from './workoutPlanning';
+import { workoutVisualOrder } from './exerciseVisualManifest';
+import { buildWorkoutPlan, getWorkoutCatalogSize, getWorkoutVisualIds } from './workoutPlanning';
 
 test('meal search returns local and provider-backed options with attribution', () => {
   const results = searchContentLibrary('chicken');
@@ -212,4 +213,21 @@ test('workout generation is stable per week but rotates with a new seed', () => 
 
   assert.deepEqual(first, repeated);
   assert.notDeepEqual(first, nextWeek);
+});
+
+test('workout catalog supports week-wide variety and complete local visual mapping', () => {
+  const sessions = buildWorkoutPlan({ category: 'cycling', level: 'advanced', durationMinutes: 55, seed: '2026-07-20' });
+  const scheduled = sessions.flatMap((session) => session.exercises);
+  const scheduledIds = new Set(scheduled.map((exercise) => exercise.id));
+
+  assert.ok(getWorkoutCatalogSize() >= 140);
+  assert.deepEqual(getWorkoutVisualIds(), [...workoutVisualOrder]);
+  assert.equal(scheduledIds.size, scheduled.length);
+  assert.ok(scheduled.every((exercise) => exercise.visualId === exercise.id));
+  assert.ok(scheduled.every((exercise) => exercise.alternatives.length > 0));
+  assert.ok(scheduled.every((exercise) => exercise.alternatives.every((alternative) =>
+    !scheduledIds.has(alternative.id)
+    && alternative.visualId === alternative.id
+    && alternative.cue.length > 20,
+  )));
 });
