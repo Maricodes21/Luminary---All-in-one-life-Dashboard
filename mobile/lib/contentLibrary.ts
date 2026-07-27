@@ -42,7 +42,7 @@ export type MealSubstitution = {
 export type ExerciseLibraryItem = {
   id: string;
   name: string;
-  category: 'calisthenics' | 'cardio' | 'cycling' | 'gym';
+  category: 'calisthenics' | 'cardio' | 'cycling' | 'gym' | 'yoga';
   level: 'beginner' | 'steady' | 'advanced';
   equipment: Array<'bodyweight' | 'dumbbells' | 'bike' | 'bands' | 'machine' | 'barbell'>;
   detail: string;
@@ -216,6 +216,12 @@ const exercises: ExerciseLibraryItem[] = [
   exercise('wger_goblet_squat', 'Goblet squat', 'gym', 'beginner', ['dumbbells'], '4 sets x 8', 'Elbows inside knees, full foot pressure.', 'https://images.unsplash.com/photo-1534367610401-9f5ed68180aa?w=400&auto=format&fit=crop'),
   exercise('wger_incline_press', 'Incline dumbbell press', 'gym', 'steady', ['dumbbells'], '3 sets x 10', 'Lower slowly; press without shrugging.', 'https://images.unsplash.com/photo-1532029837206-abbe2b7620e3?w=400&auto=format&fit=crop'),
   exercise('wger_barbell_deadlift', 'Barbell deadlift', 'gym', 'advanced', ['barbell'], '5 sets x 3', 'Brace first, then push the floor away.', 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400&auto=format&fit=crop'),
+  exercise('curated_cat_cow', 'Cat-cow', 'yoga', 'beginner', ['bodyweight'], '45 sec, easy pace', 'Move one vertebra at a time and follow your breath.', 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=400&auto=format&fit=crop'),
+  exercise('curated_downward_dog', 'Downward dog', 'yoga', 'beginner', ['bodyweight'], '40 sec', 'Bend your knees enough to lengthen your spine.', 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400&auto=format&fit=crop'),
+  exercise('curated_low_lunge', 'Low lunge', 'yoga', 'beginner', ['bodyweight'], '35 sec each side', 'Keep the front foot planted and let the hips soften.', 'https://images.unsplash.com/photo-1599447421416-3414500d18a5?w=400&auto=format&fit=crop'),
+  exercise('curated_warrior_two', 'Warrior II', 'yoga', 'steady', ['bodyweight'], '35 sec each side', 'Reach through both hands and track the front knee over the toes.', 'https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?w=400&auto=format&fit=crop'),
+  exercise('curated_tree_pose', 'Tree pose', 'yoga', 'steady', ['bodyweight'], '30 sec each side', 'Fix your eyes on one point and keep the standing knee soft.', 'https://images.unsplash.com/photo-1593811167562-9cef47bfc4d7?w=400&auto=format&fit=crop'),
+  exercise('curated_half_moon', 'Half moon', 'yoga', 'advanced', ['bodyweight'], '25 sec each side', 'Stack the hips gradually and use a wall when balance feels uncertain.', 'https://images.unsplash.com/photo-1588286840104-8957b019727f?w=400&auto=format&fit=crop'),
 ];
 
 export function searchContentLibrary(term: string) {

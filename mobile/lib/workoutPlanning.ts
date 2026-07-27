@@ -1,4 +1,4 @@
-export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym';
+export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym' | 'yoga';
 export type WorkoutLevel = 'beginner' | 'steady' | 'advanced';
 export type WorkoutFocus = 'strength' | 'mobility' | 'energy' | 'momentum';
 
@@ -69,6 +69,14 @@ const focusTemplates: Record<WorkoutCategory, FocusTemplate[]> = {
     { title: 'Full-body control', focus: ['push', 'pull', 'legs', 'core'] },
     { title: 'Skill + conditioning', focus: ['skill', 'conditioning', 'core'] },
     { title: 'Mobility strength', focus: ['mobility', 'hinge', 'core'] },
+  ],
+  yoga: [
+    { title: 'Morning mobility', focus: ['mobility', 'breath', 'spine'] },
+    { title: 'Hips + hamstrings', focus: ['hips', 'hamstrings', 'recovery'] },
+    { title: 'Spine + shoulders', focus: ['spine', 'shoulders', 'mobility'] },
+    { title: 'Full-body reset', focus: ['mobility', 'balance', 'breath'] },
+    { title: 'Evening unwind', focus: ['recovery', 'breath', 'hips'] },
+    { title: 'Balance + control', focus: ['balance', 'core', 'mobility'] },
   ],
   cardio: [
     { title: 'Aerobic base', focus: ['base', 'technique'] },
@@ -172,6 +180,37 @@ const movements: Movement[] = [
   movement('home_superman_hold', 'Superman hold', 'calisthenics', 'beginner', ['hinge', 'core'], ['bodyweight'], ['15 sec', '20–30 sec', '30–40 sec'], 'Reach long rather than lifting as high as possible.', bodyweightImage),
   movement('home_skater_hop', 'Skater hop', 'calisthenics', 'steady', ['conditioning', 'legs'], ['bodyweight'], ['6 each side', '10 each side', '12–16 each side'], 'Land quietly and own the balance before crossing back.', bodyweightImage),
 
+  yogaMovement('yoga_cat_cow', 'Cat-cow flow', 'beginner', ['spine', 'mobility', 'breath'], ['6 slow rounds', '8 slow rounds', '10 slow rounds'], 'Move one vertebra at a time and let the breath set the pace.', 'home_bird_dog'),
+  yogaMovement('yoga_child_pose', "Child's pose", 'beginner', ['hips', 'recovery', 'breath'], ['45 sec', '60 sec', '90 sec'], 'Let the forehead rest and breathe into the back of the ribs.', 'home_bird_dog'),
+  yogaMovement('yoga_downward_dog', 'Downward-facing dog', 'beginner', ['hamstrings', 'shoulders', 'mobility'], ['30 sec', '45 sec', '60 sec'], 'Keep the knees soft enough to lengthen the spine.', 'home_pike_pushup'),
+  yogaMovement('yoga_cobra', 'Low cobra', 'beginner', ['spine', 'shoulders'], ['5 breaths', '6 breaths', '8 breaths'], 'Lift from the upper back and keep little weight in the hands.', 'home_superman_hold'),
+  yogaMovement('yoga_sphinx', 'Sphinx pose', 'beginner', ['spine', 'recovery'], ['45 sec', '60 sec', '90 sec'], 'Press the forearms down and keep the lower back comfortable.', 'home_superman_hold'),
+  yogaMovement('yoga_low_lunge', 'Low lunge', 'beginner', ['hips', 'mobility'], ['30 sec each', '45 sec each', '60 sec each'], 'Tuck the pelvis slightly before easing the hips forward.', 'home_reverse_lunge'),
+  yogaMovement('yoga_half_split', 'Half split', 'beginner', ['hamstrings', 'recovery'], ['30 sec each', '45 sec each', '60 sec each'], 'Keep a long spine and stop before the stretch turns sharp.', 'home_hamstring_walkout'),
+  yogaMovement('yoga_forward_fold', 'Standing forward fold', 'beginner', ['hamstrings', 'spine', 'recovery'], ['5 breaths', '8 breaths', '10 breaths'], 'Bend the knees and let the head and arms feel heavy.', 'home_good_morning'),
+  yogaMovement('yoga_butterfly', 'Butterfly fold', 'beginner', ['hips', 'recovery'], ['45 sec', '60 sec', '90 sec'], 'Support the knees if needed and fold from the hips.', 'home_squat'),
+  yogaMovement('yoga_figure_four', 'Reclined figure four', 'beginner', ['hips', 'recovery'], ['30 sec each', '45 sec each', '60 sec each'], 'Keep the tailbone heavy and the foot gently flexed.', 'home_glute_bridge'),
+  yogaMovement('yoga_supine_twist', 'Supine twist', 'beginner', ['spine', 'recovery', 'breath'], ['5 breaths each', '8 breaths each', '10 breaths each'], 'Let the shoulders stay grounded as the knees move across.', 'home_dead_bug'),
+  yogaMovement('yoga_knees_chest', 'Knees-to-chest hold', 'beginner', ['hips', 'recovery'], ['30 sec', '45 sec', '60 sec'], 'Relax the shoulders and let the lower back widen.', 'home_dead_bug'),
+  yogaMovement('yoga_bridge', 'Bridge pose', 'beginner', ['hips', 'spine', 'core'], ['5 breaths', '8 breaths', '10 breaths'], 'Press through the feet and keep the ribs from flaring.', 'home_glute_bridge'),
+  yogaMovement('yoga_thread_needle', 'Thread the needle', 'beginner', ['shoulders', 'spine', 'recovery'], ['30 sec each', '45 sec each', '60 sec each'], 'Rotate through the upper back while the hips stay over the knees.', 'home_bird_dog'),
+  yogaMovement('yoga_puppy_pose', 'Puppy pose', 'beginner', ['shoulders', 'spine', 'mobility'], ['30 sec', '45 sec', '60 sec'], 'Keep the hips above the knees and reach the chest forward.', 'home_pike_pushup'),
+  yogaMovement('yoga_mountain', 'Mountain pose breathing', 'beginner', ['balance', 'breath'], ['6 breaths', '8 breaths', '10 breaths'], 'Stand evenly through both feet and soften the jaw.', 'home_calf_raise'),
+  yogaMovement('yoga_chair', 'Chair pose', 'steady', ['hips', 'core', 'balance'], ['20 sec', '30 sec', '45 sec'], 'Sit the hips back while keeping weight through the heels.', 'home_chair_squat'),
+  yogaMovement('yoga_warrior_one', 'Warrior I', 'steady', ['hips', 'shoulders', 'balance'], ['30 sec each', '45 sec each', '60 sec each'], 'Square the hips as much as feels natural and keep the front knee steady.', 'home_split_squat'),
+  yogaMovement('yoga_warrior_two', 'Warrior II', 'steady', ['hips', 'balance', 'shoulders'], ['30 sec each', '45 sec each', '60 sec each'], 'Reach through both hands and track the front knee over the toes.', 'home_reverse_lunge'),
+  yogaMovement('yoga_triangle', 'Triangle pose', 'steady', ['hamstrings', 'spine', 'balance'], ['30 sec each', '45 sec each', '60 sec each'], 'Lengthen both sides of the waist before rotating the chest.', 'home_side_plank'),
+  yogaMovement('yoga_tree', 'Tree pose', 'steady', ['balance', 'hips'], ['20 sec each', '30 sec each', '45 sec each'], 'Place the foot below or above the knee and keep the gaze steady.', 'home_calf_raise'),
+  yogaMovement('yoga_eagle', 'Eagle pose', 'steady', ['balance', 'hips', 'shoulders'], ['20 sec each', '30 sec each', '45 sec each'], 'Sit back gently and use a kickstand foot if balance wobbles.', 'home_squat'),
+  yogaMovement('yoga_plank_dog', 'Plank to downward dog', 'steady', ['core', 'shoulders', 'mobility'], ['6 rounds', '8 rounds', '10 rounds'], 'Move from a steady trunk and pause in each shape.', 'home_plank'),
+  yogaMovement('yoga_side_angle', 'Extended side angle', 'steady', ['hips', 'spine', 'balance'], ['30 sec each', '45 sec each', '60 sec each'], 'Rest the forearm lightly and reach through the top fingertips.', 'home_side_plank'),
+  yogaMovement('yoga_pigeon', 'Supported pigeon', 'steady', ['hips', 'recovery'], ['45 sec each', '60 sec each', '90 sec each'], 'Add support under the front hip so the pelvis can settle evenly.', 'home_split_squat'),
+  yogaMovement('yoga_lizard', 'Lizard lunge', 'steady', ['hips', 'hamstrings', 'mobility'], ['30 sec each', '45 sec each', '60 sec each'], 'Keep the front foot grounded and choose hands or forearms.', 'home_reverse_lunge'),
+  yogaMovement('yoga_happy_baby', 'Happy baby', 'beginner', ['hips', 'recovery', 'breath'], ['45 sec', '60 sec', '90 sec'], 'Hold behind the thighs if the feet are hard to reach.', 'home_dead_bug'),
+  yogaMovement('yoga_boat', 'Boat pose', 'advanced', ['core', 'balance'], ['20 sec', '30 sec', '45 sec'], 'Lift the chest and bend the knees whenever the lower back rounds.', 'home_hollow_hold'),
+  yogaMovement('yoga_crow_prep', 'Crow pose preparation', 'advanced', ['balance', 'core', 'shoulders'], ['3 attempts', '5 attempts', '8 attempts'], 'Shift forward slowly and keep one or both toes available to the floor.', 'home_bear_crawl'),
+  yogaMovement('yoga_half_moon', 'Half moon pose', 'advanced', ['balance', 'hips', 'core'], ['20 sec each', '30 sec each', '45 sec each'], 'Use a block or wall and stack the hips before lifting the gaze.', 'home_single_leg_bridge'),
+
   movement('run_walk', 'Run-walk intervals', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['1 min run / 2 min walk', '2 min run / 1 min walk', '4 min run / 1 min walk'], 'Finish each run segment able to repeat it.', runImage),
   movement('run_easy', 'Easy conversational run', 'cardio', 'beginner', ['base', 'recovery'], ['bodyweight'], ['easy effort', 'zone 2', 'zone 2'], 'Keep the effort easy enough for short sentences.', runImage),
   movement('run_drills', 'Running drills', 'cardio', 'beginner', ['technique'], ['bodyweight'], ['4 minutes', '6 minutes', '8 minutes'], 'Stay relaxed and make each step quiet.', runImage),
@@ -256,7 +295,7 @@ export function getWorkoutCatalogSize() {
 }
 
 export function getWorkoutVisualIds() {
-  return movements.map((item) => item.visualId);
+  return [...new Set(movements.map((item) => item.visualId))];
 }
 
 export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
@@ -345,7 +384,7 @@ function plannedExercise(
     })
     .slice(0, 4)
     .map((candidate) => exerciseDetails(candidate, input, sets));
-  const timedCategory = input.category === 'cardio' || input.category === 'cycling';
+  const timedCategory = input.category === 'cardio' || input.category === 'cycling' || input.category === 'yoga';
   return {
     id: item.id,
     name: item.name,
@@ -358,7 +397,7 @@ function plannedExercise(
 }
 
 function exerciseDetails(item: Movement, input: WorkoutPlanInput, sets: number): PlannedExerciseAlternative {
-  const timedCategory = input.category === 'cardio' || input.category === 'cycling';
+  const timedCategory = input.category === 'cardio' || input.category === 'cycling' || input.category === 'yoga';
   return {
     id: item.id,
     name: item.name,
@@ -379,6 +418,12 @@ function movementScore(item: Movement, focus: string[], level: WorkoutLevel, use
 function progressionFor(seed: string, category: WorkoutCategory, level: WorkoutLevel) {
   const date = new Date(`${seed}T12:00:00`);
   const weekIndex = Math.floor(date.getTime() / 604_800_000) % 4;
+  if (category === 'yoga') {
+    if (weekIndex === 0) return { setAdjustment: 0, guidance: 'Use a range that lets you breathe without strain.' };
+    if (weekIndex === 1) return { setAdjustment: 0, guidance: 'Add one slow breath to each hold when the position feels settled.' };
+    if (weekIndex === 2) return { setAdjustment: 0, guidance: 'Move a little deeper only where your breath stays smooth.' };
+    return { setAdjustment: 0, guidance: 'Keep this week gentle and use support whenever it helps you relax.' };
+  }
   if (weekIndex === 3) return { setAdjustment: -1, guidance: 'Recovery week: leave three good reps in reserve and keep every set crisp.' };
   if (category === 'cardio' || category === 'cycling') {
     return weekIndex === 0
@@ -396,12 +441,14 @@ function warmupFor(category: WorkoutCategory, durationMinutes: number) {
   const minutes = durationMinutes <= 25 ? 4 : durationMinutes >= 55 ? 8 : 6;
   if (category === 'cardio') return `${minutes} min brisk walk or easy jog, then relaxed running drills.`;
   if (category === 'cycling') return `${minutes} min easy spin, gradually bringing cadence up.`;
+  if (category === 'yoga') return `${minutes} min of easy breathing, wrist circles, and gentle spinal movement.`;
   return `${minutes} min joint prep, easy movement patterns, and two gradual practice sets.`;
 }
 
 function cooldownFor(category: WorkoutCategory) {
   if (category === 'cardio') return 'Walk until breathing settles, then loosen calves and hips.';
   if (category === 'cycling') return 'Spin easily for 3–5 minutes, then reset hips and upper back.';
+  if (category === 'yoga') return 'Rest on your back for two minutes and let your breathing return to normal.';
   return 'Two easy minutes, then breathe and move through the areas trained today.';
 }
 
@@ -417,6 +464,28 @@ function movement(
   _legacyVisual: string,
 ): Movement {
   return { id, name, category, minLevel, focus, equipment, reps: { beginner: reps[0], steady: reps[1], advanced: reps[2] }, cue, visualId: visual(id) };
+}
+
+function yogaMovement(
+  id: string,
+  name: string,
+  minLevel: WorkoutLevel,
+  focus: string[],
+  reps: [string, string, string],
+  cue: string,
+  visualId: string,
+): Movement {
+  return {
+    id,
+    name,
+    category: 'yoga',
+    minLevel,
+    focus,
+    equipment: ['bodyweight'],
+    reps: { beginner: reps[0], steady: reps[1], advanced: reps[2] },
+    cue,
+    visualId,
+  };
 }
 
 function levelRank(level: WorkoutLevel) {

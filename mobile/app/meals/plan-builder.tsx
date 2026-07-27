@@ -4,13 +4,22 @@ import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { MealScreen } from '@/components/meals/MealScreen';
-import { recipeCatalog } from '@/lib/meals/catalog';
+import { recipeCatalog, type PreparationMethod } from '@/lib/meals/catalog';
 import { localDateKey } from '@/lib/meals/dates';
 import { buildCatalogPlan } from '@/lib/meals/recommendations';
 import type { MealType } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
 const planMealTypes = ['breakfast', 'lunch', 'dinner'] as const;
+const preparationChoices: { value: PreparationMethod | 'any'; label: string }[] = [
+  { value: 'any', label: 'Mix it up' },
+  { value: 'air-fryer', label: 'Air fryer' },
+  { value: 'one-pan', label: 'One pan' },
+  { value: 'stovetop', label: 'Stovetop' },
+  { value: 'oven', label: 'Oven' },
+  { value: 'no-cook', label: 'No cook' },
+  { value: 'slow-cooker', label: 'Slow cooker' },
+];
 
 export default function PlanBuilderScreen() {
   const router = useRouter();
@@ -21,6 +30,7 @@ export default function PlanBuilderScreen() {
   const [mealTypes, setMealTypes] = useState<MealType[]>(['breakfast', 'lunch', 'dinner']);
   const [includeSnack, setIncludeSnack] = useState(false);
   const [highProtein, setHighProtein] = useState(false);
+  const [preparationMethod, setPreparationMethod] = useState<PreparationMethod | 'any'>('any');
   const today = localDateKey(new Date());
   const target = user?.targets[today];
 
@@ -39,9 +49,21 @@ export default function PlanBuilderScreen() {
       Alert.alert('Choose at least one meal', 'Select the meal times you want Luminary to plan.');
       return;
     }
-    const plan = buildCatalogPlan({ recipes: recipeCatalog, profile: user.profile, target, weekOf: today, options: { days, mealTypes, includeSnack, highProtein } });
+    const plan = buildCatalogPlan({
+      recipes: recipeCatalog,
+      profile: user.profile,
+      target,
+      weekOf: today,
+      options: {
+        days,
+        mealTypes,
+        includeSnack,
+        highProtein,
+        preparationMethods: preparationMethod === 'any' ? [] : [preparationMethod],
+      },
+    });
     if (!plan.entries.length) {
-      Alert.alert('No safe catalog match', 'Your current restrictions do not match a validated recipe yet. Adjust the preferences or use search and Manual entry.');
+      Alert.alert('No recipes fit yet', 'Try another cooking style or update your food preferences. You can still add meals from search.');
       return;
     }
     replacePlans([plan]);
@@ -49,20 +71,34 @@ export default function PlanBuilderScreen() {
   };
 
   return (
-    <MealScreen title="Build your week" subtitle="Catalog first, flexible by design">
+    <MealScreen title="Build your week" subtitle="Choose what fits your kitchen">
       <ChoiceGroup label="Plan length" values={[5, 7] as const} value={days} onChange={setDays} format={(value) => `${value} days`} />
       <View style={styles.group}>
         <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Meals to plan</Text>
         <View style={styles.row}>{planMealTypes.map((mealType) => <Toggle key={mealType} label={mealType} selected={mealTypes.includes(mealType)} onPress={() => toggleMeal(mealType)} />)}</View>
       </View>
       <Setting label="Add a snack when it fits" detail="Snacks are skipped if they would exceed the daily target." selected={includeSnack} onPress={() => setIncludeSnack((value) => !value)} />
-      <Setting label="Prioritize protein" detail="Still respects your calorie target, restrictions, and prep limit." selected={highProtein} onPress={() => setHighProtein((value) => !value)} />
+      <View style={styles.group}>
+        <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>How do you want to cook?</Text>
+        <View style={styles.methodRow}>
+          {preparationChoices.map((choice) => (
+            <MethodToggle
+              key={choice.value}
+              label={choice.label}
+              selected={preparationMethod === choice.value}
+              onPress={() => setPreparationMethod(choice.value)}
+            />
+          ))}
+        </View>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>We will lead with this style and fill any gaps with meals that still suit your week.</Text>
+      </View>
+      <Setting label="More protein" detail="Use higher-protein recipes that still fit your daily target." selected={highProtein} onPress={() => setHighProtein((value) => !value)} />
       <View style={styles.profileSummary}>
-        <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Plan basis</Text>
-        <Text style={[type.bodyMd, { color: palette.onSurface, marginTop: spacing.xs }]}>{user?.profile ? `${user.profile.goal} / ${target?.calories ?? '--'} calories / max ${user.profile.maxPrepMinutes ?? 60} min prep` : 'Nutrition profile not set'}</Text>
+        <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Your settings</Text>
+        <Text style={[type.bodyMd, { color: palette.onSurface, marginTop: spacing.xs }]}>{user?.profile ? `${user.profile.goal} goal / ${target?.calories ?? '--'} calories / up to ${user.profile.maxPrepMinutes ?? 60} min` : 'Add your food preferences first'}</Text>
         <Pressable onPress={() => router.push('/meals/profile')} style={styles.editProfile}><Text style={[type.labelSm, { color: palette.primary }]}>Edit preferences</Text></Pressable>
       </View>
-      <Pressable onPress={generate} style={styles.generate}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Generate plan</Text></Pressable>
+      <Pressable onPress={generate} style={styles.generate}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Build my plan</Text></Pressable>
     </MealScreen>
   );
 }
@@ -75,6 +111,10 @@ function Toggle({ label, selected, onPress }: { label: string; selected: boolean
   return <Pressable onPress={onPress} style={[styles.toggle, selected && styles.selected]} accessibilityRole="checkbox" accessibilityState={{ checked: selected }}><Text style={[type.labelSm, { color: selected ? palette.onPrimary : palette.onSurfaceVariant }]}>{label}</Text></Pressable>;
 }
 
+function MethodToggle({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={[styles.methodToggle, selected && styles.selected]} accessibilityRole="radio" accessibilityState={{ selected }}><Text style={[type.labelSm, { color: selected ? palette.onPrimary : palette.onSurfaceVariant }]}>{label}</Text></Pressable>;
+}
+
 function Setting({ label, detail, selected, onPress }: { label: string; detail: string; selected: boolean; onPress: () => void }) {
   return <Pressable onPress={onPress} style={styles.setting} accessibilityRole="switch" accessibilityState={{ checked: selected }}><View style={{ flex: 1 }}><Text style={[type.titleMd, { color: palette.onSurface }]}>{label}</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{detail}</Text></View><View style={[styles.switch, selected && styles.switchOn]}><View style={[styles.knob, selected && styles.knobOn]} /></View></Pressable>;
 }
@@ -82,6 +122,8 @@ function Setting({ label, detail, selected, onPress }: { label: string; detail: 
 const styles = StyleSheet.create({
   group: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
+  methodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  methodToggle: { width: '48%', minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm },
   toggle: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainer, borderRadius: radii.sm },
   selected: { backgroundColor: palette.primary },
   setting: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: palette.surfaceContainer, borderRadius: radii.sm, padding: spacing.md },

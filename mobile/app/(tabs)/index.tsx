@@ -22,6 +22,7 @@ import { getHabitIconName } from '@/lib/habitIcons';
 import type { MoodLabel } from '@/lib/mood';
 import {
   formatHomeDate,
+  expectedMealForTime,
   isRitualCompletedForDate,
   selectDailyRitualSignals,
   type RitualSignal,
@@ -83,6 +84,10 @@ export default function HomeScreen() {
   const completedHome = homeHabits.filter((habit) => habit.completedOn.includes(today)).length;
   const ritualComplete = ritualHydrated && isRitualCompletedForDate(ritualSession, today);
   const ritualInProgress = ritualSession.localDate === today && ritualSession.status === 'in_progress';
+  const expectedMeal = expectedMealForTime(todayDate);
+  const plannedMeal = mealsUser?.plans
+    .flatMap((plan) => plan.entries)
+    .find((entry) => entry.localDate === today && entry.mealType === expectedMeal && !todayMeals.some((meal) => meal.mealType === expectedMeal));
 
   const ritualSignals = useMemo(
     () =>
@@ -110,7 +115,18 @@ export default function HomeScreen() {
     router.push('/ritual');
   }
 
-  const focusSignal = ritualSignals.find((signal) => signal.kind === 'health') ?? null;
+  const plannedMealSignal: RitualSignal | null = plannedMeal
+    ? {
+        id: `planned-${expectedMeal}`,
+        kind: 'meals',
+        title: `${sentenceCase(expectedMeal)} is planned`,
+        detail: `${plannedMeal.name} is ready in today's meal plan.`,
+        action: 'See recipe',
+        route: '/(tabs)/meals',
+        priority: 100,
+      }
+    : null;
+  const focusSignal = plannedMealSignal ?? ritualSignals.find((signal) => signal.kind === 'health') ?? null;
   const useSplitCockpit = width >= 360 && Boolean(focusSignal);
   const displayName = authDisplayName ?? profileDisplayName ?? 'Mari';
 

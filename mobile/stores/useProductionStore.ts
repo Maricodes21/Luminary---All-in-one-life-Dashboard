@@ -100,7 +100,7 @@ export type MealPlanSlot = {
 export type WorkoutPlan = {
   id: string;
   weekOf: string;
-  category: 'calisthenics' | 'cardio' | 'cycling' | 'gym';
+  category: 'calisthenics' | 'cardio' | 'cycling' | 'gym' | 'yoga';
   level: 'beginner' | 'steady' | 'advanced';
   durationMinutes?: number;
   scheduledWeekdays?: number[];

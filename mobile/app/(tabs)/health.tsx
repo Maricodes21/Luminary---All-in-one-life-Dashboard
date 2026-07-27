@@ -466,7 +466,7 @@ function PlanSetup({
   onBuild: () => void;
 }) {
   const weekDates = currentWeekDates();
-  const location = category === 'gym' ? 'gym' : category === 'calisthenics' ? 'home' : 'outside';
+  const location = category === 'gym' ? 'gym' : category === 'calisthenics' ? 'home' : category === 'yoga' ? 'yoga' : 'outside';
   return (
     <>
       <FlowHeader eyebrow="Plan setup / 1 of 2" title="Plan around real life." onBack={onBack} />
@@ -474,11 +474,12 @@ function PlanSetup({
         Start with the shape of your week. You can review and swap every movement before you complete it.
       </Text>
 
-      <SetupField number="01" title="Where are you moving?">
+      <SetupField number="01" title="What are you doing?">
         <View style={styles.locationGrid}>
           <LocationChoice label="Home" detail="Bodyweight + bands" icon="home" selected={location === 'home'} onPress={() => onCategoryChange('calisthenics')} />
           <LocationChoice label="Gym" detail="Machines + weights" icon="health" selected={location === 'gym'} onPress={() => onCategoryChange('gym')} />
           <LocationChoice label="Outside" detail="Run or cycle" icon="trend" selected={location === 'outside'} onPress={() => onCategoryChange(outsideMode)} />
+          <LocationChoice label="Yoga" detail="Stretch + restore" icon="heart" selected={location === 'yoga'} onPress={() => onCategoryChange('yoga')} />
         </View>
         {location === 'outside' ? (
           <View style={styles.segmentedRow}>
@@ -665,7 +666,7 @@ function SetupField({ number, title, detail, children }: { number: string; title
   );
 }
 
-function LocationChoice({ label, detail, icon, selected, onPress }: { label: string; detail: string; icon: 'home' | 'health' | 'trend'; selected: boolean; onPress: () => void }) {
+function LocationChoice({ label, detail, icon, selected, onPress }: { label: string; detail: string; icon: 'home' | 'health' | 'trend' | 'heart'; selected: boolean; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={[styles.locationChoice, selected && styles.selectedChoice]} accessibilityRole="button" accessibilityState={{ selected }}>
       <Icon name={icon} size={spacing.lg} color={selected ? palette.onPrimary : palette.primary} />
@@ -757,6 +758,7 @@ function categoryLabel(category: WorkoutPlan['category']) {
   if (category === 'calisthenics') return 'Home';
   if (category === 'cardio') return 'Run';
   if (category === 'cycling') return 'Cycle';
+  if (category === 'yoga') return 'Yoga';
   return 'Gym';
 }
 
@@ -899,8 +901,8 @@ const styles = StyleSheet.create({
   fieldHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   fieldTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   numberBadge: { width: spacing.xl, height: spacing.xl, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
-  locationGrid: { flexDirection: 'row', gap: spacing.sm },
-  locationChoice: { flex: 1, minHeight: spacing['3xl'] + spacing['3xl'], padding: spacing.sm, borderRadius: radii.lg, justifyContent: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainer },
+  locationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  locationChoice: { width: '48%', minHeight: spacing['3xl'] + spacing['3xl'], padding: spacing.sm, borderRadius: radii.lg, justifyContent: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainer },
   selectedChoice: { backgroundColor: palette.primary },
   segmentedRow: { flexDirection: 'row', gap: spacing.sm },
   segment: { flex: 1, minHeight: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },

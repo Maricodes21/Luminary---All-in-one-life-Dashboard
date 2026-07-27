@@ -7,6 +7,8 @@ export type CompleteNutrition = {
   fatG: number;
 };
 
+export type PreparationMethod = 'air-fryer' | 'one-pan' | 'oven' | 'stovetop' | 'no-cook' | 'slow-cooker';
+
 export type CatalogRecipeIngredient = Omit<RecipeIngredient, 'quantity' | 'unit'> & {
   quantity: number;
   unit: string;
@@ -30,6 +32,7 @@ type CatalogRecipeCore = Omit<Recipe, 'source' | 'nutrition' | 'ingredients' | '
   steps: CatalogRecipeStep[];
   prepMinutes: number;
   cookMinutes: number;
+  preparationMethods: PreparationMethod[];
   planReady: true;
 };
 
@@ -104,12 +107,25 @@ function buildRecipe(definition: RecipeDefinition): CatalogRecipe {
     dietaryTags: [...definition.dietaryTags],
     prepMinutes: definition.prepMinutes,
     cookMinutes: definition.cookMinutes,
+    preparationMethods: inferPreparationMethods(definition),
     planReady: true,
     image: {
       kind: 'absent',
       reason: `No verified exact image is available for ${definition.name}.`,
     },
   };
+}
+
+function inferPreparationMethods(definition: RecipeDefinition): PreparationMethod[] {
+  const text = [definition.name, definition.description, ...definition.steps.map(([step]) => step)].join(' ').toLowerCase();
+  const methods: PreparationMethod[] = [];
+  if (/air[ -]?fry/.test(text)) methods.push('air-fryer');
+  if (/slow cooker|crockpot/.test(text)) methods.push('slow-cooker');
+  if (/one-pan|one pan|sheet-pan|sheet pan|single skillet/.test(text)) methods.push('one-pan');
+  if (/\b(bake|baked|roast|roasted|oven|muffin)\b/.test(text)) methods.push('oven');
+  if (definition.cookMinutes === 0) methods.push('no-cook');
+  if (/\b(skillet|pan-sear|sauté|simmer|boil|stovetop|pot)\b/.test(text)) methods.push('stovetop');
+  return methods.length ? [...new Set(methods)] : ['stovetop'];
 }
 
 const recipeDefinitions: readonly RecipeDefinition[] = [
@@ -1457,6 +1473,223 @@ const recipeDefinitions: readonly RecipeDefinition[] = [
     ],
     substitutions: ['Replace walnuts with pumpkin seeds for a nut-free batch.'],
     dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_egg_potato_cups',
+    name: 'Air-Fryer Egg Potato Cups',
+    mealType: 'breakfast',
+    servings: 2,
+    description: 'Crisp potato cups filled with egg, spinach, pepper, and feta.',
+    nutrition: { calories: 420, proteinG: 26, carbsG: 42, fatG: 16 },
+    prepMinutes: 12,
+    cookMinutes: 18,
+    ingredients: [
+      ['baby potatoes', 300, 'g', 'grated'],
+      ['large eggs', 2, 'each'],
+      ['egg whites', 100, 'g'],
+      ['baby spinach', 1, 'cup', 'chopped'],
+      ['red pepper', 0.5, 'medium', 'diced'],
+      ['feta', 40, 'g', 'crumbled'],
+      ['olive oil', 1, 'tsp'],
+    ],
+    steps: [
+      ['Squeeze excess water from the grated potato, then mix it thoroughly with the olive oil.', 3, [0, 6], 'Potato feels dry enough to hold a loose shape.'],
+      ['Press the potato into silicone cups and air-fry until the edges turn crisp and pale gold.', 10, [0], 'Cup edges hold their shape when touched.'],
+      ['Whisk the eggs and egg whites, then fold through spinach, pepper, and crumbled feta.', 3, [1, 2, 3, 4, 5], 'Vegetables and feta are spread through the egg.'],
+      ['Pour the filling into the potato cups and air-fry until the centers are set without browning hard.', 8, [1, 2, 3, 4, 5], 'Centers spring back with a light touch.'],
+    ],
+    substitutions: ['Use grated sweet potato in place of baby potatoes.'],
+    dietaryTags: ['vegetarian', 'gluten-free'],
+  },
+  {
+    id: 'recipe_mango_cottage_breakfast_bowl',
+    name: 'Mango Cottage Breakfast Bowl',
+    mealType: 'breakfast',
+    servings: 1,
+    description: 'A no-cook cottage cheese bowl with mango, oats, chia, lime, and pumpkin seeds.',
+    nutrition: { calories: 390, proteinG: 28, carbsG: 49, fatG: 9 },
+    prepMinutes: 8,
+    cookMinutes: 0,
+    ingredients: [
+      ['low-fat cottage cheese', 1, 'cup'],
+      ['ripe mango', 0.75, 'cup', 'diced'],
+      ['rolled oats', 0.25, 'cup'],
+      ['chia seeds', 1, 'tbsp'],
+      ['pumpkin seeds', 1, 'tbsp'],
+      ['lime juice', 1, 'tsp'],
+    ],
+    steps: [
+      ['Spoon the cottage cheese into a wide bowl and smooth it into an even base.', 1, [0], 'The base reaches the edges of the bowl.'],
+      ['Toss the diced mango with lime juice so every piece gets a light, bright coating.', 2, [1, 5], 'Mango looks glossy without pooling juice.'],
+      ['Arrange the mango and rolled oats over the cottage cheese in separate sections.', 2, [1, 2], 'Toppings remain distinct and easy to mix.'],
+      ['Finish with chia and pumpkin seeds, then eat at once or chill for a softer oat texture.', 1, [3, 4], 'Seeds are scattered evenly across the bowl.'],
+    ],
+    substitutions: ['Use pineapple or berries when mango is out of season.'],
+    dietaryTags: ['vegetarian', 'gluten-free'],
+  },
+  {
+    id: 'recipe_air_fryer_chicken_pita',
+    name: 'Air-Fryer Chicken Pita',
+    mealType: 'lunch',
+    servings: 1,
+    description: 'Paprika chicken with cool yogurt, lettuce, tomato, and cucumber in a warm pita.',
+    nutrition: { calories: 560, proteinG: 46, carbsG: 58, fatG: 16 },
+    prepMinutes: 14,
+    cookMinutes: 14,
+    ingredients: [
+      ['chicken breast', 180, 'g', 'cut into strips'],
+      ['whole-wheat pita', 1, 'large'],
+      ['plain Greek yogurt', 0.25, 'cup'],
+      ['romaine lettuce', 1, 'cup', 'shredded'],
+      ['tomato', 0.5, 'medium', 'diced'],
+      ['cucumber', 0.33, 'medium', 'diced'],
+      ['smoked paprika', 1, 'tsp'],
+      ['olive oil', 1, 'tsp'],
+    ],
+    steps: [
+      ['Coat the chicken strips with smoked paprika and olive oil until no dry seasoning remains.', 3, [0, 6, 7], 'Chicken is evenly red and lightly glossy.'],
+      ['Air-fry the chicken in one layer until browned at the edges and cooked through.', 12, [0], 'The thickest strip is opaque and juicy inside.'],
+      ['Mix the yogurt with diced cucumber, then prepare the lettuce and tomato while the chicken rests.', 4, [2, 3, 4, 5], 'Sauce is cool and vegetables stay crisp.'],
+      ['Warm the pita, fill it with lettuce, tomato, chicken, and cucumber yogurt, then fold securely.', 3, [0, 1, 2, 3, 4, 5], 'Filling is balanced from end to end.'],
+    ],
+    substitutions: ['Use firm tofu strips and dairy-free yogurt for a plant-based pita.'],
+    dietaryTags: ['high-protein'],
+  },
+  {
+    id: 'recipe_one_pan_lemon_chickpea_couscous',
+    name: 'One-Pan Lemon Chickpea Couscous',
+    mealType: 'lunch',
+    servings: 2,
+    description: 'A single-skillet couscous with chickpeas, zucchini, tomatoes, lemon, and herbs.',
+    nutrition: { calories: 520, proteinG: 21, carbsG: 75, fatG: 15 },
+    prepMinutes: 12,
+    cookMinutes: 16,
+    ingredients: [
+      ['whole-wheat couscous', 1, 'cup'],
+      ['canned chickpeas', 1.5, 'cups', 'drained'],
+      ['zucchini', 1, 'medium', 'diced'],
+      ['cherry tomatoes', 1.5, 'cups', 'halved'],
+      ['vegetable stock', 1.25, 'cups'],
+      ['lemon juice', 2, 'tbsp'],
+      ['olive oil', 1, 'tbsp'],
+      ['fresh parsley', 0.25, 'cup', 'chopped'],
+    ],
+    steps: [
+      ['Warm the olive oil in a wide skillet and cook the zucchini until its edges begin to color.', 5, [2, 6], 'Zucchini is tender outside and firm in the center.'],
+      ['Add the chickpeas and tomatoes, then cook until the tomatoes soften and release a little juice.', 4, [1, 3], 'Tomatoes slump while chickpeas remain intact.'],
+      ['Stir in couscous and hot vegetable stock, cover the single skillet, and remove it from the heat.', 6, [0, 4], 'Couscous absorbs the stock without a wet layer below.'],
+      ['Fluff with lemon juice and chopped parsley, separating any couscous clumps before serving.', 2, [5, 7], 'Grains look loose with herbs spread throughout.'],
+    ],
+    substitutions: ['Use quinoa and extend the covered cooking time according to the package.'],
+    dietaryTags: ['vegan', 'dairy-free'],
+  },
+  {
+    id: 'recipe_air_fryer_salmon_sweet_potato',
+    name: 'Air-Fryer Salmon and Sweet Potato',
+    mealType: 'dinner',
+    servings: 1,
+    description: 'Paprika salmon with crisp sweet potato cubes, green beans, and lemon.',
+    nutrition: { calories: 650, proteinG: 46, carbsG: 67, fatG: 22 },
+    prepMinutes: 14,
+    cookMinutes: 22,
+    ingredients: [
+      ['salmon fillet', 180, 'g'],
+      ['sweet potato', 300, 'g', 'cut into small cubes'],
+      ['green beans', 1.5, 'cups', 'trimmed'],
+      ['olive oil', 2, 'tsp'],
+      ['smoked paprika', 1, 'tsp'],
+      ['lemon', 0.5, 'each'],
+    ],
+    steps: [
+      ['Toss the sweet potato cubes with half the olive oil and paprika until evenly coated.', 3, [1, 3, 4], 'Every cube carries a thin coat of seasoning.'],
+      ['Air-fry the sweet potato until nearly tender, shaking the basket twice for even color.', 14, [1], 'Corners are browned and centers yield to a fork.'],
+      ['Brush the salmon and green beans with the remaining oil, then add both beside the potatoes.', 3, [0, 2, 3], 'Salmon and beans have a light, even sheen.'],
+      ['Air-fry until the salmon flakes and beans blister, then squeeze lemon over the full plate.', 8, [0, 2, 5], 'Salmon separates in moist flakes at the center.'],
+    ],
+    substitutions: ['Use skinless chicken thigh and cook until fully done.'],
+    dietaryTags: ['pescatarian', 'gluten-free'],
+  },
+  {
+    id: 'recipe_slow_cooker_turkey_bean_chili',
+    name: 'Slow-Cooker Turkey Bean Chili',
+    mealType: 'dinner',
+    servings: 4,
+    description: 'Turkey, two beans, tomato, pepper, and warm spices cooked into a batch-friendly chili.',
+    nutrition: { calories: 620, proteinG: 48, carbsG: 72, fatG: 16 },
+    prepMinutes: 18,
+    cookMinutes: 240,
+    ingredients: [
+      ['lean turkey mince', 600, 'g'],
+      ['kidney beans', 1.5, 'cups', 'drained'],
+      ['black beans', 1.5, 'cups', 'drained'],
+      ['crushed tomatoes', 800, 'g'],
+      ['red pepper', 1, 'large', 'diced'],
+      ['brown onion', 1, 'medium', 'diced'],
+      ['chili powder', 2, 'tsp'],
+      ['vegetable stock', 1, 'cup'],
+    ],
+    steps: [
+      ['Brown the turkey mince in a skillet, breaking it into small pieces before adding it to the slow cooker.', 8, [0], 'Turkey has no pink patches and remains loosely crumbled.'],
+      ['Add the diced onion and pepper to the same skillet and cook until their edges soften.', 5, [4, 5], 'Onion looks translucent while pepper keeps its shape.'],
+      ['Transfer the vegetables, then add both beans, crushed tomatoes, chili powder, and stock.', 3, [1, 2, 3, 6, 7], 'Beans and turkey are fully covered by the tomato base.'],
+      ['Slow-cook on low until the chili thickens and the pepper becomes tender without disappearing.', 240, [], 'A spoon drawn through the chili leaves a short trail.'],
+      ['Stir well, taste the seasoning, and divide the chili into four portions for dinner or freezing.', 2, [], 'Each portion has an even mix of turkey and beans.'],
+    ],
+    substitutions: ['Use plant-based mince or extra black beans in place of turkey.'],
+    dietaryTags: ['gluten-free', 'high-protein'],
+  },
+  {
+    id: 'recipe_air_fryer_cinnamon_apple_crunch',
+    name: 'Air-Fryer Cinnamon Apple Crunch',
+    mealType: 'snack',
+    servings: 1,
+    description: 'Warm apple wedges with toasted oats, cinnamon, yogurt, and a small maple finish.',
+    nutrition: { calories: 260, proteinG: 10, carbsG: 38, fatG: 8 },
+    prepMinutes: 8,
+    cookMinutes: 12,
+    ingredients: [
+      ['apple', 1, 'large', 'cut into wedges'],
+      ['rolled oats', 0.25, 'cup'],
+      ['ground cinnamon', 0.5, 'tsp'],
+      ['plain Greek yogurt', 0.33, 'cup'],
+      ['maple syrup', 1, 'tsp'],
+      ['walnuts', 1, 'tbsp', 'chopped'],
+    ],
+    steps: [
+      ['Toss the apple wedges with cinnamon until the spice coats every cut surface.', 2, [0, 2], 'No dry cinnamon remains at the bottom.'],
+      ['Air-fry the apples until warm and tender while the wedges still hold their shape.', 9, [0], 'A fork enters easily without splitting the wedge.'],
+      ['Add the oats and walnuts for the final minutes so they toast without becoming bitter.', 3, [1, 5], 'Oats and walnuts smell nutty and stay golden.'],
+      ['Spoon yogurt over the warm apple and finish with maple syrup and the toasted crunch.', 2, [1, 3, 4, 5], 'Yogurt stays cool against the warm fruit.'],
+    ],
+    substitutions: ['Use pumpkin seeds instead of walnuts for a nut-free crunch.'],
+    dietaryTags: ['vegetarian', 'gluten-free'],
+  },
+  {
+    id: 'recipe_savoury_cottage_chickpea_cup',
+    name: 'Savoury Cottage Chickpea Cup',
+    mealType: 'snack',
+    servings: 1,
+    description: 'A no-cook cottage cheese cup with chickpeas, cucumber, tomato, lemon, and herbs.',
+    nutrition: { calories: 250, proteinG: 25, carbsG: 18, fatG: 9 },
+    prepMinutes: 9,
+    cookMinutes: 0,
+    ingredients: [
+      ['low-fat cottage cheese', 0.75, 'cup'],
+      ['canned chickpeas', 0.33, 'cup', 'drained'],
+      ['cucumber', 0.33, 'medium', 'diced'],
+      ['cherry tomatoes', 0.5, 'cup', 'quartered'],
+      ['lemon juice', 1, 'tsp'],
+      ['pumpkin seeds', 1, 'tbsp'],
+      ['fresh parsley', 1, 'tbsp', 'chopped'],
+    ],
+    steps: [
+      ['Spoon the cottage cheese into a serving cup and level the surface without pressing it down.', 1, [0], 'Cottage cheese remains light and textured.'],
+      ['Pat the chickpeas dry, then mix them with cucumber, tomatoes, and lemon juice.', 3, [1, 2, 3, 4], 'Vegetables look bright with no watery pool.'],
+      ['Pile the chickpea mixture over the cottage cheese so each spoonful can catch both layers.', 2, [0, 1, 2, 3], 'Topping sits evenly across the cup.'],
+      ['Finish with pumpkin seeds and chopped parsley immediately before serving.', 1, [5, 6], 'Seeds stay crisp and parsley stays bright.'],
+    ],
+    substitutions: ['Use thick dairy-free yogurt for a plant-based base.'],
+    dietaryTags: ['vegetarian', 'gluten-free'],
   },
 ];
 

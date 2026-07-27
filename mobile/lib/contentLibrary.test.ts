@@ -230,6 +230,24 @@ test('workout plans respect selected training days and weekly priority', () => {
   assert.ok(strengthWeek.every((session) => /hinge|push|pull|squat|legs/i.test(session.focus)));
 });
 
+test('yoga plans use stretching flows, level-safe poses, and existing visuals', () => {
+  const sessions = buildWorkoutPlan({
+    category: 'yoga',
+    level: 'steady',
+    durationMinutes: 40,
+    daysPerWeek: 4,
+    weeklyFocus: 'mobility',
+    seed: '2026-07-27',
+  });
+  const exercises = sessions.flatMap((session) => session.exercises);
+
+  assert.equal(sessions.length, 4);
+  assert.ok(sessions.every((session) => /mobility|hips|spine|reset|unwind/i.test(`${session.title} ${session.focus}`)));
+  assert.ok(exercises.every((exercise) => !exercise.prescription.includes('sets')));
+  assert.ok(exercises.every((exercise) => workoutVisualOrder.includes(exercise.visualId as (typeof workoutVisualOrder)[number])));
+  assert.ok(exercises.some((exercise) => /pose|fold|lunge|dog|flow/i.test(exercise.name)));
+});
+
 test('workout generation is stable per week but rotates with a new seed', () => {
   const first = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });
   const repeated = buildWorkoutPlan({ category: 'gym', level: 'advanced', durationMinutes: 40, seed: '2026-07-06' });

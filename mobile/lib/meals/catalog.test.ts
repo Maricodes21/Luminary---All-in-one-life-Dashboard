@@ -12,7 +12,7 @@ test('catalog contains at least 12 recipes for every meal type', () => {
     assert.ok(recipes.length >= 12, `${mealType} has only ${recipes.length} recipes`);
   }
 
-  assert.ok(recipeCatalog.length >= 48);
+  assert.ok(recipeCatalog.length >= 56);
 });
 
 test('catalog recipe IDs are stable and unique', () => {
@@ -95,4 +95,11 @@ test('every plan-ready recipe has an exact image URL or a deliberate absent stat
       assert.ok(recipe.image.reason.trim().length >= 16, recipe.id);
     }
   }
+});
+
+test('catalog exposes preparation methods and enough air-fryer variety for planning', () => {
+  assert.ok(recipeCatalog.every((recipe) => recipe.preparationMethods.length > 0));
+  assert.ok(recipeCatalog.filter((recipe) => recipe.preparationMethods.includes('air-fryer')).length >= 4);
+  assert.ok(recipeCatalog.some((recipe) => recipe.preparationMethods.includes('slow-cooker')));
+  assert.ok(recipeCatalog.some((recipe) => recipe.preparationMethods.includes('no-cook')));
 });

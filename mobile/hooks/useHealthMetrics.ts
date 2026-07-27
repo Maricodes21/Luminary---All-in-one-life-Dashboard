@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 
-export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym';
+export type WorkoutCategory = 'calisthenics' | 'cardio' | 'cycling' | 'gym' | 'yoga';
 
 export type HealthWorkout = {
   id: string;

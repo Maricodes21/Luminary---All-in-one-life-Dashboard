@@ -72,6 +72,7 @@ export const workoutExercises: Record<WorkoutPlan['category'], ExercisePreset[]>
   cardio: exercisesFor('cardio'),
   cycling: exercisesFor('cycling'),
   gym: exercisesFor('gym'),
+  yoga: exercisesFor('yoga'),
 };
 
 export const exerciseAlternates = ['Step-ups', 'Band row', 'Dead bug', 'Incline press', 'Bike intervals'];

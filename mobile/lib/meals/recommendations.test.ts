@@ -60,6 +60,36 @@ test('weekly catalog plan stays within daily targets and uses valid recipe IDs',
   assert.ok(plan.entries.every((entry) => recipeCatalog.some((recipe) => recipe.id === entry.recipeId)));
 });
 
+test('weekly plans prioritize the chosen cooking method without repeating meals', () => {
+  const plan = buildCatalogPlan({
+    recipes: recipeCatalog,
+    profile,
+    target,
+    weekOf: '2026-07-27',
+    options: {
+      days: 7,
+      mealTypes: ['breakfast', 'lunch', 'dinner'],
+      includeSnack: true,
+      preparationMethods: ['air-fryer'],
+    },
+  });
+  const selectedRecipes = plan.entries.map((entry) => recipeCatalog.find((recipe) => recipe.id === entry.recipeId)).filter(Boolean);
+
+  assert.match(plan.title, /Air fryer/i);
+  assert.ok(selectedRecipes.filter((recipe) => recipe?.preparationMethods.includes('air-fryer')).length >= 4);
+  for (const mealType of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
+    const ids = plan.entries.filter((entry) => entry.mealType === mealType).map((entry) => entry.recipeId);
+    assert.equal(new Set(ids).size, ids.length, `${mealType} repeats inside one week`);
+  }
+});
+
+test('slow-cooker recipes use hands-on prep time against the user limit', () => {
+  const slowCookerRecipe = recipeCatalog.find((recipe) => recipe.preparationMethods.includes('slow-cooker'));
+  assert.ok(slowCookerRecipe);
+  assert.ok((slowCookerRecipe.prepMinutes + slowCookerRecipe.cookMinutes) > (profile.maxPrepMinutes ?? 0));
+  assert.equal(isRecipeAllowed(slowCookerRecipe, profile), true);
+});
+
 test('allergy and diet constraints remove invalid recipes before ranking', () => {
   const veganNutFree = { ...profile, dietaryPreferences: ['vegan'], foodAllergies: ['peanut', 'almond', 'walnut', 'cashew', 'pistachio'] };
   const plan = buildCatalogPlan({ recipes: recipeCatalog, profile: veganNutFree, target, weekOf: '2026-07-13', options: { days: 3, mealTypes: ['breakfast', 'lunch', 'dinner'], includeSnack: false } });
