@@ -18,6 +18,7 @@ import {
   type WorkoutSession,
 } from '@/lib/workoutPlanning';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
+import { useGuidedWorkoutStore } from '@/stores/useGuidedWorkoutStore';
 
 type HealthView = 'today' | 'setup' | 'plan';
 type OutsideMode = Extract<WorkoutPlan['category'], 'cardio' | 'cycling'>;
@@ -39,6 +40,7 @@ export default function HealthScreen() {
   const workoutLogs = useProductionStore((state) => state.workoutLogs);
   const createWorkoutPlan = useProductionStore((state) => state.createWorkoutPlan);
   const completeWorkout = useProductionStore((state) => state.completeWorkout);
+  const startGuidedWorkout = useGuidedWorkoutStore((state) => state.startWorkout);
   const latestPlan = workoutPlans[0];
 
   const [view, setView] = useState<HealthView>('today');
@@ -65,7 +67,7 @@ export default function HealthScreen() {
     [category, durationMinutes, level, selectedWeekdays.length, weeklyFocus],
   );
   const planSessions = useMemo(() => {
-    if (hasCurrentWorkoutSessions(latestPlan?.sessions)) return latestPlan.sessions;
+    if (hasCurrentWorkoutSessions(latestPlan?.sessions)) return normalizeWorkoutVisuals(latestPlan.sessions);
     if (!latestPlan) return previewSessions;
     return buildWorkoutPlan({
       category: latestPlan.category,
@@ -171,6 +173,19 @@ export default function HealthScreen() {
     setView('today');
   };
 
+  const onStartWorkout = (session: WorkoutSession) => {
+    const resolvedSession: WorkoutSession = {
+      ...session,
+      exercises: session.exercises.map((exercise) => {
+        const replacement = replacements[`${session.id}:${exercise.id}`];
+        return replacement ? { ...replacement, alternatives: exercise.alternatives } : exercise;
+      }),
+    };
+    startGuidedWorkout({ planId: latestPlan?.id, session: resolvedSession, category: planCategory });
+    setWorkoutOpen(false);
+    router.push('/health/workout');
+  };
+
   return (
     <>
       <ScrollView
@@ -266,7 +281,8 @@ export default function HealthScreen() {
           <Text style={[type.bodyMd, styles.primaryText, styles.copyTop]}>{shownSession.progression}</Text>
           <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>{shownSession.cooldown}</Text>
         </Card>
-        <PrimaryButton label="Complete workout" onPress={() => onCompleteWorkout(shownSession)} />
+        <PrimaryButton label="Start workout" onPress={() => onStartWorkout(shownSession)} />
+        <SecondaryButton label="Mark complete" onPress={() => onCompleteWorkout(shownSession)} />
       </ActionSheet>
     </>
   );
@@ -804,6 +820,20 @@ function hasCurrentWorkoutSessions(sessions: WorkoutSession[] | undefined): sess
     typeof exercise.visualId === 'string'
     && exercise.alternatives.every((alternative) => typeof alternative === 'object' && typeof alternative.visualId === 'string'),
   )));
+}
+
+function normalizeWorkoutVisuals(sessions: WorkoutSession[]) {
+  return sessions.map((session) => ({
+    ...session,
+    exercises: session.exercises.map((exercise) => ({
+      ...exercise,
+      visualId: exercise.id.startsWith('yoga_') ? exercise.id : exercise.visualId,
+      alternatives: exercise.alternatives.map((alternative) => ({
+        ...alternative,
+        visualId: alternative.id.startsWith('yoga_') ? alternative.id : alternative.visualId,
+      })),
+    })),
+  }));
 }
 
 function currentWeekDates() {

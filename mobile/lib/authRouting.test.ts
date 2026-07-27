@@ -45,6 +45,10 @@ test('auth routing waits for profile resolution instead of restarting onboarding
   );
 });
 
+test('completed onboarding can remain in a guided health workout', () => {
+  assert.equal(routeForAuthState({ hasSession: true, onboardingStatus: 'complete', firstSegment: 'health' }), null);
+});
+
 test('Spotify app returns resume the persisted onboarding step', () => {
   assert.equal(
     routeForAuthState({

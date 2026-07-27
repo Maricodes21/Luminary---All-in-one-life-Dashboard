@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -15,6 +15,7 @@ export type MealCardAction = {
 export type MealCardProps = {
   title: string;
   imageUri?: string;
+  imageSource?: ImageSourcePropType;
   nutrition?: NutritionValues | null;
   detail: string;
   onPress?: () => void;
@@ -23,7 +24,7 @@ export type MealCardProps = {
   actions?: MealCardAction[];
 };
 
-export function MealCard({ title, imageUri, nutrition, detail, onPress, onEdit, onDelete, actions = [] }: MealCardProps) {
+export function MealCard({ title, imageUri, imageSource, nutrition, detail, onPress, onEdit, onDelete, actions = [] }: MealCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
   const suppliedActions = actions.slice(0, 3);
   const visibleActions: MealCardAction[] = suppliedActions.length ? suppliedActions : [
@@ -31,13 +32,13 @@ export function MealCard({ title, imageUri, nutrition, detail, onPress, onEdit, 
     ...(onDelete ? [{ icon: 'trash' as const, label: `Delete ${title}`, onPress: onDelete, tone: 'danger' as const }] : []),
   ];
 
-  useEffect(() => setImageFailed(false), [imageUri]);
+  useEffect(() => setImageFailed(false), [imageSource, imageUri]);
 
   return (
     <View style={styles.card}>
       <Pressable onPress={onPress} disabled={!onPress} style={styles.main} accessibilityRole={onPress ? 'button' : undefined}>
-        {imageUri && !imageFailed ? (
-          <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" onError={() => setImageFailed(true)} />
+        {(imageSource || imageUri) && !imageFailed ? (
+          <Image source={imageSource ?? { uri: imageUri! }} style={styles.image} resizeMode="cover" onError={() => setImageFailed(true)} />
         ) : (
           <View style={[styles.image, styles.imageFallback]}><Icon name="meals" size={23} color={palette.onSurfaceVariant} /></View>
         )}

@@ -11,7 +11,8 @@ import {
 import { getDailyFocusNote } from './dailyFocus';
 import { getHabitIconName } from './habitIcons';
 import { buildMealPlanDay, buildMealPlanWeek, buildWorkoutDays, coerceMealPlanSlot } from './planning';
-import { workoutVisualOrder } from './exerciseVisualManifest';
+import { getWorkoutVisualPosition, workoutVisualOrder } from './exerciseVisualManifest';
+import { buildGuidedWorkoutSteps } from './guidedWorkout';
 import { buildWorkoutPlan, getWorkoutCatalogSize, getWorkoutVisualIds } from './workoutPlanning';
 
 test('meal search returns local and provider-backed options with attribution', () => {
@@ -246,6 +247,21 @@ test('yoga plans use stretching flows, level-safe poses, and existing visuals', 
   assert.ok(exercises.every((exercise) => !exercise.prescription.includes('sets')));
   assert.ok(exercises.every((exercise) => workoutVisualOrder.includes(exercise.visualId as (typeof workoutVisualOrder)[number])));
   assert.ok(exercises.some((exercise) => /pose|fold|lunge|dog|flow/i.test(exercise.name)));
+  assert.deepEqual(getWorkoutVisualPosition('yoga_cat_cow'), { atlas: 10, row: 0, column: 0 });
+  assert.deepEqual(getWorkoutVisualPosition('yoga_chair'), { atlas: 11, row: 0, column: 0 });
+});
+
+test('guided workouts turn timed work, sets, rests, warmup, and cooldown into a playable sequence', () => {
+  const strength = buildWorkoutPlan({ category: 'gym', level: 'steady', durationMinutes: 40, daysPerWeek: 1, weeklyFocus: 'strength', seed: '2026-08-03' })[0];
+  const yoga = buildWorkoutPlan({ category: 'yoga', level: 'steady', durationMinutes: 25, daysPerWeek: 1, weeklyFocus: 'mobility', seed: '2026-08-03' })[0];
+  assert.ok(strength && yoga);
+  const strengthSteps = buildGuidedWorkoutSteps(strength);
+  const yogaSteps = buildGuidedWorkoutSteps(yoga);
+  assert.equal(strengthSteps[0]?.kind, 'warmup');
+  assert.equal(strengthSteps.at(-1)?.kind, 'cooldown');
+  assert.ok(strengthSteps.some((step) => step.kind === 'exercise' && step.mode === 'manual' && (step.totalSets ?? 0) >= 2));
+  assert.ok(strengthSteps.some((step) => step.kind === 'rest' && step.durationSeconds === 30));
+  assert.ok(yogaSteps.some((step) => step.kind === 'exercise' && step.mode === 'timer'));
 });
 
 test('workout generation is stable per week but rotates with a new seed', () => {
@@ -263,7 +279,10 @@ test('workout catalog supports week-wide variety and complete local visual mappi
   const scheduledIds = new Set(scheduled.map((exercise) => exercise.id));
 
   assert.ok(getWorkoutCatalogSize() >= 140);
-  assert.deepEqual(getWorkoutVisualIds(), [...workoutVisualOrder]);
+  assert.deepEqual(
+    [...getWorkoutVisualIds()].sort(),
+    [...workoutVisualOrder].sort(),
+  );
   assert.equal(scheduledIds.size, scheduled.length);
   assert.ok(scheduled.every((exercise) => exercise.visualId === exercise.id));
   assert.ok(scheduled.every((exercise) => exercise.alternatives.length > 0));

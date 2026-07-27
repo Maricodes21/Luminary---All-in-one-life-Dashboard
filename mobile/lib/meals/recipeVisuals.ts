@@ -1,0 +1,83 @@
+import type { ImageSourcePropType } from 'react-native';
+
+const sources = {
+  recipe_berry_overnight_oats: require('../../assets/meals/generated/recipe_berry_overnight_oats.jpg'),
+  recipe_spinach_feta_egg_wrap: require('../../assets/meals/generated/recipe_spinach_feta_egg_wrap.jpg'),
+  recipe_banana_peanut_smoothie: require('../../assets/meals/generated/recipe_banana_peanut_smoothie.jpg'),
+  recipe_apple_cinnamon_porridge: require('../../assets/meals/generated/recipe_apple_cinnamon_porridge.jpg'),
+  recipe_mushroom_tomato_omelette: require('../../assets/meals/generated/recipe_mushroom_tomato_omelette.jpg'),
+  recipe_yogurt_granola_bowl: require('../../assets/meals/generated/recipe_yogurt_granola_bowl.jpg'),
+  recipe_avocado_cottage_toast: require('../../assets/meals/generated/recipe_avocado_cottage_toast.jpg'),
+  recipe_white_bean_shakshuka: require('../../assets/meals/generated/recipe_white_bean_shakshuka.jpg'),
+  recipe_mango_chia_pudding: require('../../assets/meals/generated/recipe_mango_chia_pudding.jpg'),
+  recipe_breakfast_quinoa_bowl: require('../../assets/meals/generated/recipe_breakfast_quinoa_bowl.jpg'),
+  recipe_smoked_salmon_bagel: require('../../assets/meals/generated/recipe_smoked_salmon_bagel.jpg'),
+  recipe_sweet_potato_breakfast_hash: require('../../assets/meals/generated/recipe_sweet_potato_breakfast_hash.jpg'),
+  recipe_chicken_hummus_wrap: require('../../assets/meals/generated/recipe_chicken_hummus_wrap.jpg'),
+  recipe_lentil_roast_vegetable_salad: require('../../assets/meals/generated/recipe_lentil_roast_vegetable_salad.jpg'),
+  recipe_tuna_white_bean_salad: require('../../assets/meals/generated/recipe_tuna_white_bean_salad.jpg'),
+  recipe_turkey_pesto_pasta: require('../../assets/meals/generated/recipe_turkey_pesto_pasta.jpg'),
+  recipe_falafel_couscous_bowl: require('../../assets/meals/generated/recipe_falafel_couscous_bowl.jpg'),
+  recipe_beef_broccoli_rice_bowl: require('../../assets/meals/generated/recipe_beef_broccoli_rice_bowl.jpg'),
+  recipe_caprese_chickpea_sandwich: require('../../assets/meals/generated/recipe_caprese_chickpea_sandwich.jpg'),
+  recipe_tofu_soba_salad: require('../../assets/meals/generated/recipe_tofu_soba_salad.jpg'),
+  recipe_chicken_quinoa_soup: require('../../assets/meals/generated/recipe_chicken_quinoa_soup.jpg'),
+  recipe_salmon_potato_salad: require('../../assets/meals/generated/recipe_salmon_potato_salad.jpg'),
+  recipe_black_bean_burrito_bowl: require('../../assets/meals/generated/recipe_black_bean_burrito_bowl.jpg'),
+  recipe_vegetable_egg_fried_rice: require('../../assets/meals/generated/recipe_vegetable_egg_fried_rice.jpg'),
+  recipe_lemon_herb_chicken_potatoes: require('../../assets/meals/generated/recipe_lemon_herb_chicken_potatoes.jpg'),
+  recipe_tomato_lentil_pasta: require('../../assets/meals/generated/recipe_tomato_lentil_pasta.jpg'),
+  recipe_salmon_roast_vegetable_couscous: require('../../assets/meals/generated/recipe_salmon_roast_vegetable_couscous.jpg'),
+  recipe_turkey_meatballs_polenta: require('../../assets/meals/generated/recipe_turkey_meatballs_polenta.jpg'),
+  recipe_tofu_coconut_vegetable_curry: require('../../assets/meals/generated/recipe_tofu_coconut_vegetable_curry.jpg'),
+  recipe_beef_mushroom_stroganoff: require('../../assets/meals/generated/recipe_beef_mushroom_stroganoff.jpg'),
+  recipe_chickpea_spinach_curry: require('../../assets/meals/generated/recipe_chickpea_spinach_curry.jpg'),
+  recipe_chicken_mediterranean_tray_bake: require('../../assets/meals/generated/recipe_chicken_mediterranean_tray_bake.jpg'),
+  recipe_pork_apple_cabbage: require('../../assets/meals/generated/recipe_pork_apple_cabbage.jpg'),
+  recipe_cod_tomato_olive_bake: require('../../assets/meals/generated/recipe_cod_tomato_olive_bake.jpg'),
+  recipe_aubergine_spinach_lasagna: require('../../assets/meals/generated/recipe_aubergine_spinach_lasagna.jpg'),
+  recipe_turkey_three_bean_chili: require('../../assets/meals/generated/recipe_turkey_three_bean_chili.jpg'),
+  recipe_apple_peanut_yogurt_cup: require('../../assets/meals/generated/recipe_apple_peanut_yogurt_cup.jpg'),
+  recipe_cottage_cheese_cucumber_crackers: require('../../assets/meals/generated/recipe_cottage_cheese_cucumber_crackers.jpg'),
+  recipe_smoky_roasted_chickpeas: require('../../assets/meals/generated/recipe_smoky_roasted_chickpeas.jpg'),
+  recipe_berry_kefir_smoothie: require('../../assets/meals/generated/recipe_berry_kefir_smoothie.jpg'),
+  recipe_egg_avocado_snack_cup: require('../../assets/meals/generated/recipe_egg_avocado_snack_cup.jpg'),
+  recipe_apricot_almond_trail_mix: require('../../assets/meals/generated/recipe_apricot_almond_trail_mix.jpg'),
+  recipe_hummus_vegetable_pita: require('../../assets/meals/generated/recipe_hummus_vegetable_pita.jpg'),
+  recipe_cocoa_chia_oat_bites: require('../../assets/meals/generated/recipe_cocoa_chia_oat_bites.jpg'),
+  recipe_tuna_cucumber_boats: require('../../assets/meals/generated/recipe_tuna_cucumber_boats.jpg'),
+  recipe_baked_pear_ricotta: require('../../assets/meals/generated/recipe_baked_pear_ricotta.jpg'),
+  recipe_edamame_corn_cup: require('../../assets/meals/generated/recipe_edamame_corn_cup.jpg'),
+  recipe_banana_oat_muffins: require('../../assets/meals/generated/recipe_banana_oat_muffins.jpg'),
+  recipe_air_fryer_egg_potato_cups: require('../../assets/meals/generated/recipe_air_fryer_egg_potato_cups.jpg'),
+  recipe_mango_cottage_breakfast_bowl: require('../../assets/meals/generated/recipe_mango_cottage_breakfast_bowl.jpg'),
+  recipe_air_fryer_chicken_pita: require('../../assets/meals/generated/recipe_air_fryer_chicken_pita.jpg'),
+  recipe_one_pan_lemon_chickpea_couscous: require('../../assets/meals/generated/recipe_one_pan_lemon_chickpea_couscous.jpg'),
+  recipe_air_fryer_salmon_sweet_potato: require('../../assets/meals/generated/recipe_air_fryer_salmon_sweet_potato.jpg'),
+  recipe_slow_cooker_turkey_bean_chili: require('../../assets/meals/generated/recipe_slow_cooker_turkey_bean_chili.jpg'),
+  recipe_air_fryer_cinnamon_apple_crunch: require('../../assets/meals/generated/recipe_air_fryer_cinnamon_apple_crunch.jpg'),
+  recipe_savoury_cottage_chickpea_cup: require('../../assets/meals/generated/recipe_savoury_cottage_chickpea_cup.jpg'),
+  recipe_air_fryer_berry_oat_cups: require('../../assets/meals/generated/recipe_air_fryer_berry_oat_cups.jpg'),
+  recipe_air_fryer_breakfast_quesadilla: require('../../assets/meals/generated/recipe_air_fryer_breakfast_quesadilla.jpg'),
+  recipe_air_fryer_tofu_breakfast_pockets: require('../../assets/meals/generated/recipe_air_fryer_tofu_breakfast_pockets.jpg'),
+  recipe_air_fryer_crispy_tofu_rice_bowl: require('../../assets/meals/generated/recipe_air_fryer_crispy_tofu_rice_bowl.jpg'),
+  recipe_air_fryer_turkey_courgette_patties: require('../../assets/meals/generated/recipe_air_fryer_turkey_courgette_patties.jpg'),
+  recipe_air_fryer_falafel_pita_melts: require('../../assets/meals/generated/recipe_air_fryer_falafel_pita_melts.jpg'),
+  recipe_air_fryer_harissa_chicken_couscous: require('../../assets/meals/generated/recipe_air_fryer_harissa_chicken_couscous.jpg'),
+  recipe_air_fryer_beef_kofta_flatbread: require('../../assets/meals/generated/recipe_air_fryer_beef_kofta_flatbread.jpg'),
+  recipe_air_fryer_miso_tofu_tray: require('../../assets/meals/generated/recipe_air_fryer_miso_tofu_tray.jpg'),
+  recipe_air_fryer_spiced_banana_bites: require('../../assets/meals/generated/recipe_air_fryer_spiced_banana_bites.jpg'),
+  recipe_air_fryer_parmesan_courgette_coins: require('../../assets/meals/generated/recipe_air_fryer_parmesan_courgette_coins.jpg'),
+  recipe_air_fryer_chickpea_crunch_mix: require('../../assets/meals/generated/recipe_air_fryer_chickpea_crunch_mix.jpg'),
+} as const satisfies Record<string, ImageSourcePropType>;
+
+export function getRecipeVisualSource(recipeId?: string): ImageSourcePropType | undefined {
+  if (!recipeId || !(recipeId in sources)) return undefined;
+  return sources[recipeId as keyof typeof sources];
+}
+
+export function hasRecipeVisual(recipeId: string) {
+  return recipeId in sources;
+}
+
+export const recipeVisualIds = Object.freeze(Object.keys(sources));

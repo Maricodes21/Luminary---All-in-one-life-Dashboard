@@ -16,6 +16,7 @@ export function createEmptyMealsUser(): MealsUserData {
     targets: {},
     meals: [],
     plans: [],
+    planHistory: [],
     syncQueue: [],
     undo: null,
   };
@@ -177,9 +178,21 @@ export function replacePlansForUser(
     .map((plan) => plan.id)
     .filter((planId) => !replacementIds.has(planId));
 
+  const previousEntries = current.plans.flatMap((plan) => plan.entries.map((entry) => ({
+    recipeId: entry.recipeId,
+    mealType: entry.mealType,
+    plannedFor: entry.localDate,
+    generatedAt: plan.createdAt,
+  }))).filter((entry): entry is { recipeId: string; mealType: MealPlan['entries'][number]['mealType']; plannedFor: string; generatedAt: string } => !!entry.recipeId);
+  const history = [...(current.planHistory ?? []), ...previousEntries]
+    .filter((entry, index, entries) => entries.findIndex((candidate) => candidate.recipeId === entry.recipeId && candidate.plannedFor === entry.plannedFor) === index)
+    .sort((left, right) => right.plannedFor.localeCompare(left.plannedFor))
+    .slice(0, 180);
+
   return {
     ...current,
     plans,
+    planHistory: history,
     syncQueue: [
       ...current.syncQueue,
       ...(supersededIds.length > 0

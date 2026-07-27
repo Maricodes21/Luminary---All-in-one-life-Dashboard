@@ -10,6 +10,7 @@ import { getRecipeById } from '@/lib/meals/catalog';
 import { localDateKey, mealWindowFor } from '@/lib/meals/dates';
 import { makeUuid } from '@/lib/meals/state';
 import { recipeImageUri } from '@/lib/meals/recipeImages';
+import { getRecipeVisualSource } from '@/lib/meals/recipeVisuals';
 import type { CatalogRecipe } from '@/lib/meals/catalog';
 import type { Recipe } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
@@ -25,7 +26,8 @@ export default function RecipeDetailScreen() {
   const addMeal = useMealsStore((state) => state.addMeal);
   const [checked, setChecked] = useState<Set<string>>(() => new Set());
   const [imageFailed, setImageFailed] = useState(false);
-  const imageMatch = useRecipeImage({ name: recipe?.name ?? '', imageUri: recipe ? recipeImageUri(recipe) : undefined });
+  const localImageSource = getRecipeVisualSource(recipe?.id);
+  const imageMatch = useRecipeImage({ name: recipe?.name ?? '', imageUri: recipe ? recipeImageUri(recipe) : undefined }, !!localImageSource);
   const displayImageUri = imageMatch?.uri;
   const ingredientRows = useMemo(() => recipe?.ingredients ?? [], [recipe]);
   const instructionRows = useMemo(() => recipe?.steps ?? [], [recipe]);
@@ -49,8 +51,8 @@ export default function RecipeDetailScreen() {
   return (
     <MealScreen title={recipe.name} subtitle={`${recipeDuration(recipe)} min / ${recipe.servings} ${recipe.servings === 1 ? 'serving' : 'servings'}`}>
       <View style={styles.hero}>
-        {displayImageUri && !imageFailed
-          ? <Image source={{ uri: displayImageUri }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setImageFailed(true)} accessibilityLabel={recipe.name} />
+        {(localImageSource || displayImageUri) && !imageFailed
+          ? <Image source={localImageSource ?? { uri: displayImageUri! }} style={StyleSheet.absoluteFill} resizeMode="cover" onError={() => setImageFailed(true)} accessibilityLabel={recipe.name} />
           : <Icon name="meals" size={34} color={palette.onSurfaceVariant} />}
       </View>
       {imageMatch?.sourceUrl && imageMatch.creator ? (

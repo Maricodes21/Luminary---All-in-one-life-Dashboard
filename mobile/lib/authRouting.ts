@@ -43,7 +43,7 @@ export function routeForAuthState(input: {
     return `/onboarding/${input.resumeStep ?? 'welcome'}`;
   }
 
-  const allowed = input.firstSegment === '(tabs)' || input.firstSegment === 'ritual' || input.firstSegment === 'settings' || input.firstSegment === 'meals' || input.firstSegment === 'habits';
+  const allowed = input.firstSegment === '(tabs)' || input.firstSegment === 'ritual' || input.firstSegment === 'settings' || input.firstSegment === 'meals' || input.firstSegment === 'habits' || input.firstSegment === 'health';
   return allowed ? null : '/(tabs)';
 }
 

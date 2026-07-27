@@ -4,7 +4,7 @@ import test from 'node:test';
 import type { CatalogRecipe } from './catalog';
 import { recipeCatalog } from './catalog';
 import { buildCatalogPlan, isRecipeAllowed, recommendForNow } from './recommendations';
-import type { DailyNutritionTarget, MealLogRecord, NutritionProfile } from './types';
+import type { DailyNutritionTarget, MealLogRecord, MealPlanHistoryEntry, NutritionProfile } from './types';
 
 const profile: NutritionProfile = {
   dateOfBirth: '1994-05-20', biologicalSex: 'female', activityLevel: 'moderate', goal: 'maintain',
@@ -80,6 +80,32 @@ test('weekly plans prioritize the chosen cooking method without repeating meals'
   for (const mealType of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
     const ids = plan.entries.filter((entry) => entry.mealType === mealType).map((entry) => entry.recipeId);
     assert.equal(new Set(ids).size, ids.length, `${mealType} repeats inside one week`);
+  }
+});
+
+test('preferred cooking methods are spread across the week instead of front-loaded', () => {
+  const plan = buildCatalogPlan({ recipes: recipeCatalog, profile, target, weekOf: '2026-08-03', options: { days: 7, mealTypes: ['breakfast', 'lunch', 'dinner'], includeSnack: true, preparationMethods: ['air-fryer'], preparationBalance: 'spread' } });
+  const methodCounts = [...new Set(plan.entries.map((entry) => entry.localDate))].map((date) => plan.entries
+    .filter((entry) => entry.localDate === date)
+    .filter((entry) => recipeCatalog.find((recipe) => recipe.id === entry.recipeId)?.preparationMethods.includes('air-fryer')).length);
+  assert.ok(methodCounts.every((count) => count >= 1 && count <= 2), methodCounts.join(','));
+});
+
+test('four consecutive weeks remember recent meals and keep rotating the catalog', () => {
+  const history: MealPlanHistoryEntry[] = [];
+  const idsByType = new Map<string, Set<string>>();
+  for (const weekOf of ['2026-08-03', '2026-08-10', '2026-08-17', '2026-08-24']) {
+    const plan = buildCatalogPlan({ recipes: recipeCatalog, profile, target, weekOf, options: { days: 7, mealTypes: ['breakfast', 'lunch', 'dinner'], includeSnack: true, preparationMethods: ['air-fryer', 'one-pan'], preparationBalance: 'spread' }, history });
+    for (const entry of plan.entries) {
+      const values = idsByType.get(entry.mealType) ?? new Set<string>();
+      if (entry.recipeId) values.add(entry.recipeId);
+      idsByType.set(entry.mealType, values);
+      if (entry.recipeId) history.push({ recipeId: entry.recipeId, mealType: entry.mealType, plannedFor: entry.localDate, generatedAt: plan.createdAt });
+    }
+  }
+  for (const mealType of ['breakfast', 'lunch', 'dinner', 'snack'] as const) {
+    const eligible = recipeCatalog.filter((recipe) => recipe.mealType === mealType && isRecipeAllowed(recipe, profile)).length;
+    assert.ok((idsByType.get(mealType)?.size ?? 0) >= Math.min(16, Math.ceil(eligible * 0.8)), `${mealType} did not rotate enough`);
   }
 });
 

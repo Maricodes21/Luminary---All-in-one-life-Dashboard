@@ -207,6 +207,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="habits" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="health" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="spotify-callback" options={{ animation: 'fade' }} />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="+not-found" />

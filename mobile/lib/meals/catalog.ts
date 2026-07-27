@@ -22,6 +22,7 @@ export type CatalogRecipeStep = Omit<RecipeStep, 'durationMinutes'> & {
 
 export type CatalogRecipeImage =
   | { kind: 'exact'; uri: string; alt: string }
+  | { kind: 'bundled'; assetKey: string; alt: string }
   | { kind: 'absent'; reason: string };
 
 type CatalogRecipeCore = Omit<Recipe, 'source' | 'nutrition' | 'ingredients' | 'steps' | 'imageUri'> & {
@@ -39,6 +40,7 @@ type CatalogRecipeCore = Omit<Recipe, 'source' | 'nutrition' | 'ingredients' | '
 export type CatalogRecipe = CatalogRecipeCore &
   (
     | { image: Extract<CatalogRecipeImage, { kind: 'exact' }>; imageUri: string }
+    | { image: Extract<CatalogRecipeImage, { kind: 'bundled' }>; imageUri?: never }
     | { image: Extract<CatalogRecipeImage, { kind: 'absent' }>; imageUri?: never }
   );
 
@@ -110,8 +112,9 @@ function buildRecipe(definition: RecipeDefinition): CatalogRecipe {
     preparationMethods: inferPreparationMethods(definition),
     planReady: true,
     image: {
-      kind: 'absent',
-      reason: `No verified exact image is available for ${definition.name}.`,
+      kind: 'bundled',
+      assetKey: definition.id,
+      alt: `${definition.name}, prepared and ready to serve`,
     },
   };
 }
@@ -1690,6 +1693,150 @@ const recipeDefinitions: readonly RecipeDefinition[] = [
     ],
     substitutions: ['Use thick dairy-free yogurt for a plant-based base.'],
     dietaryTags: ['vegetarian', 'gluten-free'],
+  },
+  {
+    id: 'recipe_air_fryer_berry_oat_cups', name: 'Air-Fryer Berry Oat Cups', mealType: 'breakfast', servings: 2,
+    description: 'Soft baked oat cups with berries, banana, yogurt, and cinnamon, finished in the air fryer.',
+    nutrition: { calories: 430, proteinG: 20, carbsG: 59, fatG: 13 }, prepMinutes: 10, cookMinutes: 14,
+    ingredients: [['rolled oats', 1, 'cup'], ['banana', 1, 'medium', 'mashed'], ['egg', 1, 'large'], ['plain Greek yogurt', 0.5, 'cup'], ['mixed berries', 0.75, 'cup'], ['ground cinnamon', 0.5, 'tsp']],
+    steps: [
+      ['Stir the oats, mashed banana, egg, yogurt, and cinnamon until the mixture is evenly combined.', 4, [0, 1, 2, 3, 5], 'No dry oats remain around the edge.'],
+      ['Fold in half of the berries gently so they stay whole inside the oat mixture.', 2, [4], 'Berries are spread without crushing.'],
+      ['Divide into silicone cups, top with the remaining berries, and place them in the air fryer.', 2, [4], 'Cups are filled to the same level.'],
+      ['Air-fry until the centers spring back lightly, then rest before lifting the cups out.', 14, [], 'A tester comes out without wet batter.'],
+    ], substitutions: ['Use soy yogurt and a flax egg for a dairy-free version.'], dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_breakfast_quesadilla', name: 'Air-Fryer Breakfast Quesadilla', mealType: 'breakfast', servings: 1,
+    description: 'A crisp whole-wheat quesadilla filled with egg, black beans, spinach, tomato, and cheese.',
+    nutrition: { calories: 510, proteinG: 29, carbsG: 55, fatG: 19 }, prepMinutes: 12, cookMinutes: 9,
+    ingredients: [['whole-wheat tortilla', 1, 'large'], ['eggs', 2, 'large'], ['black beans', 0.33, 'cup'], ['baby spinach', 1, 'cup'], ['tomato', 0.5, 'medium', 'diced'], ['reduced-fat cheddar', 0.25, 'cup']],
+    steps: [
+      ['Scramble the eggs in a nonstick pan until softly set, then remove them before they become dry.', 4, [1], 'Eggs remain glossy and tender.'],
+      ['Layer spinach, beans, tomato, eggs, and cheddar over half of the tortilla.', 3, [0, 1, 2, 3, 4, 5], 'Filling stays clear of the outer edge.'],
+      ['Fold the tortilla firmly and secure it with a small air-fryer-safe rack if it starts to lift.', 1, [0], 'The folded edge stays closed.'],
+      ['Air-fry, turning once, until both sides are crisp and the cheese has fully melted.', 9, [], 'Outside is golden with no burnt spots.'],
+    ], substitutions: ['Use crumbled tofu and dairy-free cheese for a plant-based filling.'], dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_tofu_breakfast_pockets', name: 'Air-Fryer Tofu Breakfast Pockets', mealType: 'breakfast', servings: 2,
+    description: 'Warm pita pockets with turmeric tofu, pepper, mushrooms, avocado, and fresh herbs.',
+    nutrition: { calories: 470, proteinG: 25, carbsG: 52, fatG: 18 }, prepMinutes: 14, cookMinutes: 12,
+    ingredients: [['firm tofu', 250, 'g', 'crumbled'], ['whole-wheat pitas', 2, 'small'], ['red pepper', 0.5, 'large', 'diced'], ['mushrooms', 1, 'cup', 'sliced'], ['avocado', 0.5, 'medium'], ['ground turmeric', 0.5, 'tsp'], ['fresh coriander', 2, 'tbsp']],
+    steps: [
+      ['Toss the crumbled tofu with turmeric until the color is even from edge to edge.', 3, [0, 5], 'Tofu is evenly golden with no spice clumps.'],
+      ['Air-fry the tofu, pepper, and mushrooms together, stirring halfway through the cook.', 12, [0, 2, 3], 'Vegetables soften and tofu edges feel dry.'],
+      ['Warm the pitas in the basket for the final minute, then open each pocket carefully.', 1, [1], 'Pitas are flexible rather than crisp.'],
+      ['Fill with the hot tofu mixture, sliced avocado, and coriander immediately before serving.', 3, [0, 1, 2, 3, 4, 6], 'Each pocket has an even mix of filling.'],
+    ], substitutions: ['Use eggs in place of tofu if preferred.'], dietaryTags: ['vegan', 'dairy-free'],
+  },
+  {
+    id: 'recipe_air_fryer_crispy_tofu_rice_bowl', name: 'Air-Fryer Crispy Tofu Rice Bowl', mealType: 'lunch', servings: 2,
+    description: 'Crisp soy-ginger tofu over brown rice with broccoli, carrot, cucumber, and sesame.',
+    nutrition: { calories: 590, proteinG: 29, carbsG: 78, fatG: 18 }, prepMinutes: 15, cookMinutes: 16,
+    ingredients: [['firm tofu', 300, 'g', 'cubed'], ['cooked brown rice', 2, 'cups'], ['broccoli florets', 2, 'cups'], ['carrot', 1, 'large', 'shredded'], ['cucumber', 0.5, 'large', 'sliced'], ['low-sodium soy sauce', 2, 'tbsp'], ['fresh ginger', 1, 'tsp', 'grated'], ['sesame seeds', 2, 'tsp']],
+    steps: [
+      ['Coat the tofu cubes with soy sauce and ginger, then leave them briefly to absorb the seasoning.', 5, [0, 5, 6], 'Every tofu face carries a light glaze.'],
+      ['Air-fry the tofu and broccoli in one layer, shaking twice until the tofu edges are crisp.', 16, [0, 2], 'Tofu is browned and broccoli tips are toasted.'],
+      ['Warm the brown rice and divide it between bowls with carrot and cucumber alongside.', 4, [1, 3, 4], 'Hot and cool ingredients remain in sections.'],
+      ['Add the tofu and broccoli, spoon over any remaining glaze, and finish with sesame seeds.', 2, [0, 2, 5, 7], 'Seeds are spread evenly across both bowls.'],
+    ], substitutions: ['Use tamari for a gluten-free bowl.'], dietaryTags: ['vegan', 'dairy-free'],
+  },
+  {
+    id: 'recipe_air_fryer_turkey_courgette_patties', name: 'Air-Fryer Turkey Courgette Patties', mealType: 'lunch', servings: 2,
+    description: 'Herby turkey and courgette patties with couscous, tomato, cucumber, and lemon yogurt.',
+    nutrition: { calories: 560, proteinG: 43, carbsG: 58, fatG: 17 }, prepMinutes: 18, cookMinutes: 14,
+    ingredients: [['lean turkey mince', 350, 'g'], ['courgette', 1, 'medium', 'grated'], ['whole-wheat couscous', 1, 'cup', 'cooked'], ['tomato', 1, 'medium', 'diced'], ['cucumber', 0.5, 'medium', 'diced'], ['plain Greek yogurt', 0.5, 'cup'], ['lemon juice', 1, 'tbsp'], ['dried oregano', 1, 'tsp']],
+    steps: [
+      ['Squeeze excess water from the courgette, then mix it through the turkey with oregano.', 5, [0, 1, 7], 'Mixture holds together without pooling liquid.'],
+      ['Shape equal patties and air-fry them until browned outside and completely cooked through.', 14, [0, 1], 'Centers are opaque and juices run clear.'],
+      ['Combine the tomato, cucumber, and couscous while the patties rest for a few minutes.', 4, [2, 3, 4], 'Couscous stays loose and vegetables crisp.'],
+      ['Stir lemon into the yogurt and spoon it beside the patties and couscous salad.', 2, [5, 6], 'Sauce is smooth with a fresh lemon finish.'],
+    ], substitutions: ['Use chicken mince or mashed chickpeas in the patties.'], dietaryTags: ['high-protein'],
+  },
+  {
+    id: 'recipe_air_fryer_falafel_pita_melts', name: 'Air-Fryer Falafel Pita Melts', mealType: 'lunch', servings: 2,
+    description: 'Open pitas with crisp falafel, tomato, spinach, feta, and a lemon tahini drizzle.',
+    nutrition: { calories: 540, proteinG: 24, carbsG: 67, fatG: 20 }, prepMinutes: 12, cookMinutes: 13,
+    ingredients: [['prepared falafel', 8, 'small'], ['whole-wheat pitas', 2, 'small'], ['tomato', 1, 'large', 'sliced'], ['baby spinach', 2, 'cups'], ['feta', 60, 'g', 'crumbled'], ['tahini', 1, 'tbsp'], ['lemon juice', 1, 'tbsp']],
+    steps: [
+      ['Air-fry the falafel until the outside is crisp and the center is heated all the way through.', 9, [0], 'Falafel feels firm outside and hot inside.'],
+      ['Split the pitas and layer each half with spinach, tomato, falafel, and crumbled feta.', 4, [0, 1, 2, 3, 4], 'Toppings stay inside the pita edges.'],
+      ['Return the open pitas to the air fryer until the feta softens and the edges toast.', 4, [1, 4], 'Pita edges are crisp without turning brittle.'],
+      ['Whisk tahini with lemon juice and drizzle it over the warm melts just before serving.', 2, [5, 6], 'Drizzle falls in a thin, smooth ribbon.'],
+    ], substitutions: ['Use dairy-free feta to keep the melts vegan.'], dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_harissa_chicken_couscous', name: 'Air-Fryer Harissa Chicken Couscous', mealType: 'dinner', servings: 2,
+    description: 'Harissa chicken with peppers, whole-wheat couscous, chickpeas, herbs, and lemon.',
+    nutrition: { calories: 670, proteinG: 49, carbsG: 76, fatG: 19 }, prepMinutes: 16, cookMinutes: 18,
+    ingredients: [['chicken breast', 350, 'g', 'cut into strips'], ['harissa paste', 1, 'tbsp'], ['red pepper', 1, 'large', 'sliced'], ['whole-wheat couscous', 1.25, 'cups', 'cooked'], ['chickpeas', 0.75, 'cup'], ['lemon', 0.5, 'each'], ['fresh parsley', 0.25, 'cup']],
+    steps: [
+      ['Rub the chicken strips with harissa until every surface has a thin, even coating.', 3, [0, 1], 'No bare chicken patches remain.'],
+      ['Air-fry the chicken and pepper, turning once, until browned and fully cooked through.', 18, [0, 2], 'Chicken is opaque at its thickest point.'],
+      ['Fold the chickpeas and parsley through the warm couscous while the chicken rests.', 4, [3, 4, 6], 'Couscous grains stay separate and fluffy.'],
+      ['Top the couscous with chicken and pepper, then squeeze the lemon over both portions.', 2, [0, 2, 5], 'Lemon brightens the harissa without pooling.'],
+    ], substitutions: ['Use firm tofu and reduce cooking time as needed.'], dietaryTags: ['high-protein', 'dairy-free'],
+  },
+  {
+    id: 'recipe_air_fryer_beef_kofta_flatbread', name: 'Air-Fryer Beef Kofta Flatbread', mealType: 'dinner', servings: 2,
+    description: 'Spiced beef kofta with warm flatbread, chopped salad, hummus, and mint yogurt.',
+    nutrition: { calories: 710, proteinG: 45, carbsG: 69, fatG: 28 }, prepMinutes: 20, cookMinutes: 13,
+    ingredients: [['lean beef mince', 350, 'g'], ['ground cumin', 1, 'tsp'], ['whole-wheat flatbreads', 2, 'medium'], ['tomato', 1, 'large', 'diced'], ['cucumber', 0.5, 'large', 'diced'], ['hummus', 0.5, 'cup'], ['plain yogurt', 0.5, 'cup'], ['fresh mint', 2, 'tbsp', 'chopped']],
+    steps: [
+      ['Mix the beef with cumin and shape it into equal short kofta around flat skewers or by hand.', 7, [0, 1], 'Kofta are even in thickness for steady cooking.'],
+      ['Air-fry the kofta, turning once, until browned and safely cooked at the center.', 13, [0], 'Centers are cooked while the outside stays juicy.'],
+      ['Mix tomato and cucumber, then stir mint through the yogurt while the kofta rest.', 4, [3, 4, 6, 7], 'Salad is crisp and yogurt is evenly flecked.'],
+      ['Warm the flatbreads and serve them with hummus, salad, kofta, and mint yogurt.', 3, [2, 3, 4, 5, 6], 'Each plate has enough of every filling.'],
+    ], substitutions: ['Use turkey mince for a lighter kofta.'], dietaryTags: ['high-protein'],
+  },
+  {
+    id: 'recipe_air_fryer_miso_tofu_tray', name: 'Air-Fryer Miso Tofu Tray', mealType: 'dinner', servings: 2,
+    description: 'Miso-glazed tofu with sweet potato, broccoli, edamame, brown rice, and lime.',
+    nutrition: { calories: 640, proteinG: 31, carbsG: 86, fatG: 20 }, prepMinutes: 16, cookMinutes: 22,
+    ingredients: [['firm tofu', 350, 'g', 'cubed'], ['white miso paste', 1, 'tbsp'], ['sweet potato', 300, 'g', 'cubed'], ['broccoli florets', 2, 'cups'], ['shelled edamame', 1, 'cup'], ['cooked brown rice', 2, 'cups'], ['lime juice', 1, 'tbsp']],
+    steps: [
+      ['Whisk the miso with lime juice, then coat the tofu cubes with half of the glaze.', 4, [0, 1, 6], 'Tofu is thinly glazed on every side.'],
+      ['Air-fry the sweet potato until nearly tender, shaking the basket twice for even browning.', 14, [2], 'Cubes are browned outside and almost soft.'],
+      ['Add the tofu, broccoli, and edamame with the remaining glaze and continue air-frying.', 8, [0, 1, 3, 4], 'Broccoli tips char and tofu edges crisp.'],
+      ['Divide the brown rice between bowls and top with the hot tofu and vegetables.', 3, [0, 2, 3, 4, 5], 'Every bowl has a balanced mix of colors.'],
+    ], substitutions: ['Use tamari and maple syrup when miso is unavailable.'], dietaryTags: ['vegan', 'dairy-free'],
+  },
+  {
+    id: 'recipe_air_fryer_spiced_banana_bites', name: 'Air-Fryer Spiced Banana Bites', mealType: 'snack', servings: 1,
+    description: 'Warm cinnamon banana bites with oat crumbs, peanut butter, yogurt, and cacao nibs.',
+    nutrition: { calories: 280, proteinG: 11, carbsG: 37, fatG: 10 }, prepMinutes: 7, cookMinutes: 7,
+    ingredients: [['banana', 1, 'medium', 'cut into thick coins'], ['rolled oats', 2, 'tbsp'], ['ground cinnamon', 0.5, 'tsp'], ['peanut butter', 1, 'tbsp'], ['plain yogurt', 0.25, 'cup'], ['cacao nibs', 1, 'tsp']],
+    steps: [
+      ['Coat the banana coins lightly with oats and cinnamon without pressing them out of shape.', 2, [0, 1, 2], 'Every coin has a light oat crust.'],
+      ['Air-fry in one layer until the edges caramelize and the centers become warm and soft.', 7, [0], 'Banana holds its shape when lifted.'],
+      ['Stir the peanut butter through the yogurt until a loose swirl remains visible.', 2, [3, 4], 'The mixture is creamy but not fully blended.'],
+      ['Spoon the warm banana over the yogurt and finish with cacao nibs immediately.', 1, [0, 5], 'Nibs stay crisp over the warm fruit.'],
+    ], substitutions: ['Use sunflower seed butter for a peanut-free snack.'], dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_parmesan_courgette_coins', name: 'Air-Fryer Parmesan Courgette Coins', mealType: 'snack', servings: 1,
+    description: 'Crisp courgette coins with parmesan, whole-wheat crumbs, tomato dip, and herbs.',
+    nutrition: { calories: 230, proteinG: 13, carbsG: 24, fatG: 9 }, prepMinutes: 10, cookMinutes: 10,
+    ingredients: [['courgette', 1, 'medium', 'cut into coins'], ['parmesan', 0.25, 'cup', 'finely grated'], ['whole-wheat breadcrumbs', 0.25, 'cup'], ['egg white', 1, 'large'], ['tomato passata', 0.33, 'cup'], ['dried oregano', 0.5, 'tsp']],
+    steps: [
+      ['Mix parmesan, breadcrumbs, and oregano together in a shallow bowl until evenly combined.', 2, [1, 2, 5], 'Cheese and crumbs look evenly distributed.'],
+      ['Dip each courgette coin in egg white, then press both sides into the crumb mixture.', 4, [0, 3], 'Each coin has a complete thin coating.'],
+      ['Air-fry in one layer until crisp and golden, turning the coins once during cooking.', 10, [0, 1, 2], 'Coating is crisp and courgette is tender.'],
+      ['Warm the tomato passata briefly and serve it beside the hot courgette coins.', 2, [4], 'Dip is warm without reducing too thickly.'],
+    ], substitutions: ['Use nutritional yeast and plant milk for an egg-free version.'], dietaryTags: ['vegetarian'],
+  },
+  {
+    id: 'recipe_air_fryer_chickpea_crunch_mix', name: 'Air-Fryer Chickpea Crunch Mix', mealType: 'snack', servings: 2,
+    description: 'Crisp paprika chickpeas mixed with pumpkin seeds, dried apricot, popcorn, and lime.',
+    nutrition: { calories: 260, proteinG: 11, carbsG: 38, fatG: 8 }, prepMinutes: 8, cookMinutes: 14,
+    ingredients: [['canned chickpeas', 1, 'cup', 'drained and dried'], ['smoked paprika', 0.5, 'tsp'], ['pumpkin seeds', 2, 'tbsp'], ['dried apricots', 4, 'each', 'chopped'], ['plain popcorn', 2, 'cups'], ['lime juice', 1, 'tsp']],
+    steps: [
+      ['Dry the chickpeas thoroughly, then toss them with paprika until the coating looks even.', 3, [0, 1], 'Chickpeas feel dry before entering the basket.'],
+      ['Air-fry the chickpeas until crisp, shaking often so no side stays against the basket.', 14, [0], 'A cooled chickpea is crunchy at the center.'],
+      ['Mix pumpkin seeds, chopped apricots, and popcorn in a wide bowl while chickpeas cool.', 2, [2, 3, 4], 'Sweet and savoury pieces are evenly spread.'],
+      ['Add the cooled chickpeas and lime juice, toss once, and divide into two portions.', 1, [0, 5], 'The mix stays dry and crisp after tossing.'],
+    ], substitutions: ['Use sunflower seeds instead of pumpkin seeds.'], dietaryTags: ['vegan', 'dairy-free'],
   },
 ];
 

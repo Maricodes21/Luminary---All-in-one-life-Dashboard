@@ -140,6 +140,16 @@ test('replacing a plan queues deletion of superseded remote plan IDs', () => {
   assert.equal(updated.syncQueue[1]?.action, 'update');
 });
 
+test('replacing a plan remembers recent recipes for the next weekly rotation', () => {
+  const oldPlan = {
+    id: 'plan_old', weekOf: '2026-08-03', title: 'Old', createdAt: '2026-08-03T06:00:00.000Z',
+    entries: [{ id: 'entry_old', localDate: '2026-08-04', mealType: 'dinner' as const, name: 'Dinner', source: 'curated' as const, servingQuantity: 1, servingUnit: 'serving', recipeId: 'recipe_old' }],
+  };
+  const newPlan = { ...oldPlan, id: 'plan_new', entries: [], weekOf: '2026-08-10' };
+  const updated = replacePlansForUser({ ...createEmptyMealsUser(), plans: [oldPlan] }, [newPlan]);
+  assert.deepEqual(updated.planHistory, [{ recipeId: 'recipe_old', mealType: 'dinner', plannedFor: '2026-08-04', generatedAt: oldPlan.createdAt }]);
+});
+
 test('legacy import is one-way and queues records for the authenticated account', () => {
   const plan = { id: 'legacy_plan', weekOf: '2026-07-14', title: 'Imported', entries: [], createdAt: '2026-07-14T06:00:00.000Z' };
   const imported = importLegacyMealsForUser(createEmptyMealsUser(), { meals: [meal], plans: [plan] });

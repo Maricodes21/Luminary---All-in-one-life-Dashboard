@@ -82,7 +82,7 @@ test('getRecipeById returns the matching recipe and undefined for unknown IDs', 
   assert.equal(getRecipeById('recipe_not_in_catalog'), undefined);
 });
 
-test('every plan-ready recipe has an exact image URL or a deliberate absent state', () => {
+test('every plan-ready recipe has an exact or bundled image', () => {
   for (const recipe of recipeCatalog) {
     assert.equal(recipe.planReady, true, recipe.id);
 
@@ -90,10 +90,11 @@ test('every plan-ready recipe has an exact image URL or a deliberate absent stat
       assert.equal(recipe.imageUri, recipe.image.uri, recipe.id);
       assert.match(recipe.image.uri, /^https:\/\//, recipe.id);
       assert.ok(recipe.image.alt.trim().length > 0, recipe.id);
-    } else {
+    } else if (recipe.image.kind === 'bundled') {
       assert.equal(recipe.imageUri, undefined, recipe.id);
-      assert.ok(recipe.image.reason.trim().length >= 16, recipe.id);
-    }
+      assert.equal(recipe.image.assetKey, recipe.id);
+      assert.ok(recipe.image.alt.trim().length > 0, recipe.id);
+    } else assert.fail(`${recipe.id} is missing a meal image`);
   }
 });
 

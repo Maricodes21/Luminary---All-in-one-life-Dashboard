@@ -205,7 +205,7 @@ function TodayMode({ user, meals, target, totals, remainingCalories, profileStal
         </View>
         <View style={styles.cardList}>
           {meals.map((meal) => (
-            <DynamicMealCard key={meal.id} title={meal.name} imageUri={meal.imageUri} nutrition={meal.nutrition} detail={`${titleCase(meal.mealType)}  /  ${formatTime(meal.consumedAt)}`} onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal)} />
+            <DynamicMealCard key={meal.id} title={meal.name} recipeId={catalogRecipeId(meal.providerId)} imageUri={meal.imageUri} nutrition={meal.nutrition} detail={`${titleCase(meal.mealType)}  /  ${formatTime(meal.consumedAt)}`} onEdit={() => onEditMeal(meal)} onDelete={() => onDeleteMeal(meal)} />
           ))}
           {!meals.length ? <EmptyState title="Nothing logged yet" detail="Search the full food library, scan a meal, or add exactly what you know." /> : null}
         </View>
@@ -253,7 +253,7 @@ function SmartSuggestion({ user, target, remainingCalories, meals, onOpenRecipe,
         <Icon name="sparkles" size={20} color={palette.tertiary} />
         <View style={{ flex: 1, minWidth: 0 }}><SectionLabel>Suggested for right now</SectionLabel></View>
       </View>
-      {suggested.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
+      {suggested.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} recipeId={recipe.id} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${recipe.mealType}`} onPress={() => onOpenRecipe(recipe.id)} actions={[
         { icon: 'trash', label: `Not for me: ${recipe.name}`, tone: 'danger', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); setSuggestionCursor(0); recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType }); } },
         { icon: 'swap', label: `Show another ${recipe.mealType}`, onPress: () => setSuggestionCursor((current) => current + 1) },
         { icon: 'plus', label: `Log ${recipe.name}`, tone: 'primary', onPress: () => { setDismissedIds((current) => [...current, recipe.id]); recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType }); onLogRecipe(recipe.id); } },
@@ -307,7 +307,7 @@ function PlanMode({ plan, selectedDate, dates, onSelectDate, onOpenRecipe, onCre
           </ScrollView>
           <View style={styles.timeline}>
             {entries.map((entry) => (
-              <DynamicMealCard key={entry.id} title={entry.name} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
+              <DynamicMealCard key={entry.id} title={entry.name} recipeId={entry.recipeId} imageUri={entry.imageUri ?? recipeImageUri(entry)} nutrition={entry.nutrition} detail={titleCase(entry.mealType)} onPress={() => onOpenRecipe(entry)} onEdit={() => onEditEntry(entry)} />
             ))}
             {!entries.length ? <EmptyState title="This day is open" detail="Use Edit to add a meal, or leave the space for something spontaneous." /> : null}
           </View>
@@ -368,6 +368,10 @@ function weekDates(weekOf: string) {
 function formatShortDate(value: string) { return new Date(value).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
 function formatTime(value: string) { return new Date(value).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
 function titleCase(value: string) { return `${value.charAt(0).toUpperCase()}${value.slice(1)}`; }
+function catalogRecipeId(providerId?: string) {
+  const match = providerId?.match(/^luminary:(recipe_[a-z0-9_]+):\d+$/);
+  return match?.[1];
+}
 function currentTimezone() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch { return 'UTC'; } }
 
 const styles = StyleSheet.create({

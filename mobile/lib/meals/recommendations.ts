@@ -4,7 +4,7 @@ import { localDateKey, mealWindowFor } from './dates';
 import { calculateMealTotals } from './totals';
 import { makeUuid } from './state';
 import { recipeImageUri } from './recipeImages';
-import type { DailyNutritionTarget, MealLogRecord, MealPlan, MealPlanEntry, MealType, NutritionProfile } from './types';
+import type { DailyNutritionTarget, MealLogRecord, MealPlan, MealPlanEntry, MealPlanHistoryEntry, MealType, NutritionProfile } from './types';
 
 type RecommendationInput = {
   recipes: readonly CatalogRecipe[];
@@ -52,43 +52,69 @@ export function recommendForNow({ recipes, profile, target, meals, now, recentRe
   return { primary, snack, candidates: valid.slice(0, 8), rationale };
 }
 
+export type PreparationBalance = 'spread' | 'mostly';
+
 type PlanOptions = {
   days: number;
   mealTypes: MealType[];
   includeSnack: boolean;
   highProtein?: boolean;
   preparationMethods?: PreparationMethod[];
+  preparationBalance?: PreparationBalance;
 };
 
-export function buildCatalogPlan({ recipes, profile, target, weekOf, options }: {
+export function buildCatalogPlan({ recipes, profile, target, weekOf, options, history = [] }: {
   recipes: readonly CatalogRecipe[];
   profile: NutritionProfile;
   target: DailyNutritionTarget;
   weekOf: string;
   options: PlanOptions;
+  history?: readonly MealPlanHistoryEntry[];
 }): MealPlan {
   const entries: MealPlanEntry[] = [];
   const used = new Map<string, number>();
   const methodUse = new Map<PreparationMethod, number>();
+  const familyUse = new Map<string, number>();
+  const familyLastDay = new Map<string, number>();
   const mealTypes = [...options.mealTypes, ...(options.includeSnack ? ['snack' as const] : [])];
   const preferredMethods = options.preparationMethods ?? [];
+  const balance = options.preparationBalance ?? 'spread';
+  const historyByRecipe = summarizeHistory(history, weekOf);
+  const featuredOffset = stablePlanIndex(`${weekOf}:featured`) % Math.max(1, mealTypes.length);
+  const methodOffset = stablePlanIndex(`${weekOf}:method`) % Math.max(1, preferredMethods.length);
 
   for (let dayIndex = 0; dayIndex < Math.max(1, Math.min(7, options.days)); dayIndex += 1) {
     const localDate = addDays(weekOf, dayIndex);
     let caloriesUsed = 0;
-    for (const mealType of mealTypes) {
-      const candidates = recipes
+    for (const [mealIndex, mealType] of mealTypes.entries()) {
+      const desiredMethod = preferredMethods.length
+        ? preferredMethods[(dayIndex + methodOffset) % preferredMethods.length]
+        : null;
+      const shouldFeatureMethod = !!desiredMethod && (balance === 'mostly' || mealIndex === (dayIndex + featuredOffset) % mealTypes.length);
+      const allowed = recipes
         .filter((recipe) => recipe.mealType === mealType && isRecipeAllowed(recipe, profile))
-        .filter((recipe) => caloriesUsed + recipe.nutrition.calories <= target.calories)
+        .filter((recipe) => caloriesUsed + recipe.nutrition.calories <= target.calories);
+      const desiredMatches = shouldFeatureMethod
+        ? allowed.filter((recipe) => recipe.preparationMethods.includes(desiredMethod))
+        : [];
+      const selectedPool = desiredMatches.length
+        ? desiredMatches
+        : shouldFeatureMethod
+          ? allowed.filter((recipe) => recipe.preparationMethods.some((method) => preferredMethods.includes(method)))
+          : allowed;
+      const candidates = selectedPool
         .sort((left, right) => {
-          const repeatDifference = (used.get(left.id) ?? 0) - (used.get(right.id) ?? 0);
-          if (repeatDifference) return repeatDifference;
-          const methodDifference = methodRank(left, preferredMethods, methodUse) - methodRank(right, preferredMethods, methodUse);
-          if (methodDifference) return methodDifference;
-          if (options.highProtein) return right.nutrition.proteinG - left.nutrition.proteinG;
-          const calorieDifference = Math.abs(target.calories / mealTypes.length - left.nutrition.calories) - Math.abs(target.calories / mealTypes.length - right.nutrition.calories);
-          if (calorieDifference) return calorieDifference;
-          return stablePlanIndex(`${weekOf}:${localDate}:${mealType}:${left.id}`) - stablePlanIndex(`${weekOf}:${localDate}:${mealType}:${right.id}`);
+          return planCandidateScore(left, {
+            used, methodUse, familyUse, familyLastDay, historyByRecipe, dayIndex, mealCount: mealTypes.length,
+            calorieTarget: target.calories, highProtein: !!options.highProtein, preferredMethods,
+            avoidPreferredMethod: balance === 'spread' && !shouldFeatureMethod,
+            seed: `${weekOf}:${localDate}:${mealType}`,
+          }) - planCandidateScore(right, {
+            used, methodUse, familyUse, familyLastDay, historyByRecipe, dayIndex, mealCount: mealTypes.length,
+            calorieTarget: target.calories, highProtein: !!options.highProtein, preferredMethods,
+            avoidPreferredMethod: balance === 'spread' && !shouldFeatureMethod,
+            seed: `${weekOf}:${localDate}:${mealType}`,
+          });
         });
       const recipe = candidates[0];
       if (!recipe) continue;
@@ -96,6 +122,9 @@ export function buildCatalogPlan({ recipes, profile, target, weekOf, options }: 
       caloriesUsed += recipe.nutrition.calories;
       used.set(recipe.id, (used.get(recipe.id) ?? 0) + 1);
       for (const method of recipe.preparationMethods) methodUse.set(method, (methodUse.get(method) ?? 0) + 1);
+      const family = recipeFamily(recipe);
+      familyUse.set(family, (familyUse.get(family) ?? 0) + 1);
+      familyLastDay.set(family, dayIndex);
     }
   }
 
@@ -128,14 +157,63 @@ export function isRecipeAllowed(recipe: CatalogRecipe, profile: NutritionProfile
   return timeAgainstLimit <= (profile.maxPrepMinutes ?? 60);
 }
 
-function methodRank(recipe: CatalogRecipe, preferred: PreparationMethod[], usage: ReadonlyMap<PreparationMethod, number>) {
-  if (preferred.length) return recipe.preparationMethods.some((method) => preferred.includes(method)) ? 0 : 100;
-  return Math.min(...recipe.preparationMethods.map((method) => usage.get(method) ?? 0));
+type CandidateScoreContext = {
+  used: ReadonlyMap<string, number>;
+  methodUse: ReadonlyMap<PreparationMethod, number>;
+  familyUse: ReadonlyMap<string, number>;
+  familyLastDay: ReadonlyMap<string, number>;
+  historyByRecipe: ReadonlyMap<string, { count: number; daysAgo: number }>;
+  dayIndex: number;
+  mealCount: number;
+  calorieTarget: number;
+  highProtein: boolean;
+  preferredMethods: PreparationMethod[];
+  avoidPreferredMethod: boolean;
+  seed: string;
+};
+
+function planCandidateScore(recipe: CatalogRecipe, context: CandidateScoreContext) {
+  const history = context.historyByRecipe.get(recipe.id);
+  const family = recipeFamily(recipe);
+  const lastFamilyDay = context.familyLastDay.get(family);
+  const currentWeekPenalty = (context.used.get(recipe.id) ?? 0) * 20_000;
+  const historyPenalty = history ? history.count * 700 + Math.max(0, 15 - history.daysAgo) * 450 : 0;
+  const familyPenalty = (context.familyUse.get(family) ?? 0) * 65 + (lastFamilyDay != null && context.dayIndex - lastFamilyDay <= 1 ? 500 : 0);
+  const methodVarietyPenalty = Math.min(...recipe.preparationMethods.map((method) => context.methodUse.get(method) ?? 0)) * 18;
+  const unwantedMethodPenalty = context.avoidPreferredMethod && recipe.preparationMethods.some((method) => context.preferredMethods.includes(method)) ? 650 : 0;
+  const caloriePenalty = Math.abs(context.calorieTarget / context.mealCount - recipe.nutrition.calories) / 5;
+  const proteinBoost = context.highProtein ? recipe.nutrition.proteinG * -18 : 0;
+  return currentWeekPenalty + historyPenalty + familyPenalty + methodVarietyPenalty + unwantedMethodPenalty + caloriePenalty + proteinBoost + stablePlanIndex(`${context.seed}:${recipe.id}`) / 100_000;
+}
+
+function summarizeHistory(history: readonly MealPlanHistoryEntry[], weekOf: string) {
+  const result = new Map<string, { count: number; daysAgo: number }>();
+  for (const item of history) {
+    const daysAgo = Math.max(0, daysBetween(item.plannedFor, weekOf));
+    if (daysAgo > 42) continue;
+    const current = result.get(item.recipeId);
+    result.set(item.recipeId, {
+      count: (current?.count ?? 0) + 1,
+      daysAgo: Math.min(current?.daysAgo ?? Number.POSITIVE_INFINITY, daysAgo),
+    });
+  }
+  return result;
+}
+
+function recipeFamily(recipe: CatalogRecipe) {
+  const text = `${recipe.name} ${recipe.ingredients.map((ingredient) => ingredient.name).join(' ')}`.toLowerCase();
+  const families = ['chicken', 'turkey', 'beef', 'pork', 'salmon', 'tuna', 'cod', 'prawn', 'tofu', 'egg', 'lentil', 'chickpea', 'bean', 'yogurt', 'cottage cheese'];
+  return families.find((family) => text.includes(family)) ?? recipe.dietaryTags[0] ?? 'mixed';
+}
+
+function daysBetween(from: string, to: string) {
+  const fromDate = new Date(`${from}T12:00:00Z`);
+  const toDate = new Date(`${to}T12:00:00Z`);
+  return Math.round((toDate.getTime() - fromDate.getTime()) / 86_400_000);
 }
 
 function planTitle(highProtein: boolean | undefined, preferred: PreparationMethod[]) {
-  const method = preferred[0];
-  const methodLabel = method ? method.replace(/-/g, ' ') : null;
+  const methodLabel = preferred.length ? preferred.map((method) => method.replace(/-/g, ' ')).join(' + ') : null;
   if (highProtein && methodLabel) return `High-protein ${methodLabel} week`;
   if (highProtein) return 'High-protein week';
   if (methodLabel) return `${methodLabel.charAt(0).toUpperCase()}${methodLabel.slice(1)} week`;

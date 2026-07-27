@@ -78,8 +78,16 @@ export type MealsUserData = {
   targets: Record<string, DailyNutritionTarget>;
   meals: MealLogRecord[];
   plans: MealPlan[];
+  planHistory?: MealPlanHistoryEntry[];
   syncQueue: MealMutation[];
   undo: MealUndo | null;
+};
+
+export type MealPlanHistoryEntry = {
+  recipeId: string;
+  mealType: MealType;
+  plannedFor: string;
+  generatedAt: string;
 };
 
 export type FoodServing = {

@@ -156,16 +156,52 @@ export const workoutVisualOrder = [
   'bike_endurance_cadence',
   'bike_recovery_cadence',
   'bike_mixed_terrain',
+  'yoga_cat_cow',
+  'yoga_child_pose',
+  'yoga_downward_dog',
+  'yoga_cobra',
+  'yoga_sphinx',
+  'yoga_low_lunge',
+  'yoga_half_split',
+  'yoga_forward_fold',
+  'yoga_butterfly',
+  'yoga_figure_four',
+  'yoga_supine_twist',
+  'yoga_knees_chest',
+  'yoga_bridge',
+  'yoga_thread_needle',
+  'yoga_puppy_pose',
+  'yoga_mountain',
+  'yoga_chair',
+  'yoga_warrior_one',
+  'yoga_warrior_two',
+  'yoga_triangle',
+  'yoga_tree',
+  'yoga_eagle',
+  'yoga_plank_dog',
+  'yoga_side_angle',
+  'yoga_pigeon',
+  'yoga_lizard',
+  'yoga_happy_baby',
+  'yoga_boat',
+  'yoga_crow_prep',
+  'yoga_half_moon',
 ] as const;
 
 const visualIndex = new Map<string, number>(workoutVisualOrder.map((id, index) => [id, index]));
+const yogaAtlasOffset = 160;
+const yogaStartIndex = workoutVisualOrder.indexOf('yoga_cat_cow');
 
 export function getWorkoutVisualPosition(visualId: string) {
-  const index = visualIndex.get(visualId) ?? 0;
+  const manifestIndex = visualIndex.get(visualId) ?? 0;
+  // The original ten atlases end with three intentionally unused cells. Yoga
+  // starts on a fresh sheet so each generated pose keeps its documented cell.
+  const index = manifestIndex >= yogaStartIndex
+    ? yogaAtlasOffset + (manifestIndex - yogaStartIndex)
+    : manifestIndex;
   return {
     atlas: Math.floor(index / 16),
     row: Math.floor((index % 16) / 4),
     column: index % 4,
   };
 }
-

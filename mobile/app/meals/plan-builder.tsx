@@ -6,13 +6,12 @@ import { palette, radii, spacing, type } from '@luminary/design-system';
 import { MealScreen } from '@/components/meals/MealScreen';
 import { recipeCatalog, type PreparationMethod } from '@/lib/meals/catalog';
 import { localDateKey } from '@/lib/meals/dates';
-import { buildCatalogPlan } from '@/lib/meals/recommendations';
+import { buildCatalogPlan, type PreparationBalance } from '@/lib/meals/recommendations';
 import type { MealType } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
 const planMealTypes = ['breakfast', 'lunch', 'dinner'] as const;
-const preparationChoices: { value: PreparationMethod | 'any'; label: string }[] = [
-  { value: 'any', label: 'Mix it up' },
+const preparationChoices: { value: PreparationMethod; label: string }[] = [
   { value: 'air-fryer', label: 'Air fryer' },
   { value: 'one-pan', label: 'One pan' },
   { value: 'stovetop', label: 'Stovetop' },
@@ -30,13 +29,15 @@ export default function PlanBuilderScreen() {
   const [mealTypes, setMealTypes] = useState<MealType[]>(['breakfast', 'lunch', 'dinner']);
   const [includeSnack, setIncludeSnack] = useState(false);
   const [highProtein, setHighProtein] = useState(false);
-  const [preparationMethod, setPreparationMethod] = useState<PreparationMethod | 'any'>('any');
+  const [preparationMethods, setPreparationMethods] = useState<PreparationMethod[]>([]);
+  const [preparationBalance, setPreparationBalance] = useState<PreparationBalance>('spread');
   const today = localDateKey(new Date());
   const target = user?.targets[today];
 
   useEffect(() => { ensureTarget(); }, [ensureTarget]);
 
   const toggleMeal = (mealType: MealType) => setMealTypes((current) => current.includes(mealType) ? current.filter((item) => item !== mealType) : [...current, mealType]);
+  const toggleMethod = (method: PreparationMethod) => setPreparationMethods((current) => current.includes(method) ? current.filter((item) => item !== method) : [...current, method]);
   const generate = () => {
     if (!user?.profile) {
       Alert.alert('Set your nutrition profile first', 'Your weight, goal, timing, allergies, and food preferences shape the plan.', [
@@ -59,8 +60,10 @@ export default function PlanBuilderScreen() {
         mealTypes,
         includeSnack,
         highProtein,
-        preparationMethods: preparationMethod === 'any' ? [] : [preparationMethod],
+        preparationMethods,
+        preparationBalance,
       },
+      history: user.planHistory ?? [],
     });
     if (!plan.entries.length) {
       Alert.alert('No recipes fit yet', 'Try another cooking style or update your food preferences. You can still add meals from search.');
@@ -81,17 +84,27 @@ export default function PlanBuilderScreen() {
       <View style={styles.group}>
         <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>How do you want to cook?</Text>
         <View style={styles.methodRow}>
+          <MethodToggle label="Mix it up" selected={!preparationMethods.length} onPress={() => setPreparationMethods([])} />
           {preparationChoices.map((choice) => (
             <MethodToggle
               key={choice.value}
               label={choice.label}
-              selected={preparationMethod === choice.value}
-              onPress={() => setPreparationMethod(choice.value)}
+              selected={preparationMethods.includes(choice.value)}
+              onPress={() => toggleMethod(choice.value)}
             />
           ))}
         </View>
-        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>We will lead with this style and fill any gaps with meals that still suit your week.</Text>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Choose one or combine a few. We will rotate them through the week instead of using them all on the first day.</Text>
       </View>
+      {preparationMethods.length ? (
+        <View style={styles.group}>
+          <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>How often?</Text>
+          <View style={styles.row}>
+            <Toggle label="Once most days" selected={preparationBalance === 'spread'} onPress={() => setPreparationBalance('spread')} />
+            <Toggle label="Most meals" selected={preparationBalance === 'mostly'} onPress={() => setPreparationBalance('mostly')} />
+          </View>
+        </View>
+      ) : null}
       <Setting label="More protein" detail="Use higher-protein recipes that still fit your daily target." selected={highProtein} onPress={() => setHighProtein((value) => !value)} />
       <View style={styles.profileSummary}>
         <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Your settings</Text>

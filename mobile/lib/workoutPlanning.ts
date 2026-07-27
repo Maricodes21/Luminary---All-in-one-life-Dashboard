@@ -473,7 +473,7 @@ function yogaMovement(
   focus: string[],
   reps: [string, string, string],
   cue: string,
-  visualId: string,
+  _legacyVisualId: string,
 ): Movement {
   return {
     id,
@@ -484,7 +484,7 @@ function yogaMovement(
     equipment: ['bodyweight'],
     reps: { beginner: reps[0], steady: reps[1], advanced: reps[2] },
     cue,
-    visualId,
+    visualId: id,
   };
 }
 

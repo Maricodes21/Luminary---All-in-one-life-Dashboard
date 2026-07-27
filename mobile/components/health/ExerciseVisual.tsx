@@ -14,6 +14,8 @@ const atlases: ImageSourcePropType[] = [
   require('../../assets/exercises/atlas-08.png'),
   require('../../assets/exercises/atlas-09.png'),
   require('../../assets/exercises/atlas-10.png'),
+  require('../../assets/exercises/atlas-11.png'),
+  require('../../assets/exercises/atlas-12.png'),
 ];
 
 type Props = {
