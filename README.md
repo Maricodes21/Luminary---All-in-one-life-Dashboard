@@ -63,6 +63,14 @@ For Android dev-client launches from the repo root:
 npm run mobile:android:open
 ```
 
+For a free live preview on a physical iPhone:
+
+```bash
+npm run mobile:preview:iphone
+```
+
+Install Expo Go on the iPhone, scan the displayed QR code with its Camera app, and keep the preview command running. See [`docs/iphone-preview.md`](docs/iphone-preview.md) for the tunnel fallback, supported features, and the installable EAS path.
+
 For Supabase, see `supabase/README.md`.
 
 ## Stack

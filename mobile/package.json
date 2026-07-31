@@ -5,6 +5,8 @@
   "main": "App.js",
   "scripts": {
     "start": "expo start",
+    "preview:iphone": "expo start --go --lan --port 8083",
+    "preview:iphone:lan": "expo start --go --lan --port 8083",
     "ios": "expo run:ios",
     "android": "expo run:android",
     "android:open": "adb shell am start -W -p app.luminary.mobile -a android.intent.action.VIEW -d \"expo-dev-launcher://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081\"",
@@ -17,7 +19,8 @@
     "test:auth": "node --test scripts/run-auth-tests.cjs",
     "doctor": "npx expo-doctor",
     "deps:check": "npx expo install --check",
-    "start:clear": "expo start --clear"
+    "start:clear": "expo start --clear",
+    "preview:iphone:tunnel": "expo start --go --tunnel --port 8083"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

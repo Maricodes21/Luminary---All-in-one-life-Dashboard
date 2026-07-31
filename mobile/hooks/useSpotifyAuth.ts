@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { isRunningInExpoGo } from 'expo';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { z } from 'zod';
@@ -49,6 +50,7 @@ export type SpotifyAuthState =
 
 export function useSpotifyAuth() {
   const [authState, setAuthState] = useState<SpotifyAuthState>({ status: 'idle' });
+  const isExpoGoPreview = isRunningInExpoGo();
 
   const clientId = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
   const redirectUri =
@@ -112,6 +114,13 @@ export function useSpotifyAuth() {
   }, [response, request, clientId, redirectUri]);
 
   const connect = useCallback(async () => {
+    if (isExpoGoPreview) {
+      setAuthState({
+        status: 'error',
+        message: 'Spotify sign-in needs the installable preview. The rest of Luminary is ready to explore here.',
+      });
+      return;
+    }
     if (!clientId) {
       setAuthState({
         status: 'error',
@@ -121,7 +130,7 @@ export function useSpotifyAuth() {
     }
     setAuthState({ status: 'loading' });
     await promptAsync();
-  }, [promptAsync, clientId]);
+  }, [promptAsync, clientId, isExpoGoPreview]);
 
   const disconnect = useCallback(async () => {
     await clearTokens();
