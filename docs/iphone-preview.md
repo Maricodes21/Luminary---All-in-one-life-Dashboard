@@ -32,16 +32,34 @@ The tunnel can also connect devices on different networks, although some corpora
 
 The app reads its preview services from `mobile/.env`. Required values are documented in `mobile/.env.example`. Never commit `mobile/.env`.
 
-The free Expo Go preview supports the application UI, local-first data, Supabase email/password access, Journal, Meals, Money, habits, the nightly ritual, camera capture, guided workouts, and local reminders.
+The free Expo Go preview supports the application UI, local-first data, Supabase email/password access, Spotify listening recaps, Journal, Meals, Money, habits, the nightly ritual, camera capture, guided workouts, and local reminders.
 
-Two native boundaries remain:
+Spotify uses a short-lived HTTPS handoff so the provider can return safely while Luminary is running inside Expo Go. The authorization code can be read once by the signed-in user; Spotify tokens and the PKCE verifier stay on the phone.
 
-- Spotify OAuth cannot return through Luminary's custom app link inside Expo Go. The app explains this instead of opening a broken sign-in flow. Existing fixture/empty states remain testable.
+### One-time Spotify preview setup
+
+Deploy the database migration and callback function from the repository root:
+
+```powershell
+npx supabase db push
+npx supabase functions deploy spotify-preview-auth --no-verify-jwt
+```
+
+In the Spotify Developer Dashboard, add this exact redirect URI, replacing `your-project` with the project reference from `EXPO_PUBLIC_SUPABASE_URL`:
+
+```text
+https://your-project.supabase.co/functions/v1/spotify-preview-auth/callback
+```
+
+Keep the existing `luminary://spotify-callback` entry too; installable native builds still use it. The preview bridge does not use or require a Spotify client secret.
+
+One native boundary remains:
+
 - Native Apple Health access is not implemented in the product yet. Health plans and guided workouts remain testable without it.
 
 ## Installable iPhone preview
 
-Use this when Spotify sign-in, a Luminary home-screen icon, remote push notifications, or full native-link behavior must be tested.
+Use this when a Luminary home-screen icon, remote push notifications, or full native-link behavior must be tested. Spotify sign-in itself works in the free Expo Go path above.
 
 The project already has an EAS `preview` profile. Building it requires Apple signing credentials and an active Apple Developer Program membership:
 

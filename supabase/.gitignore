@@ -1,4 +1,10 @@
+# Supabase
 .branches
 .temp
 seed.sql
 volumes/
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local

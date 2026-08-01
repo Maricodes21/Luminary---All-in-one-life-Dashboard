@@ -17,3 +17,4 @@ require.extensions['.ts'] = function loadTs(module, filename) {
 };
 
 require(path.resolve(__dirname, '../lib/authRouting.test.ts'));
+require(path.resolve(__dirname, '../lib/spotifyPreviewAuth.test.ts'));

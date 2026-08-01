@@ -75,9 +75,8 @@ npm run deps:check --workspace=mobile
 ## Supabase
 
 ```powershell
-cd supabase
-supabase start
-supabase db reset
+npm run supabase:start
+npm run supabase:db:reset
 ```
 
 `supabase db reset` applies every SQL file under `supabase/migrations/`.

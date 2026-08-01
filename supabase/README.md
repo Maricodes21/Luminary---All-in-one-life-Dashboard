@@ -17,9 +17,8 @@ scoop install supabase
 Start and reset the local stack:
 
 ```bash
-cd supabase
-supabase start
-supabase db reset
+npm run supabase:start
+npm run supabase:db:reset
 ```
 
 After `supabase start`, copy the local URL and anon key into `mobile/.env`:
@@ -47,11 +46,12 @@ Migrations live in `supabase/migrations/` and should remain append-only.
 | `20260714153000_harden_authenticated_api.sql`   | Fixed function search paths and authenticated-only Meals API access.                                              |
 | `20260714154000_enforce_role_privileges.sql`    | Least-privilege grants for logs, plans, submissions, catalogs, and service-only caches.                           |
 | `20260714155000_optimize_meals_rls_indexes.sql` | Cached auth evaluation and covering indexes for Meals foreign keys.                                               |
+| `20260802100000_spotify_preview_oauth.sql`      | Short-lived, one-use Spotify OAuth handoff for free Expo Go previews.                                             |
 
 Add a migration with:
 
 ```bash
-supabase migration new <name>
+npx supabase migration new <name>
 ```
 
 Validate a linked deployment before applying it:
