@@ -295,6 +295,84 @@ test('meal vision sends image bytes once and uses the benchmarked ingredient sch
   assert.match(requestBody.messages[0].content, /meal-vision-v1/);
 });
 
+test('meal vision returns only sanitized visible ingredients without food-provider sourcing', async () => {
+  const [, , , , , , , { createMealsApiHandler }] = await modules;
+  let providerSearches = 0;
+  const handler = createMealsApiHandler({
+    authenticate: async () => ({ id: 'user-a' }),
+    foodProviders: [
+      {
+        id: 'usda',
+        enabled: true,
+        search: async () => {
+          providerSearches += 1;
+          return [];
+        },
+        lookupBarcode: async () => [],
+      },
+    ],
+    aiProvider: {
+      available: true,
+      paid: false,
+      model: 'vision-test',
+      interpretQuery: async () => ({ normalizedTerms: [], providerIds: [] }),
+      run: async () => ({
+        ingredients: [' tomato ', 'Tomato', 'brown rice'],
+        calories: 800,
+        nutrition: { protein: 40 },
+      }),
+    },
+  });
+
+  const response = await handler(
+    new Request('https://example.test/meals-api', {
+      method: 'POST',
+      headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'analyze-meal-photo', input: { imageBase64: 'image' } }),
+    }),
+  );
+  const body = await response.json();
+
+  assert.deepEqual(body.data, { mode: 'ai', ingredients: ['tomato', 'brown rice'] });
+  assert.equal(providerSearches, 0);
+});
+
+test('meal vision exposes a recoverable timeout without leaking the image payload', async () => {
+  const [, , , , , , , { createMealsApiHandler }] = await modules;
+  const events = [];
+  const handler = createMealsApiHandler({
+    authenticate: async () => ({ id: 'user-a' }),
+    foodProviders: [],
+    aiProvider: {
+      available: true,
+      paid: false,
+      model: 'vision-test',
+      interpretQuery: async () => ({ normalizedTerms: [], providerIds: [] }),
+      run: async () => {
+        throw { code: 'ai_timeout' };
+      },
+    },
+    telemetry: { emit: async (event) => events.push(event) },
+  });
+
+  const body = await (
+    await handler(
+      new Request('https://example.test/meals-api', {
+        method: 'POST',
+        headers: { authorization: 'Bearer token', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          action: 'analyze-meal-photo',
+          input: { imageBase64: 'private-image' },
+        }),
+      }),
+    )
+  ).json();
+
+  assert.deepEqual(body.data, { mode: 'deterministic', reason: 'ai_timeout', available: false });
+  assert.equal(events.at(-1).errorCode, 'ai_timeout');
+  assert.doesNotMatch(JSON.stringify(events), /private-image/);
+});
+
 test('enforces pilot quotas per user and feature', async () => {
   const [, , , , , { PilotQuotaGuard }] = await modules;
   const usage = new Map([

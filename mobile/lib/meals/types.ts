@@ -21,7 +21,14 @@ export type BodyMeasurement = {
   heightCm?: number | null;
 };
 
-export type MealSource = 'manual' | 'curated' | 'usda' | 'open_food_facts' | 'community' | 'commercial' | 'ai_vision';
+export type MealSource =
+  | 'manual'
+  | 'curated'
+  | 'usda'
+  | 'open_food_facts'
+  | 'community'
+  | 'commercial'
+  | 'ai_vision';
 
 export type NutritionValues = {
   calories: number;
@@ -110,6 +117,14 @@ export type FoodSearchResult = {
   imageUri?: string;
   confidence?: number | null;
   nutrition?: NutritionValues | null;
+};
+
+export type MealPhotoAnalysisStatus = 'ready' | 'timeout' | 'unavailable' | 'quota' | 'budget';
+
+export type MealPhotoAnalysis = {
+  status: MealPhotoAnalysisStatus;
+  ingredients: string[];
+  reason?: string;
 };
 
 export type RecipeIngredient = {

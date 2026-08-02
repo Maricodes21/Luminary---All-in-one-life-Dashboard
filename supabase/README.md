@@ -82,8 +82,14 @@ supabase functions deploy meals-api
 
 The deployed fallback configuration uses Open Food Facts plus USDA FoodData Central and keeps AI
 disabled when Ollama credentials are absent. To enable hosted Gemma, set `MEALS_AI_MODE=cloud`,
-`MEALS_AI_MODEL=gemma4:31b-cloud`, `OLLAMA_CLOUD_URL`, and `OLLAMA_API_KEY` as function secrets, then
-redeploy. Never put those secrets in the mobile app.
+`MEALS_AI_MODEL=gemma4:31b-cloud`, and `OLLAMA_API_KEY` as function secrets, then redeploy.
+`OLLAMA_CLOUD_URL` is optional and defaults to `https://ollama.com`; `MEALS_AI_TIMEOUT_MS` defaults
+to 90 seconds and is clamped to 1–120 seconds. Never put those secrets in the mobile app.
+
+`analyze-meal-photo` is intentionally ingredient-only. It returns up to 12 sanitized names that
+the model considers visible and does not search food providers or return nutrition. The mobile app
+requires explicit consent, lets the user edit every suggestion, and deletes its temporary capture
+after the request completes or fails.
 
 ## Meal Vision Benchmark
 

@@ -57,10 +57,31 @@ test('recipe detail handles missing IDs before rendering recipe arrays', () => {
 test('camera attachments preserve the complete manual-entry draft', () => {
   const manual = fs.readFileSync(path.join(appDirectory, 'meals/manual.tsx'), 'utf8');
   const camera = fs.readFileSync(path.join(appDirectory, 'meals/camera.tsx'), 'utf8');
-  for (const field of ['returnId', 'returnProtein', 'returnCarbs', 'returnFat', 'returnQuantity', 'returnUnit', 'returnMealType', 'returnNotes']) {
+  for (const field of [
+    'returnId',
+    'returnProtein',
+    'returnCarbs',
+    'returnFat',
+    'returnQuantity',
+    'returnUnit',
+    'returnMealType',
+    'returnNotes',
+  ]) {
     assert.match(manual, new RegExp(field));
     assert.match(camera, new RegExp(field));
   }
+});
+
+test('photo ingredient analysis requires consent, deletes the temporary photo, and avoids nutrition claims', () => {
+  const camera = fs.readFileSync(path.join(appDirectory, 'meals/camera.tsx'), 'utf8');
+  const review = fs.readFileSync(path.join(appDirectory, 'meals/camera-review.tsx'), 'utf8');
+
+  assert.match(camera, /analysisMode && !analysisConsent/);
+  assert.match(camera, /Use photo analysis/);
+  assert.match(camera, /finally \{[^]*temporaryPhoto\.delete\(\)/);
+  assert.match(review, /Ingredients we can see/);
+  assert.match(review, /setIngredient/);
+  assert.doesNotMatch(review, /calories|protein|carbs|fat|nutrition/i);
 });
 
 test('recipe detail can resolve an authoritative plan-entry snapshot', () => {

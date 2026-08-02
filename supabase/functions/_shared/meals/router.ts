@@ -270,21 +270,18 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
     try {
       const result = await aiProvider.run(action, input);
       if (action === 'analyze-meal-photo') {
-        const terms = extractVisionTerms(result).slice(0, 6);
-        const matches = await collectProviderResults(dependencies.foodProviders, async (provider) => {
-          const groups = await Promise.all(terms.map((query) => provider.search({ query, locale: typeof input.locale === 'string' ? input.locale : 'en-ZA', limit: 8 })));
-          return groups.flat();
-        });
+        const ingredients = sanitizeVisionTerms(extractVisionTerms(result));
         await emitSafely(dependencies.telemetry, {
           userId: user.id,
           jobType,
           provider: 'ollama',
           model: aiProvider.model,
           status: 'succeeded',
-          estimatedCostUsd: dependencies.estimatedCostUsd?.[jobType] ?? DEFAULT_ESTIMATED_COST_USD[jobType],
-          usage: { interpretedTerms: terms.length, verifiedMatches: matches.results.length },
+          estimatedCostUsd:
+            dependencies.estimatedCostUsd?.[jobType] ?? DEFAULT_ESTIMATED_COST_USD[jobType],
+          usage: { visibleIngredients: ingredients.length },
         });
-        return json({ data: { mode: 'ai', results: rankFoodResults(matches.results, terms[0] ?? ''), degradedProviders: matches.degradedProviders } });
+        return json({ data: { mode: 'ai', ingredients } });
       }
       await emitSafely(dependencies.telemetry, {
         userId: user.id,
@@ -296,7 +293,11 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
           dependencies.estimatedCostUsd?.[jobType] ?? DEFAULT_ESTIMATED_COST_USD[jobType],
       });
       return json({ data: { mode: 'ai', model: aiProvider.model, result } });
-    } catch {
+    } catch (caught) {
+      const failureReason =
+        caught && typeof caught === 'object' && 'code' in caught && caught.code === 'ai_timeout'
+          ? 'ai_timeout'
+          : 'ai_provider_failed';
       await emitSafely(dependencies.telemetry, {
         userId: user.id,
         jobType,
@@ -305,9 +306,9 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
         status: 'failed',
         estimatedCostUsd:
           dependencies.estimatedCostUsd?.[jobType] ?? DEFAULT_ESTIMATED_COST_USD[jobType],
-        errorCode: 'ai_provider_failed',
+        errorCode: failureReason,
       });
-      return json({ data: deterministicFallback(action, input, 'ai_provider_failed') });
+      return json({ data: deterministicFallback(action, input, failureReason) });
     }
   }
 
@@ -365,8 +366,23 @@ function extractVisionTerms(value: unknown): string[] {
       return;
     }
     if (Array.isArray(item)) item.forEach((entry) => visit(entry, key));
-    else if (item && typeof item === 'object') Object.entries(item as Record<string, unknown>).forEach(([childKey, child]) => visit(child, childKey));
+    else if (item && typeof item === 'object')
+      Object.entries(item as Record<string, unknown>).forEach(([childKey, child]) =>
+        visit(child, childKey),
+      );
   };
   visit(value);
   return [...new Set(terms)];
+}
+
+function sanitizeVisionTerms(terms: string[]): string[] {
+  const unique = new Map<string, string>();
+  for (const item of terms) {
+    const term = item.trim().replace(/\s+/g, ' ');
+    if (term.length < 2 || term.length > 80) continue;
+    const key = term.toLocaleLowerCase('en');
+    if (!unique.has(key)) unique.set(key, term);
+    if (unique.size >= 12) break;
+  }
+  return [...unique.values()];
 }
