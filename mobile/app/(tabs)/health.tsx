@@ -392,12 +392,6 @@ function TodayBrief({
         </View>
       </View>
 
-      <Card variant="recessed" style={styles.sectionTop}>
-        <SectionLabel>A useful note</SectionLabel>
-        <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>{focusNoteTitle(weeklyFocus)}</Text>
-        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>{featuredSession.progression}</Text>
-      </Card>
-
       <Card variant="featured" style={styles.sectionTop}>
         <SectionLabel>Your plan, your shape</SectionLabel>
         <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>Make the week fit real life.</Text>
@@ -737,12 +731,28 @@ function ExerciseRow({ exercise, replacement, onReplace }: { exercise: PlannedEx
       <View style={styles.generatedCopy}>
         <Text style={[type.titleMd, styles.primaryText]}>{shown.name}</Text>
         <Text style={[type.labelSm, styles.accentText, styles.copyTop]}>{shown.prescription}</Text>
-        <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>{shown.cue}</Text>
+        <View style={styles.instructionList}>
+          <Instruction number="1" label="Set up" copy={shown.instructions.setup} />
+          <Instruction number="2" label="Move" copy={shown.instructions.movement} />
+          <Instruction number="3" label="Breathe" copy={shown.instructions.breathing} />
+          <Instruction number="4" label="Finish" copy={shown.instructions.completion} />
+        </View>
       </View>
       <Pressable onPress={onReplace} style={styles.swapButton} accessibilityRole="button" accessibilityLabel={`Swap ${shown.name}`}>
         <Icon name="swap" size={spacing.md} color={palette.primary} />
         <Text style={[type.labelSm, styles.accentText]}>Swap</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function Instruction({ number, label, copy }: { number: string; label: string; copy: string }) {
+  return (
+    <View style={styles.instructionRow}>
+      <Text style={[type.labelSm, styles.instructionNumber]}>{number}</Text>
+      <Text style={[type.bodySm, styles.secondaryText, styles.instructionCopy]}>
+        <Text style={[type.labelSm, styles.primaryText]}>{label}: </Text>{copy}
+      </Text>
     </View>
   );
 }
@@ -780,13 +790,6 @@ function categoryLabel(category: WorkoutPlan['category']) {
 
 function focusLabel(focus: WorkoutFocus) {
   return focuses.find((item) => item.value === focus)?.label ?? 'Keep momentum';
-}
-
-function focusNoteTitle(focus: WorkoutFocus) {
-  if (focus === 'strength') return 'The week is building, not testing you.';
-  if (focus === 'mobility') return 'Range comes before intensity.';
-  if (focus === 'energy') return 'Finish brighter than you started.';
-  return 'Consistency is the progression this week.';
 }
 
 function planLeadTitle(focus: WorkoutFocus) {
@@ -916,9 +919,13 @@ const styles = StyleSheet.create({
   loading: { marginTop: spacing.lg },
   sheetHeroImage: { width: '100%', aspectRatio: 1.8, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHighest },
   exerciseList: { gap: spacing.sm },
-  exerciseRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHigh },
+  exerciseRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHigh },
   exerciseImage: { width: spacing['3xl'], height: spacing['3xl'], borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
   generatedCopy: { flex: 1, gap: spacing.xs },
+  instructionList: { gap: spacing.xs, marginTop: spacing.xs },
+  instructionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
+  instructionNumber: { width: spacing.lg, height: spacing.lg, textAlign: 'center', textAlignVertical: 'center', color: palette.onPrimary, backgroundColor: palette.primary, borderRadius: radii.pill, overflow: 'hidden' },
+  instructionCopy: { flex: 1 },
   swapButton: { minHeight: spacing['2xl'], paddingHorizontal: spacing.sm, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: palette.surfaceContainerHighest },
   primaryButton: { minHeight: spacing['2xl'], marginTop: spacing.md, borderRadius: radii.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: palette.primary },
   pressed: { opacity: 0.82 },

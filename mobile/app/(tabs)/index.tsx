@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Image, type ImageSource } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -8,8 +9,9 @@ import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { SpotifyDailyRecap } from '@/components/spotify/SpotifyDailyRecap';
+import { ExerciseVisual } from '@/components/health/ExerciseVisual';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { useProductionStore } from '@/stores/useProductionStore';
+import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 import { useRitualStore } from '@/stores/useRitualStore';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
@@ -20,6 +22,7 @@ import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { localDateKey } from '@/lib/meals/dates';
 import { getHabitIconName } from '@/lib/habitIcons';
 import { activeHabitsForDate } from '@/lib/habits';
+import { getRecipeVisualSource } from '@/lib/meals/recipeVisuals';
 import type { MoodLabel } from '@/lib/mood';
 import {
   formatHomeDate,
@@ -73,6 +76,7 @@ export default function HomeScreen() {
   const remoteWorkoutDone = workouts.some((workout) => workout.workout_date === today);
   const workoutCompleted = localWorkoutDone || remoteWorkoutDone;
   const latestPlan = workoutPlans[0];
+  const todaysWorkout = workoutSessionForDate(latestPlan, todayDate);
   const purchaseCount =
     localExpenses.filter((expense) => expense.transactionDate === today).length +
     transactions.filter((transaction) => transaction.transaction_date === today).length;
@@ -94,11 +98,11 @@ export default function HomeScreen() {
         now: todayDate,
         loggedMealTypes: todayMeals.map((meal) => meal.mealType),
         purchaseCount,
-        workoutPlanned: Boolean(latestPlan),
+        workoutPlanned: Boolean(todaysWorkout),
         workoutCompleted,
-        workoutLabel: latestPlan ? `${sentenceCase(latestPlan.category)} · ${latestPlan.level}` : undefined,
+        workoutLabel: todaysWorkout?.title,
       }),
-    [latestPlan, purchaseCount, todayMeals, todayDate, workoutCompleted],
+    [purchaseCount, todayMeals, todayDate, todaysWorkout, workoutCompleted],
   );
 
   useEffect(() => {
@@ -123,9 +127,15 @@ export default function HomeScreen() {
         action: 'See recipe',
         route: '/(tabs)/meals',
         priority: 100,
+        imageUrl: plannedMeal.imageUri,
       }
     : null;
   const focusSignal = plannedMealSignal ?? ritualSignals.find((signal) => signal.kind === 'health') ?? null;
+  const focusMedia = plannedMealSignal
+    ? { kind: 'meal' as const, source: getRecipeVisualSource(plannedMeal?.recipeId), uri: plannedMeal?.imageUri }
+    : todaysWorkout?.exercises[0]?.visualId
+      ? { kind: 'workout' as const, visualId: todaysWorkout.exercises[0].visualId }
+      : null;
   const displayName = authDisplayName ?? profileDisplayName ?? 'Mari';
 
   return (
@@ -191,7 +201,7 @@ export default function HomeScreen() {
             onOpenHabit={(id) => router.push({ pathname: '/habits/[id]', params: { id } })}
           />
         {focusSignal ? (
-          <FocusCard signal={focusSignal} onPress={() => router.push(focusSignal.route)} />
+          <FocusCard signal={focusSignal} media={focusMedia} onPress={() => router.push(focusSignal.route)} />
         ) : null}
       </View>
 
@@ -212,8 +222,8 @@ export default function HomeScreen() {
         <ModuleCard
           icon="health"
           title="Health"
-          signal={workoutCompleted ? 'Movement captured for today.' : latestPlan ? 'Workout planned for today.' : 'Build your next movement plan.'}
-          meta={latestMetric?.steps ? `${latestMetric.steps.toLocaleString()} steps` : latestPlan ? `${sentenceCase(latestPlan.category)} · ${latestPlan.level}` : 'Open Health'}
+          signal={workoutCompleted ? 'Movement captured for today.' : todaysWorkout ? `${todaysWorkout.title} is ready today.` : 'No workout is scheduled today.'}
+          meta={latestMetric?.steps ? `${latestMetric.steps.toLocaleString()} steps` : todaysWorkout ? `${todaysWorkout.durationMinutes} min · ${todaysWorkout.exercises.length} movements` : latestPlan ? 'Recovery day' : 'Build a movement plan'}
           accent={palette.primary}
           onPress={() => router.push('/(tabs)/health')}
         />
@@ -301,15 +311,36 @@ function CommitmentsPager({ habits, completedCount, date, pageWidth, onToggle, o
   );
 }
 
-function FocusCard({ signal, onPress }: { signal: RitualSignal; onPress: () => void }) {
+type FocusMedia =
+  | { kind: 'meal'; source?: ImageSource | number; uri?: string }
+  | { kind: 'workout'; visualId: string }
+  | null;
+
+function FocusCard({ signal, media, onPress }: { signal: RitualSignal; media: FocusMedia; onPress: () => void }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.focusCard, pressed && styles.pressed]} accessibilityRole="button">
-      <SectionLabel>Next up · {signal.kind}</SectionLabel>
-      <Text style={[type.headlineSm, styles.focusTitle]}>{signal.title}</Text>
-      <Text style={[type.bodySm, styles.focusCopy]}>{signal.detail}</Text>
-      <Text style={[type.labelSm, styles.focusAction]}>{signal.action} →</Text>
+      {media?.kind === 'meal' && (media.source || media.uri) ? (
+        <Image source={media.source ?? { uri: media.uri! }} style={styles.focusMedia} contentFit="cover" cachePolicy="memory-disk" transition={100} />
+      ) : media?.kind === 'workout' ? (
+        <ExerciseVisual visualId={media.visualId} style={styles.focusMedia} />
+      ) : null}
+      {media ? <View style={styles.focusScrim} /> : null}
+      <View style={styles.focusContent}>
+        <SectionLabel>Next up · {signal.kind}</SectionLabel>
+        <Text style={[type.headlineSm, styles.focusTitle]}>{signal.title}</Text>
+        <Text style={[type.bodySm, styles.focusCopy]}>{signal.detail}</Text>
+        <Text style={[type.labelSm, styles.focusAction]}>{signal.action} →</Text>
+      </View>
     </Pressable>
   );
+}
+
+function workoutSessionForDate(plan: WorkoutPlan | undefined, date: Date) {
+  if (!plan?.sessions?.length) return null;
+  const weekdays = plan.scheduledWeekdays ?? [];
+  const sessionIndex = weekdays.indexOf(date.getDay());
+  if (sessionIndex < 0) return null;
+  return plan.sessions[sessionIndex] ?? null;
 }
 
 function ModuleCard({ icon, title, signal, meta, accent, onPress }: {
@@ -443,10 +474,13 @@ const styles = StyleSheet.create({
   pageDots: { minHeight: spacing.lg, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.xs },
   pageDot: { width: spacing.sm, height: spacing.xs, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerHighest },
   pageDotActive: { width: spacing.lg, backgroundColor: palette.primary },
-  focusCard: { minHeight: 196, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: palette.surfaceContainerHigh },
-  focusTitle: { color: palette.onSurface, marginTop: spacing.md },
-  focusCopy: { color: palette.onSurfaceVariant, flex: 1 },
-  focusAction: { color: palette.primary },
+  focusCard: { minHeight: 220, aspectRatio: 1.55, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHigh, overflow: 'hidden' },
+  focusMedia: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  focusScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 19, 17, 0.68)' },
+  focusContent: { flex: 1, padding: spacing.md, gap: spacing.sm },
+  focusTitle: { color: palette.surface, marginTop: spacing.md },
+  focusCopy: { color: palette.surfaceContainerHighest, flex: 1 },
+  focusAction: { color: palette.primaryFixed },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },
   sectionTitle: { color: palette.onSurface },
   sectionMeta: { color: palette.primary },

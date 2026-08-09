@@ -30,7 +30,10 @@ export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutS
     for (let setIndex = 0; setIndex < parsed.sets; setIndex += 1) {
       steps.push({
         id: `${session.id}:${exercise.id}:${setIndex + 1}`,
-        kind: 'exercise', title: exercise.name, cue: exercise.cue, prescription: parsed.label,
+        kind: 'exercise',
+        title: exercise.name,
+        cue: `${exercise.instructions.movement} ${exercise.instructions.breathing}`,
+        prescription: parsed.label,
         visualId: exercise.visualId, mode: parsed.durationSeconds ? 'timer' : 'manual',
         ...(parsed.durationSeconds ? { durationSeconds: parsed.durationSeconds } : {}),
         exerciseIndex, setNumber: setIndex + 1, totalSets: parsed.sets,

@@ -190,6 +190,18 @@ test('workout plans generate distinct exercises for each day focus', () => {
   assert.ok(hingeDay?.exercises.some((exercise) => /deadlift|hinge|thrust|core|bug|press/i.test(exercise.name)));
   assert.ok(pushDay?.exercises.some((exercise) => /press/i.test(exercise.name)));
   assert.ok(sessions.every((session) => session.progression.length > 30));
+  assert.ok(sessions.every((session) => session.exercises.every((exercise) =>
+    exercise.instructions.setup.length > 30
+    && exercise.instructions.movement.length > 30
+    && exercise.instructions.breathing.length > 30
+    && exercise.instructions.completion.includes(exercise.prescription),
+  )));
+  const overheadPress = sessions.flatMap((session) => session.exercises).find((exercise) => exercise.id === 'gym_overhead_press');
+  if (overheadPress) {
+    assert.match(overheadPress.instructions.setup, /barbell|dumbbell/i);
+    assert.match(overheadPress.instructions.movement, /elbows|press/i);
+    assert.match(overheadPress.instructions.breathing, /inhale/i);
+  }
 });
 
 test('workout plans respect level, duration, and home progressions', () => {
@@ -262,6 +274,7 @@ test('guided workouts turn timed work, sets, rests, warmup, and cooldown into a 
   assert.ok(strengthSteps.some((step) => step.kind === 'exercise' && step.mode === 'manual' && (step.totalSets ?? 0) >= 2));
   assert.ok(strengthSteps.some((step) => step.kind === 'rest' && step.durationSeconds === 30));
   assert.ok(yogaSteps.some((step) => step.kind === 'exercise' && step.mode === 'timer'));
+  assert.ok(strengthSteps.some((step) => step.kind === 'exercise' && /Inhale|Exhale/i.test(step.cue)));
 });
 
 test('workout generation is stable per week but rotates with a new seed', () => {

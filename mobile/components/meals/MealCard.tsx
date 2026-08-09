@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native';
+import { Image, type ImageSource } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -15,7 +16,7 @@ export type MealCardAction = {
 export type MealCardProps = {
   title: string;
   imageUri?: string;
-  imageSource?: ImageSourcePropType;
+  imageSource?: ImageSource | number;
   nutrition?: NutritionValues | null;
   detail: string;
   onPress?: () => void;
@@ -38,7 +39,15 @@ export function MealCard({ title, imageUri, imageSource, nutrition, detail, onPr
     <View style={styles.card}>
       <Pressable onPress={onPress} disabled={!onPress} style={styles.main} accessibilityRole={onPress ? 'button' : undefined}>
         {(imageSource || imageUri) && !imageFailed ? (
-          <Image source={imageSource ?? { uri: imageUri! }} style={styles.image} resizeMode="cover" onError={() => setImageFailed(true)} />
+          <Image
+            source={imageSource ?? { uri: imageUri! }}
+            style={styles.image}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={imageUri ?? title}
+            transition={100}
+            onError={() => setImageFailed(true)}
+          />
         ) : (
           <View style={[styles.image, styles.imageFallback]}><Icon name="meals" size={23} color={palette.onSurfaceVariant} /></View>
         )}

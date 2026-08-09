@@ -7,9 +7,17 @@ export type PlannedExercise = {
   name: string;
   prescription: string;
   cue: string;
+  instructions: ExerciseInstructions;
   equipment: string[];
   visualId: string;
   alternatives: PlannedExerciseAlternative[];
+};
+
+export type ExerciseInstructions = {
+  setup: string;
+  movement: string;
+  breathing: string;
+  completion: string;
 };
 
 export type PlannedExerciseAlternative = Omit<PlannedExercise, 'alternatives'>;
@@ -390,6 +398,7 @@ function plannedExercise(
     name: item.name,
     prescription: timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`,
     cue: item.cue,
+    instructions: instructionsFor(item, timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`),
     equipment: item.equipment,
     visualId: item.visualId,
     alternatives,
@@ -403,8 +412,41 @@ function exerciseDetails(item: Movement, input: WorkoutPlanInput, sets: number):
     name: item.name,
     prescription: timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`,
     cue: item.cue,
+    instructions: instructionsFor(item, timedCategory ? item.reps[input.level] : `${sets} sets × ${item.reps[input.level]}`),
     equipment: item.equipment,
     visualId: item.visualId,
+  };
+}
+
+function instructionsFor(item: Movement, prescription: string): ExerciseInstructions {
+  const focus = item.focus;
+  const equipment = item.equipment.filter((value) => value !== 'bodyweight').join(' or ');
+  const setup = equipment
+    ? `Set up your ${equipment} securely. Take a stable position and practise one easy repetition before starting.`
+    : focus.includes('balance') || focus.includes('yoga')
+      ? 'Use a clear, non-slip space. Keep a wall or chair within reach if balance support would help.'
+      : 'Use a clear, stable space. Set your feet and hands so you can move through a comfortable range without shifting.';
+
+  let movement = item.cue;
+  if (item.category === 'yoga') movement = 'Move into the pose one position at a time, stop at a comfortable edge, and keep both sides of your body supported and active as you hold.';
+  else if (focus.includes('hinge')) movement = 'Soften your knees, send your hips back with a long spine, then press through your feet and bring your hips forward to stand tall.';
+  else if (focus.includes('squat') || focus.includes('legs')) movement = 'Bend your knees and hips together, lower with your whole foot grounded, then press the floor away to return to the start.';
+  else if (focus.includes('push')) movement = 'Start with wrists and elbows stacked, lower or bring the weight toward you under control, then press away until your arms finish comfortably.';
+  else if (focus.includes('pull')) movement = 'Begin with your arms long and shoulders relaxed, pull your elbows toward your ribs, pause briefly, then return with control.';
+  else if (focus.includes('core')) movement = 'Brace gently as if preparing for a cough, move only as far as your trunk stays steady, then return slowly without holding your breath.';
+  else if (focus.includes('balance')) movement = 'Fix your eyes on one point, shift your weight gradually, and move into the position without locking the standing knee.';
+  else if (focus.includes('mobility') || focus.includes('recovery') || focus.includes('breath')) movement = 'Ease into the position until you feel a comfortable stretch, keep the movement smooth, and come out slowly if the range feels sharp or forced.';
+  else if (focus.includes('speed') || focus.includes('conditioning') || focus.includes('tempo')) movement = 'Build to the requested pace over the first few seconds, keep your steps or strokes controlled, and ease down rather than stopping suddenly.';
+
+  const breathing = focus.includes('breath') || item.category === 'yoga'
+    ? 'Breathe slowly through your nose when comfortable. Let each exhale soften tension without forcing a deeper range.'
+    : 'Inhale during the easier or lowering phase. Exhale through the effort while keeping your neck and jaw relaxed.';
+
+  return {
+    setup,
+    movement,
+    breathing,
+    completion: `Complete ${prescription}. Stop the set if your form changes, and stop the movement if you feel sharp pain, dizziness, or unusual discomfort.`,
   };
 }
 

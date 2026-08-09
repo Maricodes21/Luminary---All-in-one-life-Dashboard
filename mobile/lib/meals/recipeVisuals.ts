@@ -1,4 +1,3 @@
-import type { ImageSourcePropType } from 'react-native';
 
 const sources = {
   recipe_berry_overnight_oats: require('../../assets/meals/generated/recipe_berry_overnight_oats.jpg'),
@@ -69,9 +68,9 @@ const sources = {
   recipe_air_fryer_spiced_banana_bites: require('../../assets/meals/generated/recipe_air_fryer_spiced_banana_bites.jpg'),
   recipe_air_fryer_parmesan_courgette_coins: require('../../assets/meals/generated/recipe_air_fryer_parmesan_courgette_coins.jpg'),
   recipe_air_fryer_chickpea_crunch_mix: require('../../assets/meals/generated/recipe_air_fryer_chickpea_crunch_mix.jpg'),
-} as const satisfies Record<string, ImageSourcePropType>;
+} as const satisfies Record<string, number>;
 
-export function getRecipeVisualSource(recipeId?: string): ImageSourcePropType | undefined {
+export function getRecipeVisualSource(recipeId?: string): number | undefined {
   if (!recipeId || !(recipeId in sources)) return undefined;
   return sources[recipeId as keyof typeof sources];
 }
