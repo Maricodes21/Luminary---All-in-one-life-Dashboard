@@ -5,7 +5,16 @@ import type { Recipe } from './types';
 const localDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export const mealTypeSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
-export const mealSourceSchema = z.enum(['manual', 'curated', 'usda', 'open_food_facts', 'community', 'commercial', 'ai_vision']);
+export const mealSourceSchema = z.enum([
+  'manual',
+  'curated',
+  'usda',
+  'open_food_facts',
+  'community',
+  'commercial',
+  'ai_vision',
+  'grounded_web',
+]);
 
 export const nutritionValuesSchema = z.object({
   calories: z.number().finite().nonnegative(),
@@ -61,6 +70,10 @@ export const foodSearchResultSchema = z
     imageUri: z.string().optional(),
     confidence: z.number().min(0).max(1).nullable().optional(),
     nutrition: nutritionValuesSchema.nullable().optional(),
+    sourceUrls: z.array(z.string().url()).optional(),
+    retrievedAt: z.string().optional(),
+    verificationStatus: z.enum(['verified', 'sourced_unverified']).optional(),
+    countryRelevance: z.string().optional(),
   })
   .superRefine(requireProviderIdForAiNutrition);
 
@@ -133,7 +146,9 @@ export const interpretedFoodQuerySchema = z
   })
   .superRefine(requireProviderIdForAiNutrition);
 
-export function parseRecipe(value: unknown): { success: true; data: Recipe } | { success: false; error: z.ZodError } {
+export function parseRecipe(
+  value: unknown,
+): { success: true; data: Recipe } | { success: false; error: z.ZodError } {
   const parsed = recipeSchema.safeParse(value);
   if (parsed.success) {
     return { success: true, data: parsed.data };
@@ -143,7 +158,11 @@ export function parseRecipe(value: unknown): { success: true; data: Recipe } | {
 }
 
 function requireProviderIdForAiNutrition(
-  value: { source: z.infer<typeof mealSourceSchema>; providerId?: string; nutrition?: z.infer<typeof nutritionValuesSchema> | null },
+  value: {
+    source: z.infer<typeof mealSourceSchema>;
+    providerId?: string;
+    nutrition?: z.infer<typeof nutritionValuesSchema> | null;
+  },
   ctx: z.RefinementCtx,
 ) {
   if (value.source === 'ai_vision' && value.nutrition && !value.providerId) {

@@ -33,6 +33,7 @@ interface MealsApiDependencies {
   telemetry?: TelemetryHook;
   submissionStore?: FoodSubmissionStore;
   queryCache?: QueryInterpretationCache;
+  groundedProvider?: FoodSearchProvider;
   estimatedCostUsd?: Readonly<Partial<Record<MealAIJobType, number>>>;
 }
 
@@ -43,6 +44,7 @@ export const DEFAULT_ESTIMATED_COST_USD: Readonly<Record<MealAIJobType, number>>
   plan_generation: 0.05,
   recipe_generation: 0.03,
   recipe_image: 0.1,
+  grounded_food_retrieval: 0.01,
 };
 
 function json(data: unknown, status = 200): Response {
@@ -163,7 +165,7 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
     let preferredProviderIds = new Set<string>();
     let cached = false;
 
-    if (isWeakOrAmbiguousQuery(query) && aiProvider.available) {
+    if ((isWeakOrAmbiguousQuery(query) || initial.results.length === 0) && aiProvider.available) {
       const allowedProviderIds = new Set(initial.results.map((result) => result.providerId));
       const hash = await queryHash(query, locale);
       let cachedInterpretation: QueryInterpretation | null = null;
@@ -236,9 +238,43 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
       expanded.degradedProviders.forEach((providerId) => degradedProviders.add(providerId));
     }
 
+    let ranked = rankFoodResults(allResults, interpretedTerms[0] ?? query, preferredProviderIds);
+    if (!hasUsefulNutrition(ranked) && dependencies.groundedProvider?.enabled) {
+      const blockReason = await policyBlock(user, 'grounded_food_retrieval');
+      if (!blockReason) {
+        try {
+          const grounded = await dependencies.groundedProvider.search({
+            query: interpretedTerms[0] ?? query,
+            locale,
+            limit: 5,
+          });
+          allResults = allResults.concat(grounded);
+          ranked = rankFoodResults(allResults, interpretedTerms[0] ?? query, preferredProviderIds);
+          await emitSafely(dependencies.telemetry, {
+            userId: user.id,
+            jobType: 'grounded_food_retrieval',
+            provider: 'firecrawl',
+            model: 'search-v2',
+            status: 'succeeded',
+            usage: { candidates: grounded.length },
+          });
+        } catch {
+          degradedProviders.add('grounded_web');
+          await emitSafely(dependencies.telemetry, {
+            userId: user.id,
+            jobType: 'grounded_food_retrieval',
+            provider: 'firecrawl',
+            model: 'search-v2',
+            status: 'failed',
+            errorCode: 'grounded_retrieval_failed',
+          });
+        }
+      }
+    }
+
     return json({
       data: {
-        results: rankFoodResults(allResults, interpretedTerms[0] ?? query, preferredProviderIds),
+        results: ranked,
         interpretation: { mode, normalizedTerms: interpretedTerms, cached },
         degradedProviders: [...degradedProviders].sort(),
       },
@@ -355,6 +391,18 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
     }
     return handleAiAction(user, body.action, input);
   };
+}
+
+function hasUsefulNutrition(results: FoodSearchResult[]) {
+  return results.some(
+    (result) =>
+      [
+        result.serving.calories,
+        result.serving.proteinG,
+        result.serving.carbsG,
+        result.serving.fatG,
+      ].filter((value) => typeof value === 'number').length >= 3,
+  );
 }
 
 function extractVisionTerms(value: unknown): string[] {

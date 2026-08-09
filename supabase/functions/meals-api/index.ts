@@ -7,6 +7,7 @@ import {
 } from '../_shared/meals/providers.ts';
 import { PilotQuotaGuard } from '../_shared/meals/quota.ts';
 import { createMealsApiHandler } from '../_shared/meals/router.ts';
+import { FirecrawlGroundedFoodProvider } from '../_shared/meals/grounded.ts';
 import {
   createSupabaseRuntimeConfig,
   createSupabaseRuntimeServices,
@@ -29,6 +30,8 @@ const env = {
   OLLAMA_API_KEY: Deno.env.get('OLLAMA_API_KEY'),
   MEALS_AI_TIMEOUT_MS: Deno.env.get('MEALS_AI_TIMEOUT_MS'),
   MEALS_AI_MONTHLY_BUDGET_USD: Deno.env.get('MEALS_AI_MONTHLY_BUDGET_USD'),
+  FIRECRAWL_API_KEY: Deno.env.get('FIRECRAWL_API_KEY'),
+  FOOD_WEB_RETRIEVAL_ENABLED: Deno.env.get('FOOD_WEB_RETRIEVAL_ENABLED'),
 };
 
 const runtimeConfig = createSupabaseRuntimeConfig(env);
@@ -54,6 +57,10 @@ const handler = createMealsApiHandler({
   telemetry: runtime.telemetry,
   submissionStore: runtime.submissionStore,
   queryCache: runtime.queryCache,
+  groundedProvider: new FirecrawlGroundedFoodProvider({
+    apiKey: env.FIRECRAWL_API_KEY,
+    enabled: env.FOOD_WEB_RETRIEVAL_ENABLED === 'true',
+  }),
 });
 
 export default { fetch: handler };

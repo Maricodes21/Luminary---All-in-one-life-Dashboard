@@ -17,7 +17,8 @@ export type MealAIJobType =
   | 'meal_vision'
   | 'plan_generation'
   | 'recipe_generation'
-  | 'recipe_image';
+  | 'recipe_image'
+  | 'grounded_food_retrieval';
 
 export type FoodProviderId = 'open_food_facts' | 'usda' | 'community' | 'commercial';
 
@@ -39,6 +40,11 @@ export interface FoodSearchResult {
   barcode?: string;
   imageUrl?: string;
   sourceUrl?: string;
+  sourceUrls?: string[];
+  retrievedAt?: string;
+  confidence?: number;
+  verificationStatus?: 'verified' | 'sourced_unverified';
+  countryRelevance?: string;
   serving: FoodServing;
 }
 

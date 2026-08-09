@@ -7,9 +7,10 @@ export function normalizeGatewayResults(value: unknown): FoodSearchResult[] {
     const row = item as Record<string, unknown>;
     const providerId = text(row.providerId);
     const name = text(row.name);
-    const serving = row.serving && typeof row.serving === 'object'
-      ? row.serving as Record<string, unknown>
-      : null;
+    const serving =
+      row.serving && typeof row.serving === 'object'
+        ? (row.serving as Record<string, unknown>)
+        : null;
     const calories = serving ? nonnegativeNumber(serving.calories) : null;
     if (!providerId || !name || !serving || calories == null) return [];
 
@@ -24,23 +25,39 @@ export function normalizeGatewayResults(value: unknown): FoodSearchResult[] {
     const unit = text(serving.unit) ?? 'serving';
     const source = sourceFor(String(row.provider ?? 'curated'));
 
-    return [{
-      id: providerId,
-      name,
-      source,
-      providerId,
-      brand: text(row.brand),
-      imageUri: text(row.imageUrl),
-      nutrition,
-      servings: [{
-        id: `${providerId}:${label ?? unit}`,
-        label,
-        quantity,
-        unit,
+    return [
+      {
+        id: providerId,
+        name,
+        source,
         providerId,
+        confidence: nonnegativeNumber(row.confidence),
+        brand: text(row.brand),
+        imageUri: text(row.imageUrl),
+        sourceUrls: Array.isArray(row.sourceUrls)
+          ? row.sourceUrls.map(text).filter((url): url is string => Boolean(url))
+          : text(row.sourceUrl)
+            ? [text(row.sourceUrl)!]
+            : undefined,
+        retrievedAt: text(row.retrievedAt),
+        verificationStatus:
+          row.verificationStatus === 'verified' || row.verificationStatus === 'sourced_unverified'
+            ? row.verificationStatus
+            : undefined,
+        countryRelevance: text(row.countryRelevance),
         nutrition,
-      }],
-    }];
+        servings: [
+          {
+            id: `${providerId}:${label ?? unit}`,
+            label,
+            quantity,
+            unit,
+            providerId,
+            nutrition,
+          },
+        ],
+      },
+    ];
   });
 }
 
@@ -50,6 +67,7 @@ export function sourceFor(provider: string): MealSource {
   if (normalized === 'open_food_facts') return 'open_food_facts';
   if (normalized === 'community') return 'community';
   if (normalized === 'commercial') return 'commercial';
+  if (normalized === 'grounded_web') return 'grounded_web';
   return 'curated';
 }
 

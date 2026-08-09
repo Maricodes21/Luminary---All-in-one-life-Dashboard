@@ -2,9 +2,10 @@ import type { FoodSearchResult } from './types.ts';
 
 const PROVIDER_WEIGHT: Record<string, number> = {
   open_food_facts: 40,
-  community: 30,
+  community: 50,
   usda: 20,
   commercial: 0,
+  grounded_web: 35,
 };
 
 function normalized(value: string): string {

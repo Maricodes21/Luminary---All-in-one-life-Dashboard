@@ -12,6 +12,7 @@ export type NutritionProfile = {
   foodAllergies?: string[];
   dislikedIngredients?: string[];
   maxPrepMinutes?: number;
+  countryCode?: string;
 };
 
 export type BodyMeasurement = {
@@ -28,7 +29,8 @@ export type MealSource =
   | 'open_food_facts'
   | 'community'
   | 'commercial'
-  | 'ai_vision';
+  | 'ai_vision'
+  | 'grounded_web';
 
 export type NutritionValues = {
   calories: number;
@@ -117,6 +119,10 @@ export type FoodSearchResult = {
   imageUri?: string;
   confidence?: number | null;
   nutrition?: NutritionValues | null;
+  sourceUrls?: string[];
+  retrievedAt?: string;
+  verificationStatus?: 'verified' | 'sourced_unverified';
+  countryRelevance?: string;
 };
 
 export type MealPhotoAnalysisStatus = 'ready' | 'timeout' | 'unavailable' | 'quota' | 'budget';
