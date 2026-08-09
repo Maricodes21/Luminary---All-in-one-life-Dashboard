@@ -128,3 +128,12 @@ test('journal delete confirmations identify local and synced entries', () => {
   assert.match(source, /confirmLocalDelete\(entry\)/);
   assert.match(source, /confirmRemoteDelete\(entry\)/);
 });
+
+test('health regenerates legacy workout plans before rendering numbered guidance', () => {
+  const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/health.tsx'), 'utf8');
+
+  assert.match(source, /hasExerciseInstructions\(exercise\)/);
+  assert.match(source, /hasExerciseInstructions\(alternative\)/);
+  assert.match(source, /typeof exercise\.instructions\.setup === 'string'/);
+  assert.match(source, /buildWorkoutPlan\(\{/);
+});
