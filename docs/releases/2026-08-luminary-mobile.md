@@ -38,7 +38,7 @@ Feature branches are integrated into `develop`; release-ready `develop` is merge
 
 ## Validation record
 
-- Mobile content tests: 54 passed.
+- Mobile content tests: 55 passed, including legacy workout-plan regeneration.
 - Meals workflow tests: 72 passed.
 - Meals backend and retrieval contracts: 37 passed.
 - Personalization schema contract: passed.
