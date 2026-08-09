@@ -63,8 +63,6 @@ export async function writeMoodEvent(params: WriteMoodEventParams): Promise<stri
 
 export type WriteSpotifySnapshotParams = {
   recap: SpotifyRecap;
-  estimatedMood: MoodLabel;
-  estimatedConfidence: number;
 };
 
 /**
@@ -72,22 +70,22 @@ export type WriteSpotifySnapshotParams = {
  * (unique constraint on user_id + snapshot_date).
  */
 export async function writeSpotifySnapshot(params: WriteSpotifySnapshotParams): Promise<void> {
-  const { recap, estimatedMood, estimatedConfidence } = params;
+  const { recap } = params;
   const payload = {
     snapshot_date: recap.date,
     tracks_count: recap.trackCount,
     minutes_listened: recap.minutesListened,
     top_artists: recap.topArtists,
-    avg_valence: recap.averageFeatures.valence,
-    avg_energy: recap.averageFeatures.energy,
-    avg_tempo: recap.averageFeatures.tempo,
-    estimated_mood: estimatedMood,
-    estimated_confidence: estimatedConfidence,
+    avg_valence: null,
+    avg_energy: null,
+    avg_tempo: null,
+    estimated_mood: null,
+    estimated_confidence: null,
   };
 
-  const { error } = await supabase.from('spotify_snapshots').upsert(payload);
+  const { error } = await supabase.from('spotify_snapshots').upsert(payload as never);
   if (error) {
-    await enqueue({ type: 'spotify_snapshot', id: `snapshot-${recap.date}`, payload });
+    await enqueue({ type: 'spotify_snapshot', id: `snapshot-${recap.date}`, payload: payload as never });
   }
 }
 

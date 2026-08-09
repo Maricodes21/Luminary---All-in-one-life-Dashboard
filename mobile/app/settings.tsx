@@ -34,6 +34,10 @@ export default function SettingsScreen() {
   const [reminderMinute, setReminderMinute] = useState(profileSettings.reminderMinute);
   const [privacyMode, setPrivacyMode] = useState(profileSettings.privacyMode);
   const [metricUnits, setMetricUnits] = useState(profileSettings.metricUnits);
+  const [aiPersonalization, setAiPersonalization] = useState(profileSettings.aiPersonalization ?? false);
+  const [aiJournalText, setAiJournalText] = useState(profileSettings.aiJournalText ?? false);
+  const [aiHealthContext, setAiHealthContext] = useState(profileSettings.aiHealthContext ?? false);
+  const [aiMoneyContext, setAiMoneyContext] = useState(profileSettings.aiMoneyContext ?? false);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -41,7 +45,7 @@ export default function SettingsScreen() {
     const cleanName = displayName.trim() || 'Mari';
     setSaving(true);
     setStatus(null);
-    updateProfileSettings({ displayName: cleanName, toneProfile, reminderHour, reminderMinute, privacyMode, metricUnits });
+    updateProfileSettings({ displayName: cleanName, toneProfile, reminderHour, reminderMinute, privacyMode, metricUnits, aiPersonalization, aiJournalText, aiHealthContext, aiMoneyContext });
     setDisplayName(cleanName);
 
     try {
@@ -57,6 +61,21 @@ export default function SettingsScreen() {
           metric_units: metricUnits,
         });
         if (error) throw new Error(error.message);
+        const consentRows = [
+          ['ai_personalization', aiPersonalization, ['derived_first_party_signals']],
+          ['ai_journal_text', aiJournalText, ['raw_journal_text']],
+          ['ai_health', aiHealthContext, ['health_connect_context']],
+          ['ai_money', aiMoneyContext, ['financial_context']],
+        ] as const;
+        const { error: consentError } = await supabase.from('integration_consents').upsert(consentRows.map(([integration, enabled, scope]) => ({
+          user_id: session.user.id,
+          integration,
+          scope: [...scope],
+          consent_copy_version: 'luminary-ai-v1',
+          granted_at: new Date().toISOString(),
+          revoked_at: enabled ? null : new Date().toISOString(),
+        })), { onConflict: 'user_id,integration' });
+        if (consentError) throw new Error(consentError.message);
       }
       setStatus('Settings saved. Your evening reminder has been refreshed.');
     } catch (error) {
@@ -139,11 +158,20 @@ export default function SettingsScreen() {
         <ToggleRow label="Metric units" detail="Use kilograms, centimeters, and kilometers." value={metricUnits} onValueChange={setMetricUnits} />
       </Card>
 
+      <Card>
+        <SectionLabel>Optional AI reflection</SectionLabel>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginVertical: spacing.sm }]}>Luminary’s local rules work without AI. Turn on only the context you want included. Spotify listening is always excluded.</Text>
+        <ToggleRow label="AI personalization" detail="Use summarized Luminary wellbeing signals for optional suggestions." value={aiPersonalization} onValueChange={setAiPersonalization} />
+        <ToggleRow label="Journal text" detail="Allow raw journal text in an AI reflection. Tags still work without this." value={aiJournalText} onValueChange={setAiJournalText} />
+        <ToggleRow label="Health context" detail="Allow consented Health Connect context in AI reflections." value={aiHealthContext} onValueChange={setAiHealthContext} />
+        <ToggleRow label="Money context" detail="Allow summarized financial context in AI reflections." value={aiMoneyContext} onValueChange={setAiMoneyContext} />
+      </Card>
+
       <View style={styles.actionGrid}>
         <QuickActionTile
           icon="sparkles"
           label="Spotify"
-          detail={spotify.isConnected ? 'Connected for listening recaps' : 'Connect music for mood signals'}
+          detail={spotify.isConnected ? 'Connected for listening recaps' : 'Connect music for listening recaps'}
           status={spotify.isConnected ? 'Tap to disconnect' : 'Tap to connect'}
           onPress={spotify.isConnected ? spotify.disconnect : spotify.connect}
         />

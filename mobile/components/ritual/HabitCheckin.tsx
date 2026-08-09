@@ -72,10 +72,10 @@ export function HabitCheckin() {
       </View>
 
       <View style={styles.actionRow}>
-        <Pressable onPress={() => setStage('context')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Pressable onPress={() => setStage('tomorrow')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
           <Text style={[type.labelMd, styles.title]}>Skip commitments</Text>
         </Pressable>
-        <Pressable onPress={() => setStage('context')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Pressable onPress={() => setStage('tomorrow')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
           <Text style={[type.labelMd, styles.primaryText]}>Continue</Text>
         </Pressable>
       </View>

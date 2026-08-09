@@ -74,11 +74,11 @@ function LuminaryHomeRecap({
     ? 'Mood left open'
     : confirmedMood
       ? moodCopy[confirmedMood].display
-      : recap.moodPhrase || 'Listening kept';
+      : 'Listening kept separate';
   const moodDetail = moodSkipped
     ? 'Music stayed in your recap without deciding how you felt.'
     : confirmedMood
-      ? 'Your music opened the reflection. You chose what felt true.'
+      ? 'You chose this mood. Spotify stays a separate listening recap.'
       : 'Your listening stayed connected to tonight without defining your mood.';
 
   return (

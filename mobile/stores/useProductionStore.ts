@@ -137,6 +137,10 @@ export type ProfileSettings = {
   reminderMinute: number;
   privacyMode: boolean;
   metricUnits: boolean;
+  aiPersonalization: boolean;
+  aiJournalText: boolean;
+  aiHealthContext: boolean;
+  aiMoneyContext: boolean;
 };
 
 export type ExpenseCategory = 'Needs' | 'Wants' | 'Savings' | 'Emergencies';
@@ -241,6 +245,10 @@ export const useProductionStore = create<ProductionState>()(
         reminderMinute: 0,
         privacyMode: true,
         metricUnits: true,
+        aiPersonalization: false,
+        aiJournalText: false,
+        aiHealthContext: false,
+        aiMoneyContext: false,
       },
       bodyProfile: {
         weightKg: 75,

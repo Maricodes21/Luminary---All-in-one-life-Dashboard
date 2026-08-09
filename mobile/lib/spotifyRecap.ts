@@ -38,8 +38,6 @@ export type SpotifyRecap = {
   minutesListened: number;
   topTracks: SpotifyTrackSummary[];
   topArtists: SpotifyArtistSummary[];
-  moodPhrase: string;
-  averageFeatures: { valence: number; energy: number; tempo: number };
 };
 
 export type SpotifyArtistDetails = {
@@ -59,7 +57,6 @@ export function getLocalDateKey(value: string | Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
-
 export function buildDailySpotifyRecap(plays: SpotifyPlay[], date: string): SpotifyRecap | null {
   const dailyPlays = plays.filter((play) => getLocalDateKey(play.playedAt) === date);
   if (dailyPlays.length === 0) return null;
@@ -102,8 +99,12 @@ export function buildDailySpotifyRecap(plays: SpotifyPlay[], date: string): Spot
     }
   }
 
-  const topTracks = rank([...tracks.values()]).slice(0, 4).map(stripRankMetadata);
-  const topArtists = rank([...artists.values()]).slice(0, 4).map(stripRankMetadata);
+  const topTracks = rank([...tracks.values()])
+    .slice(0, 4)
+    .map(stripRankMetadata);
+  const topArtists = rank([...artists.values()])
+    .slice(0, 4)
+    .map(stripRankMetadata);
   const minutesListened = Math.round(
     dailyPlays.reduce((total, play) => total + Math.max(0, play.durationMs), 0) / 60_000,
   );
@@ -115,8 +116,6 @@ export function buildDailySpotifyRecap(plays: SpotifyPlay[], date: string): Spot
     minutesListened,
     topTracks,
     topArtists,
-    moodPhrase: buildMoodPhrase(dailyPlays, topArtists),
-    averageFeatures: inferAverageFeatures(dailyPlays, topTracks[0]?.playCount ?? 1),
   };
 }
 
@@ -127,7 +126,10 @@ export function shouldFetchOlderSpotifyPage(
   pageCount: number,
 ): boolean {
   if (!hasBeforeCursor || plays.length === 0 || pageCount >= 10) return false;
-  const pageDates = plays.map((play) => getLocalDateKey(play.playedAt)).filter(Boolean).sort();
+  const pageDates = plays
+    .map((play) => getLocalDateKey(play.playedAt))
+    .filter(Boolean)
+    .sort();
   return (pageDates[0] ?? '') >= targetDate;
 }
 
@@ -152,45 +154,12 @@ export function mergeSpotifyArtistDetails(
 }
 
 function rank<T extends { playCount: number; lastPlayedAt: number }>(items: T[]): T[] {
-  return items.sort((left, right) =>
-    right.playCount - left.playCount || right.lastPlayedAt - left.lastPlayedAt,
+  return items.sort(
+    (left, right) => right.playCount - left.playCount || right.lastPlayedAt - left.lastPlayedAt,
   );
 }
 
 function stripRankMetadata<T extends { lastPlayedAt: number }>(item: T): Omit<T, 'lastPlayedAt'> {
   const { lastPlayedAt: _lastPlayedAt, ...summary } = item;
   return summary;
-}
-
-function buildMoodPhrase(plays: SpotifyPlay[], artists: SpotifyArtistSummary[]): string {
-  const lateNight = plays.some((play) => new Date(play.playedAt).getHours() >= 21);
-  const repeat = Math.max(...countTracks(plays).values());
-  const anchor = artists[0]?.name ?? plays[0]?.artist.name ?? 'the usual rotation';
-  const texture = repeat >= 3 ? 'repeat-loop' : lateNight ? 'late-window' : 'soft-focus';
-  return `${texture} ${anchor.toLowerCase()}`;
-}
-
-function inferAverageFeatures(
-  plays: SpotifyPlay[],
-  leadingRepeatCount: number,
-): SpotifyRecap['averageFeatures'] {
-  const lateNightCount = plays.filter((play) => new Date(play.playedAt).getHours() >= 21).length;
-  const repeatRatio = leadingRepeatCount / plays.length;
-  const lateRatio = lateNightCount / plays.length;
-
-  return {
-    valence: clamp(0.58 - lateRatio * 0.12 + repeatRatio * 0.08),
-    energy: clamp(0.52 + plays.length / 120 - lateRatio * 0.08),
-    tempo: Math.round(96 + Math.min(28, plays.length * 0.9) - lateRatio * 8),
-  };
-}
-
-function countTracks(plays: SpotifyPlay[]): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const play of plays) counts.set(play.trackId, (counts.get(play.trackId) ?? 0) + 1);
-  return counts;
-}
-
-function clamp(value: number): number {
-  return Math.max(0, Math.min(1, value));
 }

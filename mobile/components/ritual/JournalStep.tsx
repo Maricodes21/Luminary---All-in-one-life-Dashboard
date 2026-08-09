@@ -54,7 +54,7 @@ export function JournalStep() {
         <Text style={[type.labelSm, styles.accent]}>Going to Journal</Text>
         <Text style={[type.headlineSm, styles.title]}>{moodDisplay}</Text>
         <Text style={[type.bodySm, styles.copy]}>
-          {mood?.source === 'spotify' ? 'Your music suggested this mood. Add what it meant—or move on without writing.' : 'You chose this mood. Add what it meant—or move on without writing.'}
+          {mood?.source === 'luminary_local' || mood?.source === 'luminary_ai' ? 'Luminary suggested this from the wellbeing signals you allowed. Add what it meant—or move on.' : 'You chose this mood. Add what it meant—or move on without writing.'}
         </Text>
       </View>
 

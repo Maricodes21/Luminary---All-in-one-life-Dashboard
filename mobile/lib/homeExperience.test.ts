@@ -65,12 +65,12 @@ test('nightly ritual explains music, clarifies decisions, and persists explicit 
   const summary = fs.readFileSync(path.join(mobileRoot, 'app/ritual/summary.tsx'), 'utf8');
 
   assert.match(source, /Why this came up/);
-  assert.match(source, /Yes, this feels right/);
-  assert.match(source, /Choose a different mood/);
+  assert.match(source, /That’s about right\./);
+  assert.match(source, /Not quite right\./);
   assert.match(source, /Skip mood tonight/);
   assert.match(source, /setStage\('journal'\)/);
-  assert.match(source, /completeSession\(\{/);
-  assert.match(source, /<AlbumStack/);
+  assert.match(source, /completeSession\(summary\(\)\)/);
+  assert.match(source, /<SpotifyDailyRecap/);
   assert.match(source, /styles\.evidenceStrip/);
   assert.doesNotMatch(source, /<RecapCard/);
   assert.match(source, /writeDailyRitualSession/);

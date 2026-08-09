@@ -1,5 +1,5 @@
 import type { MoodLabel } from '@/lib/mood';
-import type { SpotifyRecap } from '@/lib/spotify';
+import { generateDailySignals } from './dailySignals';
 
 export type DailyRitualStatus = 'not_started' | 'in_progress' | 'completed';
 
@@ -33,16 +33,15 @@ export type DailyRitualSession = {
   } | null;
 };
 
-export type RitualSignalKind = 'meals' | 'health' | 'money';
-
 export type RitualSignal = {
   id: string;
-  kind: RitualSignalKind;
+  kind: 'meals' | 'health' | 'money';
   title: string;
   detail: string;
   action: string;
   route: '/(tabs)/meals' | '/(tabs)/health' | '/(tabs)/money';
   priority: number;
+  imageUrl?: string;
 };
 
 export type DailySignalInput = {
@@ -76,61 +75,42 @@ export function expectedMealForTime(now: Date): 'breakfast' | 'lunch' | 'dinner'
   if (hour < 16) return 'lunch';
   return 'dinner';
 }
-
+/** Compatibility adapter for module cards while Home migrates to the full shared context. */
 export function selectDailyRitualSignals(input: DailySignalInput): RitualSignal[] {
-  const signals: RitualSignal[] = [];
-  const expectedMeal = expectedMealForTime(input.now);
-  const mealLogged = input.loggedMealTypes.some((type) => type.toLowerCase() === expectedMeal);
-
-  if (!mealLogged) {
-    const label = sentenceCase(expectedMeal);
-    signals.push({
-      id: `meal-${expectedMeal}`,
-      kind: 'meals',
-      title: `${label} is still open`,
-      detail: `Add ${expectedMeal} if you have eaten and have not logged it yet.`,
-      action: 'Log meal',
-      route: '/(tabs)/meals',
-      priority: 90,
-    });
-  }
-
-  if (input.workoutPlanned && !input.workoutCompleted) {
-    signals.push({
-      id: 'health-workout',
-      kind: 'health',
-      title: 'Workout still waiting',
-      detail: input.workoutLabel ? `${input.workoutLabel} is planned for today.` : 'A workout is still planned for today.',
-      action: 'Open workout',
-      route: '/(tabs)/health',
-      priority: 80,
-    });
-  }
-
-  if (input.purchaseCount === 0) {
-    signals.push({
-      id: 'money-daily-log',
-      kind: 'money',
-      title: 'Anything to log?',
-      detail: 'Add a purchase from today if something slipped your mind.',
-      action: 'Add purchase',
-      route: '/(tabs)/money',
-      priority: 70,
-    });
-  }
-
-  return signals.sort((left, right) => right.priority - left.priority || left.id.localeCompare(right.id)).slice(0, 3);
-}
-
-export function buildMusicEvidence(recap: SpotifyRecap): string[] {
-  const leadingRepeat = recap.topTracks[0]?.playCount ?? 0;
-  const evidence = [
-    `${recap.minutesListened} minutes across ${recap.trackCount} plays`,
-    `Energy signal ${Math.round(recap.averageFeatures.energy * 100)}%`,
-    `Estimated tempo ${Math.round(recap.averageFeatures.tempo)} BPM`,
-  ];
-  if (leadingRepeat > 1) evidence.push(`Your top track returned ${leadingRepeat} times`);
-  return evidence.slice(0, 3);
+  return generateDailySignals({
+    now: input.now,
+    habits: [],
+    loggedMealTypes: input.loggedMealTypes,
+    purchaseCount: input.purchaseCount,
+    workout: {
+      planned: input.workoutPlanned,
+      completed: input.workoutCompleted,
+      title: input.workoutLabel,
+    },
+    journal: { entryCount: 0 },
+    ritual: { status: 'completed' },
+    music: { connected: true, recapAvailable: false },
+  })
+    .filter(
+      (
+        signal,
+      ): signal is typeof signal & { source: RitualSignal['kind']; route: RitualSignal['route'] } =>
+        ['meals', 'health', 'money'].includes(signal.source) &&
+        ((signal.family.startsWith('meal-') && signal.family !== 'meal-complete') ||
+          signal.family === 'workout-due' ||
+          signal.family === 'money-log' ||
+          signal.family === 'money-pending'),
+    )
+    .map((signal) => ({
+      id: signal.id,
+      kind: signal.source,
+      title: signal.title,
+      detail: signal.detail,
+      action: signal.action,
+      route: signal.route,
+      priority: signal.priority,
+      imageUrl: signal.imageUrl,
+    }));
 }
 
 export function isRitualCompletedForDate(session: DailyRitualSession, localDate: string): boolean {
@@ -143,8 +123,4 @@ export function formatHomeDate(now: Date): string {
     day: 'numeric',
     month: 'long',
   }).format(now);
-}
-
-function sentenceCase(value: string): string {
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
