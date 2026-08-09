@@ -1,17 +1,18 @@
 # Luminary Roadmap
 
-## Current Status - 2026-07-04
+## Current Status - 2026-08-09
 
-**Active branch:** `codex/design-touchup`
+**Integration branch:** `develop`
+**Field-test branch:** `preview/mobile`
 
-Luminary is past the static-prototype stage. The app has a local-first production scaffold for Home, Journal, Meals, Health, and Money, plus a richer design-touchup working tree that adds Settings, source-backed content libraries, deeper meal planning, workout logging, and monthly money planning.
+Luminary is past the static-prototype stage. Home, Commitments, Ritual, Journal, Meals, Health, and Money now operate as a connected local-first product with explainable personalization, cited nutrition fallback, dynamic meal/workout planning, and mobile field-test support.
 
 The current sprint goal is still the same: keep the calm, private Luminary identity while making each module feel like a real assistant surface rather than a shared card-and-form template.
 
 Current working-plan docs:
 
 - `PROGRESS.md` - implementation snapshot.
-- `docs/design-touchup-implementation-plan.md` - active branch plan and checkpoint notes.
+- `docs/releases/2026-08-luminary-mobile.md` - current release behavior and review guide.
 
 > MVP definition: all five phases ship for v1.0. The ritual is the heart, but Mari's MVP includes Wallet/Money, Health, and Meals unlocked and functional. Modules are visible from day 1 and deepen through opt-in and personalization.
 
@@ -172,6 +173,7 @@ Remaining:
 - 2026-05-18: Phase 1 complete. Architectural patterns established: pure `lib/*` utilities plus React hooks, Zod at external boundaries, Metro resolver for aliases on Windows, and workspace-root `App.js` shim.
 - 2026-05-18: Phase 2 journal is opt-in after mood confirm/reject; habit check-in gains Tomorrow pauses.
 - 2026-06-27: Expo Android dev-client diagnosis confirmed `mobile/app.json` as authoritative config and `app.luminary.mobile` as current package id.
-- 2026-06-30: Production modules reached local-first scaffold state; `codex/design-touchup` created to deepen Home, Habits, Meals, Health, Money, and Journal.
-- 2026-07-04: Documentation refreshed to reflect Settings, content library, profile/money schema migration `0008`, Spotify audio-features fallback, and current design-touchup verification needs.
+- 2026-06-30: Production modules reached local-first scaffold state; `archive/design-touchup` created to deepen Home, Habits, Meals, Health, Money, and Journal.
+- 2026-07-04: Documentation refreshed to reflect Settings, content library, profile/money schema migration `0008`, and design-touchup verification needs.
+- 2026-08-09: Spotify was formally separated from mood estimation; the recap remains factual and attributed while optional mood intelligence uses consented Luminary-owned signals only.
 - 2026-07-26: Health planning expanded to 157 movements with offline visual atlases and substitutions that never recycle another exercise already scheduled in the same week.

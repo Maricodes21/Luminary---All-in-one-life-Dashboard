@@ -35,9 +35,19 @@ Fill in:
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_SPOTIFY_CLIENT_ID=
+EXPO_PUBLIC_SPOTIFY_REDIRECT_URI=luminary://spotify-callback
 ```
 
 Use local Supabase values from `supabase status` when running a local backend.
+
+The grounded food fallback runs only in Supabase Edge Functions. Configure these as server secrets, never as `EXPO_PUBLIC_` values:
+
+```text
+FIRECRAWL_API_KEY=
+FOOD_WEB_RETRIEVAL_ENABLED=false
+```
+
+Keep retrieval disabled until the source allowlist, quota, and pilot monitoring are ready. When disabled or out of quota, food search falls back to provider results and manual entry.
 
 ## Run The App
 
@@ -67,6 +77,10 @@ Run these before treating a branch as ready:
 npm run type-check --workspace=mobile
 npm run lint --workspace=mobile
 npm run test:content --workspace=mobile
+npm run test:meals --workspace=mobile
+npm run test:meals:backend
+npm run test:personalization:backend
+npm run test:spotify:backend
 npm run deps:check --workspace=mobile
 ```
 
@@ -88,6 +102,7 @@ Current convention:
 - `main`: stable baseline.
 - `develop`: integration baseline.
 - `feat/<name>` and `fix/<name>`: feature/fix work.
-- `codex/<name>`: Codex-created implementation branches.
+- `preview/mobile`: combined field-test build.
+- `docs/<name>`: release and product documentation.
 
 Use conventional commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`.

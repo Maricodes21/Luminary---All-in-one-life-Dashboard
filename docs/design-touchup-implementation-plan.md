@@ -2,7 +2,7 @@
 
 Date started: 2026-06-30
 Last updated: 2026-07-04
-Branch: `codex/design-touchup`
+Historical branch: `archive/design-touchup`
 
 ## Current State
 
@@ -38,7 +38,7 @@ Implemented or in progress:
 
 - Dedicated `mobile/app/settings.tsx` route for profile, tone, reminders, privacy, units, Spotify, Health Connect, sync queue, and sign-out.
 - Home routes profile/settings and module quick tiles to real screens.
-- Spotify recap no longer depends on the restricted audio-features endpoint; it infers a lightweight feature signal from recently played history.
+- Spotify recap no longer depends on the restricted audio-features endpoint and is now limited to attributed listening facts. Mood estimation uses Luminary-owned signals only.
 - `mobile/lib/contentLibrary.ts` introduces attributed starter data for food, exercise, substitutions, source summaries, and budget-plan math.
 - Meals uses source-backed presets, attribution labels, structured weekly plan slots, snacks, substitution hints, and scan/barcode staged fallbacks.
 - Health shows exercise source policy, stages Health Connect permissions through Android settings, and records completed workouts locally.

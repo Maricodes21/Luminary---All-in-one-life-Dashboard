@@ -11,7 +11,7 @@ This design covers two connected workstreams:
 1. Meals reliability and personalization: profile editing, allergen safety, macro progress, adaptive suggestions, substitution stability, search assistance, and accurate recipe imagery.
 2. App-wide assisted input: shared date, option, numeric, unit, and suggestion controls applied to every current input screen.
 
-The work remains on `codex/meal-functionality`. Existing account, journal, notes, and open search behavior is preserved unless this document explicitly changes it.
+The work remains on `archive/meal-functionality`. Existing account, journal, notes, and open search behavior is preserved unless this document explicitly changes it.
 
 ## Interaction Principles
 

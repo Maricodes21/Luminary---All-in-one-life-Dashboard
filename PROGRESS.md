@@ -1,12 +1,10 @@
 # Luminary - Progress Snapshot
 
-> As of 2026-07-04. Open this first, then use `ROADMAP.md` for phase scope and `docs/design-touchup-implementation-plan.md` for the active branch plan.
+> As of 2026-08-09. Open this first, then use `ROADMAP.md` for phase scope and the current release note in `docs/releases/` for validation details.
 
 ## TL;DR
 
-Luminary is in the `codex/design-touchup` sprint. Phase 0 and Phase 1 are complete. Phase 2 is functionally scaffolded, with ritual flows, offline queue foundations, reminders, and local-first state in place, but it still needs a fresh device smoke test and Friend Card closeout before being called fully closed. Phase 4 life modules are no longer blank or placeholder-only: Meals, Health, and Money now have local-first working surfaces and deeper in-branch interaction work.
-
-The current working tree includes uncommitted design-touchup work. Treat the state below as "implemented in branch/working tree" until the verification checklist passes and the changes are committed.
+Luminary now has the connected daily loop across Home, Commitments, Ritual, Journal, Meals, Health, and Money. The August mobile release adds effective-dated commitments, adaptive signals, first-party mood guidance, regional and grounded food discovery, shopping lists, dynamic Yoga and workout plans, and resilient media loading. The implementation is split into neutral review branches and combined through `develop` for the `preview/mobile` field-test build.
 
 ## Phase Status
 
@@ -19,21 +17,29 @@ The current working tree includes uncommitted design-touchup work. Treat the sta
 | 4 - Life Modules | Meals, Health, Money | Local-first scaffold plus touchup WIP | Module UX is active, not backend-blocked. |
 | 5 - Polish & Launch | Performance, accessibility, stores, beta | Not started | Begins after module and ritual verification. |
 
-## Current Branch: `codex/health-dynamic-workouts`
+## Current release branches
+
+- `feat/commitments-home`
+- `feat/ritual-signals`
+- `feat/journal-intelligence`
+- `feat/meals-local-shopping`
+- `fix/health-media-reliability`
+- `docs/luminary-release`
+- `preview/mobile`
 
 Committed baseline:
 
 - `docs: plan design touchup sprint`
 - `feat: retouch mobile module experiences`
 
-Working-tree additions observed 2026-07-04:
+Release additions completed by 2026-08-09:
 
 - `mobile/app/settings.tsx`: profile/settings hub for identity, tone, reminders, privacy, metric units, Spotify, Health Connect, sync queue, and sign-out.
 - `mobile/lib/contentLibrary.ts`: attributed starter library for meals, substitutions, exercises, source summaries, and budget plan calculation.
 - `mobile/lib/contentLibrary.test.ts` plus `mobile/scripts/run-content-tests.cjs`: Node test coverage for search, suggestions, workout alternatives, budget calculations, and source summaries.
 - `supabase/migrations/0008_content_sources_profile_money.sql`: profile settings columns, `budget_profiles`, `content_sources`, `food_items`, and `exercise_items`.
 - Production store expansion for profile settings, richer meal plans, workout logs, monthly money plan, budget updates, saving-goal contributions, and sync queue entities.
-- Spotify recap fallback that avoids the restricted audio-features endpoint and infers average features from listening patterns.
+- Spotify recap that shows attributed listening facts only and keeps Spotify data out of mood estimation and AI requests.
 
 ## Product Surfaces
 

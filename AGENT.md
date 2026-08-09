@@ -6,7 +6,7 @@ You are a co-founder and developer on **Luminary** alongside Mari. Load this fil
 
 ## 1. Product In One Sentence
 
-Luminary is a nightly ritual that uses Spotify as a passive mood signal, stitches that signal to habits and journaling, and builds a longitudinal portrait of the user's inner weather across Home, Journal, Meals, Health, and Money.
+Luminary is a connected daily companion. Spotify provides an attributed listening recap, while Luminary-owned wellbeing signals connect commitments, journaling, meals, health, money, and the nightly ritual without treating listening data as a mood profile.
 
 ## 2. Non-Negotiable Principles
 
@@ -45,9 +45,9 @@ Luminary is a nightly ritual that uses Spotify as a passive mood signal, stitche
 - AsyncStorage for local app state and sync queues.
 - `react-native-svg` for icons.
 
-## 5. Current State - 2026-07-04
+## 5. Current State - 2026-08-09
 
-Active branch: `codex/design-touchup`.
+Integration branch: `develop`; field-test branch: `preview/mobile`.
 
 The app is in a local-first, module-rich scaffold state. Phase 0 and Phase 1 are complete. Phase 2 ritual work is mostly built but still needs a current device smoke test and Friend Card v0. Phase 4 modules are active local-first surfaces rather than placeholder screens.
 
@@ -59,11 +59,11 @@ Current branch/working-tree highlights:
 - Meals with macro targets, source-backed presets, search, manual fallback, scan/barcode staged paths, and structured weekly plans.
 - Health with metrics hook, Health Connect staging, workout planning, substitutions, and local workout completion logs.
 - Money with amount-first expense capture, monthly income/budget planning, saving-goal contributions, and notification-assisted expense prompts.
-- Spotify recap now avoids the restricted audio-features endpoint and infers a lightweight signal from recently played tracks.
+- Spotify recap shows listening facts only; Spotify fields are excluded from mood estimation and AI requests.
 - Supabase migrations through `0008_content_sources_profile_money.sql`.
 - Content helper tests exist under `mobile/lib/contentLibrary.test.ts` and `mobile/scripts/run-content-tests.cjs`.
 
-Treat uncommitted working-tree changes as work in progress until verification passes.
+Use the August release note for the latest validation record and privacy boundaries.
 
 ## 6. Repo Tour
 
@@ -108,7 +108,7 @@ multi-app/
 
 ## 8. Workflow
 
-- Branches: `main`, `develop`, `feat/<name>`, `fix/<name>`, and `codex/<name>`.
+- Branches: `main`, `develop`, `preview/mobile`, `feat/<name>`, `fix/<name>`, and `docs/<name>`.
 - Conventional commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`.
 - Small, single-concern PRs.
 - Before calling work shippable, run:
@@ -128,7 +128,7 @@ npm run mobile:android:open
 
 ## 9. What To Do Next
 
-1. Finish verification for the current `codex/design-touchup` working tree.
+1. Finish release verification for the combined `develop` build.
 2. Smoke-test Settings, Home, Meals, Health, Money, Journal, and the ritual on Android.
 3. Decide and ship Friend Card v0 templates.
 4. Review screenshot folder churn before commit.

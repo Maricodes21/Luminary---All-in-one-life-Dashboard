@@ -2,9 +2,11 @@
 
 Reference assets, historical originals, mockups, and living implementation plans.
 
-## Living Plans
+## Current release
 
-- `design-touchup-implementation-plan.md` - active plan for `codex/design-touchup`.
+- `releases/2026-08-luminary-mobile.md` - release summary and review guide.
+- `iphone-preview.md` - free Expo Go and installable preview setup.
+- `ux-copy-human-tone-map.md` - product-language guidance.
 
 ## Benchmarks
 
@@ -21,6 +23,8 @@ The canonical living docs live at the repo root:
 - `DESIGN.md` - visual rules and design-token commitments.
 - `TONE.md` - copy and voice rules.
 - `SETUP.md` - local development setup.
+- `PRIVACY.md` - AI, Spotify, nutrition, and retention boundaries.
+- `CHANGELOG.md` - shipped changes by date.
 
 ## /originals
 

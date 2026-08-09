@@ -1,95 +1,83 @@
 # Luminary
 
-> Personal Growth OS: a nightly ritual for people who want to know themselves better.
+> A connected daily companion for commitments, reflection, meals, movement, money, and music.
 
-Luminary is a mobile-first wellness app organized around a 3-5 minute evening wind-down. It uses Spotify listening history as a passive mood signal, ties that signal to habits and journaling, and builds a longitudinal portrait of a user's inner weather. The current product is an Expo mobile app with Home, Journal, Meals, Health, and Money surfaces around the ritual.
+Luminary is a mobile-first wellbeing app built around a simple loop: what happens during the day becomes useful context at night, and the completed nightly ritual shapes tomorrow. The five main destinations remain Home, Journal, Meals, Health, and Money.
 
-## Current State
+## Current release
 
-As of 2026-07-04, active work is on `codex/design-touchup`.
+The August 2026 mobile release includes:
 
-The app has moved past static prototypes. The mobile workspace now includes:
+- Home commitments backed by one effective-dated schedule, with five-item paging and immediate cross-screen updates.
+- A rules-first signal library with more than 30 signal families, evidence, confidence, expiry, cooldowns, and feedback.
+- An adaptive nightly ritual that moves through listening recap, mood confirmation, Journal, commitments, tomorrow, and optional final actions.
+- Spotify listening facts kept separate from Luminary's optional first-party mood estimate.
+- A weekly Journal timeline with rotating prompts and evidence-backed local patterns.
+- Region-aware food discovery, cited nutrition fallback, varied four-week meal planning, and a consolidated shopping list.
+- Dynamic Gym, Home, Run, Cycle, and Yoga plans with guided workouts and step-by-step movement instructions.
+- Cached meal and exercise media with retry and placeholder behavior.
+- Free iPhone field testing through Expo Go and an Android development-client path.
 
-- A local-first production scaffold backed by persisted Zustand state and a basic sync queue.
-- Working Home, Journal, Meals, Health, and Money tabs with richer module interactions.
-- A dedicated Settings route for profile, tone, reminders, privacy, units, Spotify, Health Connect, and sync state.
-- Spotify recap plumbing that avoids the restricted audio-features endpoint and infers a lightweight mood signal from recently played history.
-- Meals backed by a content library with curated, USDA, Open Food Facts, and TheMealDB attribution.
-- Health planning backed by a local exercise library, workout completion logging, and staged Health Connect permission flow.
-- Money planning with monthly income, budget envelope, category limits, saving-goal contributions, and notification-assisted expense confirmation.
-- Supabase migrations through `0008_content_sources_profile_money.sql`.
+See [the release summary](docs/releases/2026-08-luminary-mobile.md) for behavior, privacy boundaries, validation, and rollout notes.
 
-The branch still needs final verification before being treated as shippable: type-check, lint, content-library tests, Android visual smoke testing, and a review of any uncommitted working-tree changes.
-
-## Repository Layout
+## Repository layout
 
 ```text
 multi-app/
 |-- mobile/                  Expo React Native app
-|-- packages/
-|   `-- design-system/       Shared design tokens, theme, typography
-|-- supabase/                Database migrations and Supabase config
-|-- docs/                    Living plans, mockups, and historical originals
-|-- DESIGN.md                Visual design system spec
-|-- TONE.md                  Copy and voice bible
-|-- ROADMAP.md               Product roadmap and decisions log
-|-- PROGRESS.md              Current implementation snapshot
-|-- SETUP.md                 Local development setup
-`-- AGENT.md                 Working agreement for the coding agent
+|-- packages/design-system/  Shared tokens and typography
+|-- supabase/                Database migrations and Edge Functions
+|-- docs/                    Release notes, setup guides, and historical references
+|-- DESIGN.md                Visual design system
+|-- TONE.md                  Product voice guide
+|-- ROADMAP.md               Product roadmap
+|-- PROGRESS.md              Implementation snapshot
+`-- SETUP.md                 Local development setup
 ```
 
-## Quick Start
+## Quick start
 
-Prerequisites: Node 20+, npm 10+, Git, Expo tooling, and optionally the Supabase CLI.
+Requirements: Node 20+, npm 10+, Git, and Expo tooling.
 
-```bash
+```powershell
 npm install
-cp mobile/.env.example mobile/.env
-npm run deps:check --workspace=mobile
+Copy-Item mobile\.env.example mobile\.env
 npm run start --workspace=mobile
 ```
 
-Useful checks:
+For a free iPhone preview:
 
-```bash
-npm run type-check --workspace=mobile
-npm run lint --workspace=mobile
-npm run test:content --workspace=mobile
-```
-
-For Android dev-client launches from the repo root:
-
-```bash
-npm run mobile:android:open
-```
-
-For a free live preview on a physical iPhone:
-
-```bash
+```powershell
 npm run mobile:preview:iphone
 ```
 
-Install Expo Go on the iPhone, scan the displayed QR code with its Camera app, and keep the preview command running. See [`docs/iphone-preview.md`](docs/iphone-preview.md) for the tunnel fallback, supported features, and the installable EAS path.
+Install Expo Go, scan the QR code, and keep the preview command running. See [iPhone preview setup](docs/iphone-preview.md) for Spotify callback configuration and the tunnel fallback.
 
-For Supabase, see `supabase/README.md`.
+For Android:
 
-## Stack
+```powershell
+npm run mobile:android
+```
 
-- Mobile: Expo SDK 54, React Native 0.81, React 19, Expo Router 6.
-- State: Zustand for local-first client state, TanStack Query for server cache.
-- Backend: Supabase Postgres, Auth, RLS, and future Edge Functions.
-- Validation: Zod at trust boundaries.
-- Storage: Secure Store for Spotify tokens; AsyncStorage for local app state and queues.
-- Design: `@luminary/design-system`, Manrope, Inter, one primary blue, no-line rule.
+## Quality checks
 
-## Documentation Map
+```powershell
+npm run type-check --workspace=mobile
+npm run lint --workspace=mobile
+npm run test:content --workspace=mobile
+npm run test:meals --workspace=mobile
+npm run test:meals:backend
+npm run test:personalization:backend
+npm run test:spotify:backend
+```
 
-- `PROGRESS.md`: start here for the current implementation snapshot.
-- `ROADMAP.md`: canonical product phase plan and decisions log.
-- `docs/design-touchup-implementation-plan.md`: active branch plan and checkpoint notes.
-- `AGENT.md`: co-founder brief, non-negotiables, repo tour, and workflow.
-- `DESIGN.md`: visual system rules.
-- `TONE.md`: voice rules for user-facing copy.
-- `SETUP.md`: local machine setup.
+## Privacy boundaries
 
-Built by Mari with Codex as co-founder and dev.
+- Spotify is a display-only listening source. Its data is not sent to AI and does not determine the user's mood.
+- Journal text, health data, and financial context each require separate consent before optional AI use.
+- Nutrition created from online retrieval must retain its source, serving assumption, retrieval date, and confidence. It is never presented as verified food data.
+- Core commitments, journaling, meals, workouts, money, and ritual completion remain usable without AI.
+
+Read [PRIVACY.md](PRIVACY.md) for the full implementation-facing policy.
+
+Built and maintained by Mari / Maricodes21.

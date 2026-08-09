@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Work on `codex/meal-functionality` from baseline `8378957`.
+- Work on `archive/meal-functionality` from baseline `8378957`.
 - Use `Today / Plan` modes and no meal status chips.
 - Never invent nutrition from an AI response; calculate it from normalized food records.
 - A meal or plan recipe must never display an unrelated image.
