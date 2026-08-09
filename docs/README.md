@@ -8,6 +8,11 @@ Reference assets, historical originals, mockups, and living implementation plans
 - `iphone-preview.md` - free Expo Go and installable preview setup.
 - `ux-copy-human-tone-map.md` - product-language guidance.
 
+## Screenshots
+
+- `screenshots/luminary-onboarding-android.png` - current Android onboarding capture.
+- `mockups/` - historical product-direction references; these are not release screenshots.
+
 ## Benchmarks
 
 - `benchmarks/meal-vision-2026-07-14.md` - Gemma/Qwen meal-photo evaluation and routing decision.

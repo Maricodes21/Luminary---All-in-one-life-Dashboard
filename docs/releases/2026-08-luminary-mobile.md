@@ -44,4 +44,4 @@ Feature branches are integrated into `develop`; release-ready `develop` is merge
 - Personalization schema contract: passed.
 - Spotify preview OAuth contracts: 3 passed.
 - TypeScript, lint, Expo dependency alignment, and Android Hermes export: passed.
-- The local native debug install remains machine-blocked by Reanimated/CMake path-length handling in the nested Windows worktree. The Expo Go field-test route and packaged Android export do not share that CMake build-path constraint.
+- Native Android compilation passes from the short build worktree. Installation on the available Pixel emulators is blocked by their nearly full internal storage; the generated Android/Hermes export and Expo Go field-test route are unaffected.
