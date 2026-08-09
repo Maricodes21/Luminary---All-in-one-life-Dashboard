@@ -8,7 +8,10 @@
  */
 
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { z } from 'zod';
+import type { OnboardingStep } from '@/lib/authRouting';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 
@@ -49,6 +52,9 @@ export type OnboardingData = z.infer<typeof onboardingSchema>;
 // ─── Store types ──────────────────────────────────────────────────────────────
 
 type OnboardingStore = Partial<OnboardingData> & {
+  currentStep: OnboardingStep;
+  spotifyAuthPending: boolean;
+  hasHydrated: boolean;
   setDisplayName: (v: string) => void;
   setPronouns: (v: string | undefined) => void;
   setWeight: (v: number | undefined) => void;
@@ -58,6 +64,9 @@ type OnboardingStore = Partial<OnboardingData> & {
   setHabitNames: (v: string[]) => void;
   setToneProfile: (v: 'coach_hard' | 'gentle_nudges' | 'just_data') => void;
   setSpotifyConnected: (v: boolean) => void;
+  setSpotifyAuthPending: (v: boolean) => void;
+  setCurrentStep: (step: OnboardingStep) => void;
+  setHasHydrated: (hydrated: boolean) => void;
   setReminderTime: (hour: number, minute: number) => void;
   /** Validate + write to Supabase. Throws on validation or DB error. */
   commitOnboarding: () => Promise<void>;
@@ -93,13 +102,16 @@ export const HABIT_SUGGESTIONS: Record<string, string[]> = {
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
+export const useOnboardingStore = create<OnboardingStore>()(persist((set, get) => ({
   // Sensible defaults so screens don't crash on first render.
   workoutPreference: undefined,
   goals: [],
   habitNames: [],
   toneProfile: 'gentle_nudges',
   spotifyConnected: false,
+  spotifyAuthPending: false,
+  currentStep: 'welcome',
+  hasHydrated: false,
   reminderHour: 21,
   reminderMinute: 0,
 
@@ -112,6 +124,9 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
   setHabitNames: (habitNames) => set({ habitNames }),
   setToneProfile: (toneProfile) => set({ toneProfile }),
   setSpotifyConnected: (spotifyConnected) => set({ spotifyConnected }),
+  setSpotifyAuthPending: (spotifyAuthPending) => set({ spotifyAuthPending }),
+  setCurrentStep: (currentStep) => set({ currentStep }),
+  setHasHydrated: (hasHydrated) => set({ hasHydrated }),
   setReminderTime: (reminderHour, reminderMinute) => set({ reminderHour, reminderMinute }),
 
   commitOnboarding: async () => {
@@ -151,4 +166,23 @@ export const useOnboardingStore = create<OnboardingStore>((set, get) => ({
     const { error: habitsError } = await supabase.from('habits').insert(habitRows);
     if (habitsError) throw new Error(habitsError.message);
   },
+}), {
+  name: 'luminary.onboarding.draft.v1',
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state) => ({
+    displayName: state.displayName,
+    pronouns: state.pronouns,
+    weightKg: state.weightKg,
+    heightCm: state.heightCm,
+    workoutPreference: state.workoutPreference,
+    goals: state.goals,
+    habitNames: state.habitNames,
+    toneProfile: state.toneProfile,
+    spotifyConnected: state.spotifyConnected,
+    spotifyAuthPending: state.spotifyAuthPending,
+    reminderHour: state.reminderHour,
+    reminderMinute: state.reminderMinute,
+    currentStep: state.currentStep,
+  }),
+  onRehydrateStorage: () => (state) => state?.setHasHydrated(true),
 }));

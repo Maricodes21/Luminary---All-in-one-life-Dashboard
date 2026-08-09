@@ -25,8 +25,8 @@ const workspaceRoot = path.resolve(projectRoot, '..');
 
 const config = getDefaultConfig(projectRoot);
 
-// 1. Watch all files within the monorepo (so design-system edits hot-reload).
-config.watchFolders = [workspaceRoot];
+// 1. Watch all default Expo workspace folders, plus the workspace root.
+config.watchFolders = Array.from(new Set([...(config.watchFolders ?? []), workspaceRoot]));
 
 // 2. Let Metro resolve modules from the local app AND the workspace root.
 config.resolver.nodeModulesPaths = [

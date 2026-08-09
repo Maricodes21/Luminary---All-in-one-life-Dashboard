@@ -9,23 +9,15 @@
  * here and updated via the route name so each child screen stays lean.
  */
 
-import { Stack, useSegments } from 'expo-router';
+import { useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii } from '@luminary/design-system';
+import { ONBOARDING_STEPS, type OnboardingStep } from '@/lib/authRouting';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
-const STEPS = [
-  'welcome',
-  'account',
-  'profile',
-  'spotify',
-  'body',
-  'workout',
-  'goals',
-  'habits',
-  'personality',
-  'ready',
-] as const;
+const STEPS = ONBOARDING_STEPS;
 
 export default function OnboardingLayout() {
   return (
@@ -44,9 +36,12 @@ export default function OnboardingLayout() {
 }
 
 /** Rendered inside each onboarding screen at the top — imported per-screen. */
-export function OnboardingProgress({ step }: { step: (typeof STEPS)[number] }) {
+export function OnboardingProgress({ step }: { step: OnboardingStep }) {
   const insets = useSafeAreaInsets();
+  const setCurrentStep = useOnboardingStore((state) => state.setCurrentStep);
   const currentIndex = STEPS.indexOf(step);
+
+  useEffect(() => setCurrentStep(step), [setCurrentStep, step]);
 
   return (
     <View style={[styles.progressBar, { paddingTop: insets.top + spacing.sm }]}>

@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { deleteJournalRecord, type JournalDeleteClient } from '@/lib/journal';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
 
@@ -26,5 +27,14 @@ export function useJournalEntries() {
       return data as JournalEntry[];
     },
     enabled: !!session,
+  });
+}
+
+export function useDeleteJournalEntry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (entryId: string) => deleteJournalRecord(supabase as unknown as JournalDeleteClient, entryId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['journal_entries'] }),
   });
 }

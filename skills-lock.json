@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "valyu-best-practices": {
+      "source": "valyuai/skills",
+      "sourceType": "github",
+      "skillPath": "valyu-search/valyu-best-practices/SKILL.md",
+      "computedHash": "ab8343a839682adb5b2cff657d63f34594dbdfec7003c0c8fe1f19006b14cd0d"
+    }
+  }
+}

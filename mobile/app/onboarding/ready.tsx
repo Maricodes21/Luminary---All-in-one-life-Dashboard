@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { saveCachedOnboardingStatus } from '@/lib/authProfileCache';
 import { OnboardingProgress } from './_layout';
 
 // ── Reminder time helpers ─────────────────────────────────────────────────────
@@ -50,7 +51,9 @@ export default function ReadyScreen() {
       await store.commitOnboarding();
       setOnboardingComplete(true);
       setDisplayName(store.displayName ?? null);
-      router.replace('/(tabs)');
+      const userId = useAuthStore.getState().user?.id;
+      if (userId) await saveCachedOnboardingStatus(userId, 'complete');
+      router.replace('/ritual');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Try again.';
       setError(msg);

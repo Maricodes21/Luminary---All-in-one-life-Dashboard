@@ -1,18 +1,10 @@
 /**
- * Tab navigator — 4 visible tabs (Home, Journal, Health, Money) with a
- * floating ritual FAB overlay.
- *
- * The FAB is rendered as an absolutely-positioned button OUTSIDE the
- * <Tabs> navigator. This keeps the file-routing tree honest (no phantom
- * "ritual" tab screen) while still giving us the visual center button.
- *
- * Resolved per design decision 2026-05-01.
+ * Tab navigator - 5 visible tabs (Home, Journal, Meals, Health, Money).
  */
-import { Tabs, useRouter } from 'expo-router';
-import { Pressable, View, StyleSheet, Platform } from 'react-native';
+import { Tabs } from 'expo-router';
+import { View, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
-import { palette, spacing, radii, glass } from '@luminary/design-system';
+import { palette, glass } from '@luminary/design-system';
 import { Icon } from '@/components/ui/Icon';
 
 export default function TabsLayout() {
@@ -33,7 +25,7 @@ export default function TabsLayout() {
           tabBarInactiveTintColor: palette.onSurfaceVariant,
           tabBarStyle: {
             position: 'absolute',
-            borderTopWidth: 0, // No-line rule.
+            borderTopWidth: 0,
             backgroundColor: 'transparent',
             height: 84,
             paddingBottom: 18,
@@ -61,6 +53,13 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="meals"
+          options={{
+            title: 'Meals',
+            tabBarIcon: ({ color }) => <Icon name="meals" color={color} />,
+          }}
+        />
+        <Tabs.Screen
           name="health"
           options={{
             title: 'Health',
@@ -75,58 +74,10 @@ export default function TabsLayout() {
           }}
         />
       </Tabs>
-
-      <RitualFab />
-    </View>
-  );
-}
-
-function RitualFab() {
-  const router = useRouter();
-  const onPress = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {
-        /* noop */
-      });
-    }
-    router.push('/ritual');
-  };
-  return (
-    // box-none on the overlay so taps on empty edges pass through to tabs beneath.
-    // The Pressable itself must NOT have pointer-events restrictions.
-    <View style={styles.fabOverlay} pointerEvents="box-none">
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel="Begin tonight's ritual"
-        style={styles.fabButton}
-      >
-        <Icon name="sparkles" size={26} color={palette.onPrimary} />
-      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   host: { flex: 1, backgroundColor: palette.surface },
-  fabOverlay: {
-    position: 'absolute',
-    bottom: 56, // sits above the tab bar (84 height − a slight overlap)
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  fabButton: {
-    width: 64,
-    height: 64,
-    borderRadius: radii.lg,
-    backgroundColor: palette.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: palette.surfaceTint,
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
 });

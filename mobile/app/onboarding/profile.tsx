@@ -16,8 +16,26 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
+import { ChoiceGroup } from '@/components/ui';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { OnboardingProgress } from './_layout';
+
+const pronounOptions = [
+  { value: 'she/her', label: 'she/her' },
+  { value: 'he/him', label: 'he/him' },
+  { value: 'they/them', label: 'they/them' },
+  { value: 'Custom', label: 'Custom' },
+] as const;
+
+type PronounChoice = (typeof pronounOptions)[number]['value'];
+
+function getPronounChoice(pronouns?: string): PronounChoice | undefined {
+  if (!pronouns) return undefined;
+
+  return pronounOptions.some((option) => option.value === pronouns)
+    ? (pronouns as PronounChoice)
+    : 'Custom';
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -27,6 +45,7 @@ export default function ProfileScreen() {
 
   const [name, setName] = useState(savedName ?? '');
   const [pronouns, setPronounsLocal] = useState(savedPronouns ?? '');
+  const [pronounChoice, setPronounChoice] = useState<PronounChoice | undefined>(() => getPronounChoice(savedPronouns));
   const [error, setError] = useState<string | null>(null);
 
   function advance() {
@@ -72,18 +91,33 @@ export default function ProfileScreen() {
               ) : null}
             </View>
 
-            <View>
-              <Text style={[t.labelMd, styles.label]}>pronouns (optional)</Text>
-              <TextInput
-                style={styles.input}
-                value={pronouns}
-                onChangeText={setPronounsLocal}
-                autoCapitalize="none"
-                placeholderTextColor={palette.onSurfaceVariant}
-                placeholder="e.g. she/her"
-                accessibilityLabel="Pronouns, optional"
-              />
-            </View>
+            <ChoiceGroup
+              label="Pronouns (optional)"
+              value={pronounChoice ?? ''}
+              options={pronounOptions}
+              onChange={(choice) => {
+                setPronounChoice(choice || undefined);
+                if (choice !== 'Custom') {
+                  setPronounsLocal(choice);
+                } else if (pronounChoice !== 'Custom') {
+                  setPronounsLocal('');
+                }
+              }}
+            />
+            {pronounChoice === 'Custom' ? (
+              <View>
+                <Text style={[t.labelMd, styles.label]}>custom pronouns</Text>
+                <TextInput
+                  style={styles.input}
+                  value={pronouns}
+                  onChangeText={setPronounsLocal}
+                  autoCapitalize="none"
+                  placeholderTextColor={palette.onSurfaceVariant}
+                  placeholder="e.g. xe/xem"
+                  accessibilityLabel="Custom pronouns, optional"
+                />
+              </View>
+            ) : null}
           </View>
         </View>
 

@@ -37,7 +37,7 @@ export const ALL_MOOD_LABELS: readonly MoodLabel[] = [
   'peaceful', 'grounded', 'tender', 'melancholic', 'drained',
 ] as const;
 
-export type MoodSource = 'spotify' | 'manual' | 'journal_inferred';
+export type MoodSource = 'manual' | 'journal_inferred' | 'luminary_local' | 'luminary_ai' | 'spotify';
 
 export type MoodEvent = {
   /** ISO timestamp. */
@@ -46,7 +46,7 @@ export type MoodEvent = {
   source: MoodSource;
   /** 0..1; how confident we are in this label. Manual entries are 1.0. */
   confidence: number;
-  /** Optional: original audio features for debug/audit. */
+  /** Legacy field retained only for reading historical rows. New mood writes never contain Spotify features. */
   features?: {
     valence: number;
     energy: number;

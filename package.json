@@ -9,14 +9,24 @@
   ],
   "scripts": {
     "mobile": "npm run start --workspace=mobile",
+    "mobile:preview:iphone": "npm run preview:iphone --workspace=mobile",
+    "mobile:preview:iphone:lan": "npm run preview:iphone:lan --workspace=mobile",
     "mobile:ios": "npm run ios --workspace=mobile",
     "mobile:android": "npm run android --workspace=mobile",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "supabase:start": "cd supabase && supabase start",
-    "supabase:db:reset": "cd supabase && supabase db reset"
+    "supabase:start": "supabase start",
+    "supabase:db:reset": "supabase db reset",
+    "test:meals:backend": "node --test supabase/tests/personalized-meals-schema.test.cjs supabase/tests/supabase-hardening-schema.test.cjs supabase/tests/supabase-role-privileges-schema.test.cjs supabase/tests/supabase-meals-performance-schema.test.cjs supabase/tests/meals-api-contract.test.cjs supabase/tests/meal-vision-benchmark.test.cjs",
+    "test:spotify:backend": "node --test supabase/tests/spotify-preview-auth-contract.test.cjs",
+    "test:personalization:backend": "node --test supabase/tests/commitment-signals-schema.test.cjs",
+    "benchmark:meal-vision": "node supabase/benchmarks/meal-vision/run.cjs",
+    "mobile:android:open": "npm run android:open --workspace=mobile",
+    "mobile:clear": "npm run start:clear --workspace=mobile",
+    "mobile:preview:iphone:tunnel": "npm run preview:iphone:tunnel --workspace=mobile"
   },
   "devDependencies": {
+    "@types/react": "~19.1.10",
     "prettier": "^3.3.0"
   },
   "engines": {
@@ -24,6 +34,9 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
     "react-native-web": "^0.21.0"
   }
 }

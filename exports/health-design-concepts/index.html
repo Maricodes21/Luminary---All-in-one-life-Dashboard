@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Luminary Health directions</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#concept-stage">Skip to design</a>
+    <header class="review-bar">
+      <div>
+        <p class="overline">Luminary / Health exploration</p>
+        <h1>Four ways movement could feel.</h1>
+        <p class="review-copy">Same workout intelligence and Luminary colour system. Different hierarchy, density and daily journey.</p>
+      </div>
+      <nav class="concept-tabs" aria-label="Health design directions">
+        <button class="concept-tab is-active" data-concept="brief" aria-pressed="true"><b>01</b> Daily brief</button>
+        <button class="concept-tab" data-concept="atlas" aria-pressed="false"><b>02</b> Week atlas</button>
+        <button class="concept-tab" data-concept="body" aria-pressed="false"><b>03</b> Body & load</button>
+        <button class="concept-tab" data-concept="coach" aria-pressed="false"><b>04</b> Coach stream</button>
+      </nav>
+    </header>
+
+    <main id="concept-stage" class="stage">
+      <section class="phone concept is-active" data-screen="brief" aria-label="Daily brief design">
+	        <div class="status"><span>9:41</span><span>● ● ▰</span></div>
+	        <div class="screen scroll-screen">
+	          <div class="brief-view is-active" data-brief-view="today">
+	          <header class="app-head">
+            <div><p class="eyebrow">Sunday, July 26</p><h2>Movement</h2></div>
+            <button class="round-control" aria-label="Open Health settings">ME</button>
+          </header>
+
+          <article class="hero-brief">
+            <div class="pose atlas-05 hollow"></div>
+            <div class="hero-copy">
+              <p class="eyebrow blue">Today / 40 min</p>
+              <h3>Push + core</h3>
+              <p>Five movements. Your shoulders look ready; keep two reps in reserve.</p>
+              <button class="primary-action">Open workout <span>→</span></button>
+            </div>
+          </article>
+
+          <div class="metric-sentence"><strong>4</strong><span>days planned</span><i></i><strong>160</strong><span>minutes</span></div>
+
+          <section class="section-block">
+	            <div class="section-title"><div><p class="eyebrow">This week</p><h3>Your training brief</h3></div><button data-brief-target="plan">See plan</button></div>
+            <div class="brief-days">
+              <article class="day-card current"><span>Today</span><b>Push + core</b><small>40 min · 5 movements</small></article>
+              <article class="day-card"><span>Tue</span><b>Legs + mobility</b><small>40 min · 5 movements</small></article>
+              <article class="day-card"><span>Thu</span><b>Pull + posterior</b><small>40 min · 5 movements</small></article>
+            </div>
+          </section>
+
+	          <article class="quiet-card"><p class="eyebrow">A useful note</p><h3>The week is building, not testing you.</h3><p>Thursday adds one set only if Tuesday still feels settled.</p></article>
+
+	          <article class="planner-invite">
+	            <div><p class="eyebrow blue">Your plan, your shape</p><h3>Make the week fit real life.</h3><p>Choose where, when and how long. Luminary will handle the movement mix.</p></div>
+	            <button class="secondary-action" data-brief-target="setup">Plan or adjust the week</button>
+	          </article>
+	          </div>
+
+	          <div class="brief-view setup-view" data-brief-view="setup" hidden>
+	            <header class="flow-head">
+	              <button class="back-control" data-brief-target="today" aria-label="Back to Daily brief">←</button>
+	              <div><p class="eyebrow">Plan setup / 1 of 2</p><h2>Plan around real life.</h2></div>
+	            </header>
+	            <p class="flow-intro">Start with the shape of your week. You can change every workout before keeping it.</p>
+
+	            <fieldset class="setup-field">
+	              <legend><span>01</span><b>Where are you moving?</b></legend>
+	              <div class="choice-grid three">
+	                <button class="choice is-selected" aria-pressed="true"><i>⌂</i><b>Home</b><small>Bodyweight + bands</small></button>
+	                <button class="choice" aria-pressed="false"><i>G</i><b>Gym</b><small>Machines + weights</small></button>
+	                <button class="choice" aria-pressed="false"><i>↗</i><b>Outside</b><small>Run or cycle</small></button>
+	              </div>
+	            </fieldset>
+
+	            <fieldset class="setup-field">
+	              <legend><span>02</span><b>How should it meet you?</b></legend>
+	              <div class="segmented-choice" role="group" aria-label="Training level">
+	                <button>New</button><button class="is-selected">Steady</button><button>Experienced</button>
+	              </div>
+	            </fieldset>
+
+	            <fieldset class="setup-field">
+	              <legend><span>03</span><b>Which days have room?</b><em>4 selected</em></legend>
+	              <div class="day-picker" role="group" aria-label="Workout days">
+	                <button class="is-selected" aria-pressed="true"><span>M</span><b>24</b></button>
+	                <button class="is-selected" aria-pressed="true"><span>T</span><b>25</b></button>
+	                <button aria-pressed="false"><span>W</span><b>26</b></button>
+	                <button class="is-selected" aria-pressed="true"><span>T</span><b>27</b></button>
+	                <button aria-pressed="false"><span>F</span><b>28</b></button>
+	                <button class="is-selected" aria-pressed="true"><span>S</span><b>29</b></button>
+	                <button aria-pressed="false"><span>S</span><b>30</b></button>
+	              </div>
+	            </fieldset>
+
+	            <fieldset class="setup-field split-field">
+	              <legend><span>04</span><b>How much time?</b></legend>
+	              <div class="time-options"><button>25</button><button class="is-selected">40</button><button>55</button></div>
+	              <p><strong>40 min</strong> gives each day five movements with room to settle in.</p>
+	            </fieldset>
+
+	            <fieldset class="setup-field">
+	              <legend><span>05</span><b>What matters this week?</b></legend>
+	              <div class="goal-picks"><button class="is-selected">Build strength</button><button>Move better</button><button>More energy</button><button>Keep momentum</button></div>
+	            </fieldset>
+
+	            <article class="setup-summary"><div><p class="eyebrow">Your shape</p><h3>Home · steady · 4 days</h3><p>40 minutes with strength as the lead.</p></div><span>160<br><small>min / week</small></span></article>
+	            <button class="primary-action build-plan" data-brief-target="plan">Build my week <span>→</span></button>
+	          </div>
+
+	          <div class="brief-view plan-view" data-brief-view="plan" hidden>
+	            <header class="flow-head">
+	              <button class="back-control" data-brief-target="today" aria-label="Back to Daily brief">←</button>
+	              <div><p class="eyebrow">Your training brief</p><h2>Your week, built.</h2></div>
+	            </header>
+	            <div class="plan-meta"><span>Home</span><span>Steady</span><span>4 days</span><span>40 min</span></div>
+	            <article class="plan-lead">
+	              <div><p class="eyebrow blue">The shape</p><h3>Strength, then room to recover.</h3><p>Push and legs lead the week. Pull restores the balance before a full-body close.</p></div>
+	              <button data-brief-target="setup">Adjust</button>
+	            </article>
+
+	            <section class="generated-week">
+	              <article class="generated-day current"><div class="date-block"><small>Mon</small><b>24</b></div><div class="pose atlas-03 pushup"></div><div><p class="eyebrow blue">Today</p><h3>Push + core</h3><p>40 min · 5 movements</p></div><button aria-label="Open Push and core">→</button></article>
+	              <article class="generated-day"><div class="date-block"><small>Tue</small><b>25</b></div><div class="pose atlas-04 split"></div><div><p class="eyebrow">Day 2</p><h3>Legs + mobility</h3><p>40 min · 5 movements</p></div><button aria-label="Open Legs and mobility">→</button></article>
+	              <article class="generated-day"><div class="date-block"><small>Thu</small><b>27</b></div><div class="pose atlas-03 band-row"></div><div><p class="eyebrow">Day 3</p><h3>Pull + posterior</h3><p>40 min · 5 movements</p></div><button aria-label="Open Pull and posterior">→</button></article>
+	              <article class="generated-day"><div class="date-block"><small>Sat</small><b>29</b></div><div class="pose atlas-05 bear"></div><div><p class="eyebrow">Day 4</p><h3>Full-body control</h3><p>40 min · 5 movements</p></div><button aria-label="Open Full-body control">→</button></article>
+	            </section>
+
+	            <article class="progression-brief"><p class="eyebrow">How the week grows</p><h3>Earn the next step.</h3><p>Add one or two clean reps before changing the exercise. Next week adapts from what you actually complete.</p></article>
+	            <button class="primary-action keep-plan" data-brief-target="today">Keep this plan <span>→</span></button>
+	            <button class="text-action" data-brief-target="setup">Change the setup</button>
+	          </div>
+	        </div>
+        <nav class="bottom-nav" aria-label="Preview navigation"><span>Home</span><span>Journal</span><span>Meals</span><b>Health</b><span>Money</span></nav>
+      </section>
+
+      <section class="phone concept" data-screen="atlas" aria-label="Week atlas design" hidden>
+        <div class="status"><span>9:41</span><span>● ● ▰</span></div>
+        <div class="screen scroll-screen atlas-screen">
+          <header class="compact-head"><div><p class="eyebrow">Health / week 3</p><h2>Your week in motion.</h2></div><button class="round-control">···</button></header>
+          <div class="week-strip" role="group" aria-label="Workout days">
+            <button><span>M</span><b>24</b><i></i></button>
+            <button class="selected"><span>T</span><b>25</b><i></i></button>
+            <button><span>W</span><b>26</b></button>
+            <button><span>T</span><b>27</b><i></i></button>
+            <button><span>F</span><b>28</b></button>
+            <button><span>S</span><b>29</b><i></i></button>
+            <button><span>S</span><b>30</b></button>
+          </div>
+
+          <section class="timeline-plan">
+            <div class="timeline-node done"><span></span><small>MON / CAPTURED</small><h3>Push + core</h3><p>40 min · You kept the pace even.</p></div>
+            <div class="timeline-node active"><span></span><small>TODAY / READY</small>
+              <article class="selected-session">
+                <div class="session-top"><div><h3>Legs + mobility</h3><p>40 min · 5 movements</p></div><div class="pose atlas-04 split"></div></div>
+                <ol><li><b>Split squat</b><span>3 × 10 each side</span></li><li><b>Glute bridge</b><span>3 × 15</span></li><li><b>Step-up</b><span>3 × 10 each side</span></li></ol>
+                <button class="primary-action">Begin today <span>→</span></button>
+              </article>
+            </div>
+            <div class="timeline-node"><span></span><small>THU / PLANNED</small><h3>Pull + posterior</h3><p>40 min · The session adapts after today.</p></div>
+            <div class="timeline-node"><span></span><small>SAT / PLANNED</small><h3>Full-body control</h3><p>40 min · A steady close to the week.</p></div>
+          </section>
+          <button class="secondary-action">Change this week</button>
+        </div>
+        <nav class="bottom-nav"><span>Home</span><span>Journal</span><span>Meals</span><b>Health</b><span>Money</span></nav>
+      </section>
+
+      <section class="phone concept" data-screen="body" aria-label="Body and load design" hidden>
+        <div class="status"><span>9:41</span><span>● ● ▰</span></div>
+        <div class="screen scroll-screen body-screen">
+          <header class="app-head"><div><p class="eyebrow">Physical health</p><h2>Body & load</h2></div><button class="round-control">ME</button></header>
+          <section class="readiness-stage">
+            <div class="body-map" aria-label="Training focus body map">
+              <svg viewBox="0 0 150 270" role="img" aria-label="Front body map with core and shoulders highlighted">
+                <circle cx="75" cy="25" r="18"/><path d="M52 52 Q75 40 98 52 L108 120 95 155 91 245 72 245 69 165 59 245 40 245 45 155 32 120Z"/><path class="focus-zone" d="M50 57 Q75 48 100 57 L96 83 Q75 72 54 83Z"/><path class="focus-zone" d="M59 86 L91 86 94 135 56 135Z"/><path d="M36 65 11 145 26 150 54 89M102 65l25 80-15 5-28-61"/>
+              </svg>
+              <span class="map-label shoulders">Shoulders</span><span class="map-label core">Core</span>
+            </div>
+            <div class="readiness-copy"><p class="eyebrow blue">Today's focus</p><h3>Upper body looks available.</h3><p>Sleep is unconnected, so the plan uses your recent workout rhythm instead.</p><div class="readiness-score"><b>Steady</b><span>training load</span></div></div>
+          </section>
+
+          <section class="session-stack">
+            <article><div class="pose atlas-03 pushup"></div><div><p class="eyebrow">40 minutes</p><h3>Push + core</h3><p>Strength first, then control.</p></div><button>→</button></article>
+            <article class="load-card"><p class="eyebrow">Load balance</p><div class="load-row"><span>Push</span><i style="--fill:72%"></i><b>72</b></div><div class="load-row"><span>Pull</span><i style="--fill:48%"></i><b>48</b></div><div class="load-row"><span>Legs</span><i style="--fill:61%"></i><b>61</b></div><p class="soft-note">Nothing needs correcting. Thursday restores pull volume.</p></article>
+          </section>
+
+          <section class="section-block"><div class="section-title"><h3>Next three</h3><button>Full plan</button></div><div class="mini-sessions"><span><b>Today</b>Push + core</span><span><b>Tue</b>Legs + mobility</span><span><b>Thu</b>Pull + posterior</span></div></section>
+        </div>
+        <nav class="bottom-nav"><span>Home</span><span>Journal</span><span>Meals</span><b>Health</b><span>Money</span></nav>
+      </section>
+
+      <section class="phone concept" data-screen="coach" aria-label="Coach stream design" hidden>
+        <div class="status"><span>9:41</span><span>● ● ▰</span></div>
+        <div class="screen scroll-screen coach-screen">
+          <header class="coach-head"><div><p class="eyebrow">Good day, Mari.</p><h2>What your body needs next.</h2></div><button class="round-control">ME</button></header>
+          <article class="coach-lead">
+            <div class="coach-mark">L</div><p>You have forty minutes and one push day waiting. Start with control; the plan can grow after the first set.</p><small>Built from your plan · no Health data needed</small>
+          </article>
+
+          <article class="workout-ticket">
+            <div class="ticket-image pose atlas-03 pushup"></div>
+            <div class="ticket-body"><p class="eyebrow blue">Ready now</p><h3>Push + core</h3><div class="ticket-facts"><span><b>40</b> min</span><span><b>5</b> moves</span><span><b>2</b> reps left</span></div><button class="primary-action">Start with push-ups <span>→</span></button><button class="text-action">Review or swap movements</button></div>
+          </article>
+
+          <section class="coach-feed"><p class="eyebrow">After that</p>
+            <article><span class="feed-time">Tue</span><div><b>Legs + mobility</b><p>Keep it at 40 minutes.</p></div><em>Planned</em></article>
+            <article><span class="feed-time">Thu</span><div><b>Pull + posterior</b><p>May add one set if today settles well.</p></div><em>Adaptive</em></article>
+            <article class="connection"><span class="feed-time">+</span><div><b>Add body context</b><p>Connect Health when the extra signal feels useful.</p></div><em>Optional</em></article>
+          </section>
+
+          <article class="coach-reflection"><p class="eyebrow">Last captured</p><blockquote>“The pace felt even. Shoulders were fine after the second set.”</blockquote><button>See workout history</button></article>
+        </div>
+        <nav class="bottom-nav"><span>Home</span><span>Journal</span><span>Meals</span><b>Health</b><span>Money</span></nav>
+      </section>
+
+      <aside class="concept-notes" aria-live="polite">
+        <p class="overline" id="note-number">Direction 01</p>
+        <h2 id="note-title">Daily brief</h2>
+        <p id="note-summary">A decisive first viewport: today’s session, weekly volume and the next three training moments.</p>
+        <dl id="note-list">
+          <div><dt>Best for</dt><dd>Fast daily use</dd></div>
+          <div><dt>Signature move</dt><dd>Editorial workout cover</dd></div>
+          <div><dt>Trade-off</dt><dd>Less plan detail up front</dd></div>
+        </dl>
+        <p class="prototype-note">Comparison prototype only. Nothing here changes the production Health screen.</p>
+      </aside>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

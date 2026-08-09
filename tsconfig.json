@@ -1,4 +1,16 @@
 {
-  "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./mobile/*"
+      ],
+      "@luminary/design-system": [
+        "./packages/design-system/src/index.ts"
+      ],
+      "@luminary/design-system/*": [
+        "./packages/design-system/src/*"
+      ]
+    }
+  }
 }

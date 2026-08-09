@@ -12,11 +12,21 @@
  *
  * Scopes required:
  *   user-read-recently-played   → /v1/me/player/recently-played
- *   user-top-read               → /v1/me/top/artists
  */
 
 import * as SecureStore from 'expo-secure-store';
 import { z } from 'zod';
+import {
+  buildDailySpotifyRecap,
+  getLocalDateKey,
+  mergeSpotifyArtistDetails,
+  shouldFetchOlderSpotifyPage,
+  type SpotifyArtistDetails,
+  type SpotifyPlay,
+  type SpotifyRecap,
+} from '@/lib/spotifyRecap';
+
+export type { SpotifyRecap } from '@/lib/spotifyRecap';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -34,14 +44,6 @@ export type SpotifyTokens = {
   refreshToken: string;
   /** Epoch ms when the access token expires. */
   expiresAt: number;
-};
-
-export type SpotifyRecap = {
-  date: string; // YYYY-MM-DD
-  trackCount: number;
-  minutesListened: number;
-  topArtists: Array<{ id: string; name: string; imageUrl?: string }>;
-  averageFeatures: { valence: number; energy: number; tempo: number };
 };
 
 // ─── Token storage ────────────────────────────────────────────────────────────
@@ -121,10 +123,10 @@ async function refreshTokens(refreshToken: string, clientId: string): Promise<Sp
  * Fetch tonight's listening recap from Spotify.
  *
  * Pipeline:
- *   1. GET /v1/me/player/recently-played?limit=50 — raw track list
- *   2. GET /v1/audio-features?ids=... — batch audio features (max 100)
- *   3. GET /v1/me/top/artists?time_range=short_term&limit=3 — top artists
- *   4. Average valence/energy/tempo over valid feature rows
+ *   1. Page backward through recently played tracks for the local day.
+ *   2. Rank daily songs and primary artists from the same play set.
+ *   3. Enrich the four daily artists with Spotify portraits when available.
+ *   4. Infer a lightweight mood signal from listening timing and repeats.
  *
  * Returns null if no tracks were found for today (user hasn't listened).
  */
@@ -135,111 +137,70 @@ export async function fetchRecap(
   const accessToken = await getValidAccessToken(clientId);
   if (!accessToken) return null;
 
-  const today = dateOverride ?? toIsoDate(new Date());
+  const today = dateOverride ?? getLocalDateKey(new Date());
+  const recentlyPlayed = await fetchRecentlyPlayedForDate(accessToken, today);
+  const recap = buildDailySpotifyRecap(recentlyPlayed, today);
+  if (!recap) return null;
 
-  const [recentlyPlayed, topArtists] = await Promise.all([
-    fetchRecentlyPlayed(accessToken),
-    fetchTopArtists(accessToken),
-  ]);
-
-  // Filter to tracks played today (Spotify timestamps are ISO 8601 UTC).
-  const todayTracks = recentlyPlayed.filter((t) => t.playedAt.startsWith(today));
-  if (todayTracks.length === 0) return null;
-
-  const trackIds = [...new Set(todayTracks.map((t) => t.trackId))];
-  const features = await fetchAudioFeatures(accessToken, trackIds);
-
-  const valid = features.filter(
-    (f): f is AudioFeatures => f !== null && typeof f.valence === 'number',
+  const artistDetails = await Promise.all(
+    recap.topArtists.map((artist) =>
+      fetchArtistDetails(accessToken, artist.id).catch(() => ({ id: artist.id })),
+    ),
   );
 
-  const avgFeatures =
-    valid.length > 0
-      ? {
-          valence: avg(valid.map((f) => f.valence)),
-          energy: avg(valid.map((f) => f.energy)),
-          tempo: avg(valid.map((f) => f.tempo)),
-        }
-      : { valence: 0.5, energy: 0.5, tempo: 100 };
-
-  // Rough minutes: assume average track ~3.5 min when duration unavailable.
-  const minutesListened = Math.round((todayTracks.length * 3.5 * 60) / 60);
-
-  return {
-    date: today,
-    trackCount: todayTracks.length,
-    minutesListened,
-    topArtists,
-    averageFeatures: avgFeatures,
-  };
+  return mergeSpotifyArtistDetails(recap, artistDetails);
 }
 
 // ─── Private API helpers ──────────────────────────────────────────────────────
 
-type RecentTrack = { trackId: string; playedAt: string };
-type AudioFeatures = { valence: number; energy: number; tempo: number };
+async function fetchRecentlyPlayedForDate(accessToken: string, targetDate: string): Promise<SpotifyPlay[]> {
+  const plays: SpotifyPlay[] = [];
+  let pageCount = 0;
+  let before: string | undefined;
 
-async function fetchRecentlyPlayed(accessToken: string): Promise<RecentTrack[]> {
-  const res = await spotifyGet(accessToken, '/me/player/recently-played?limit=50');
-  const parsed = recentlyPlayedSchema.safeParse(res);
-  if (!parsed.success) return [];
+  do {
+    const cursor = before ? `&before=${encodeURIComponent(before)}` : '';
+    const res = await spotifyGet(accessToken, `/me/player/recently-played?limit=50${cursor}`);
+    const parsed = recentlyPlayedSchema.safeParse(res);
+    if (!parsed.success) break;
 
-  return parsed.data.items.map((item) => ({
-    trackId: item.track.id,
-    playedAt: item.played_at,
-  }));
+    const pagePlays = parsed.data.items.flatMap((item): SpotifyPlay[] => {
+      const artist = item.track.artists[0];
+      const trackId = item.track.id ?? item.track.uri;
+      if (!artist || !trackId) return [];
+      return [{
+        trackId,
+        name: item.track.name,
+        artist: {
+          id: artist.id,
+          name: artist.name,
+          spotifyUrl: artist.external_urls.spotify,
+        },
+        playedAt: item.played_at,
+        durationMs: item.track.duration_ms,
+        albumImageUrl: item.track.album.images[0]?.url,
+        spotifyUrl: item.track.external_urls.spotify,
+      }];
+    });
+
+    plays.push(...pagePlays);
+    pageCount += 1;
+    before = parsed.data.cursors.before ?? undefined;
+    if (!shouldFetchOlderSpotifyPage(pagePlays, targetDate, !!before, pageCount)) break;
+  } while (before);
+
+  return plays;
 }
 
-async function fetchAudioFeatures(
-  accessToken: string,
-  trackIds: string[],
-): Promise<(AudioFeatures | null)[]> {
-  if (trackIds.length === 0) return [];
-
-  // Spotify audio-features accepts up to 100 IDs.
-  const chunks = chunkArray(trackIds, 100);
-  const results: (AudioFeatures | null)[] = [];
-
-  for (const chunk of chunks) {
-    try {
-      const res = await spotifyGet(
-        accessToken,
-        `/audio-features?ids=${chunk.join(',')}`,
-      );
-      const parsed = audioFeaturesSchema.safeParse(res);
-      if (!parsed.success) {
-        results.push(...chunk.map(() => null));
-        continue;
-      }
-      for (const f of parsed.data.audio_features) {
-        results.push(f ? { valence: f.valence, energy: f.energy, tempo: f.tempo } : null);
-      }
-    } catch {
-      // /audio-features returns 403 for apps registered after Spotify's Nov 2023
-      // deprecation. Fall through with nulls so the recap still completes with
-      // the default mood features (valence 0.5, energy 0.5, tempo 100).
-      results.push(...chunk.map(() => null));
-    }
-  }
-
-  return results;
-}
-
-async function fetchTopArtists(
-  accessToken: string,
-): Promise<SpotifyRecap['topArtists']> {
-  const res = await spotifyGet(
-    accessToken,
-    '/me/top/artists?time_range=short_term&limit=3',
-  );
-  const parsed = topArtistsSchema.safeParse(res);
-  if (!parsed.success) return [];
-
-  return parsed.data.items.map((a) => ({
-    id: a.id,
-    name: a.name,
-    imageUrl: a.images[0]?.url,
-  }));
+async function fetchArtistDetails(accessToken: string, artistId: string): Promise<SpotifyArtistDetails> {
+  const res = await spotifyGet(accessToken, `/artists/${encodeURIComponent(artistId)}`);
+  const parsed = artistSchema.safeParse(res);
+  if (!parsed.success) return { id: artistId };
+  return {
+    id: parsed.data.id,
+    imageUrl: parsed.data.images[0]?.url,
+    spotifyUrl: parsed.data.external_urls.spotify,
+  };
 }
 
 async function spotifyGet(accessToken: string, path: string): Promise<unknown> {
@@ -261,54 +222,32 @@ const tokenResponseSchema = z.object({
 });
 
 const recentlyPlayedSchema = z.object({
+  cursors: z.object({
+    before: z.string().nullable().optional(),
+    after: z.string().nullable().optional(),
+  }),
   items: z.array(
     z.object({
-      track: z.object({ id: z.string() }),
+      track: z.object({
+        id: z.string().nullable(),
+        uri: z.string().optional(),
+        name: z.string(),
+        duration_ms: z.number().nonnegative(),
+        external_urls: z.object({ spotify: z.string().optional() }),
+        album: z.object({ images: z.array(z.object({ url: z.string() })) }),
+        artists: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          external_urls: z.object({ spotify: z.string().optional() }),
+        })),
+      }),
       played_at: z.string(),
     }),
   ),
 });
 
-const audioFeaturesSchema = z.object({
-  audio_features: z.array(
-    z
-      .object({
-        valence: z.number(),
-        energy: z.number(),
-        tempo: z.number(),
-      })
-      .nullable(),
-  ),
+const artistSchema = z.object({
+  id: z.string(),
+  images: z.array(z.object({ url: z.string() })),
+  external_urls: z.object({ spotify: z.string().optional() }),
 });
-
-const topArtistsSchema = z.object({
-  items: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      images: z.array(z.object({ url: z.string() })),
-    }),
-  ),
-});
-
-// ─── Utilities ────────────────────────────────────────────────────────────────
-
-function avg(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return nums.reduce((a, b) => a + b, 0) / nums.length;
-}
-
-function chunkArray<T>(arr: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
-  }
-  return chunks;
-}
-
-function toIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}

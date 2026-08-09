@@ -1,4 +1,4 @@
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
 import { palette, radii } from '@luminary/design-system';
 
 export type ProgressBarProps = {

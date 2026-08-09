@@ -12,24 +12,30 @@
  *
  * Required Spotify scopes:
  *   user-read-recently-played
- *   user-top-read
  *
  * Usage:
  *   const { connect, disconnect, isConnected, isLoading, error } = useSpotifyAuth();
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { isRunningInExpoGo } from 'expo';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { z } from 'zod';
 import { saveTokens, loadTokens, clearTokens } from '@/lib/spotify';
+import {
+  createSpotifyPreviewConfig,
+  startSpotifyPreviewSession,
+  waitForSpotifyPreviewCode,
+} from '@/lib/spotifyPreviewAuth';
+import { supabase } from '@/lib/supabase';
 
 // Required for expo-auth-session to handle the redirect on Android.
 WebBrowser.maybeCompleteAuthSession();
 
 const SPOTIFY_TOKEN_URL = 'https://accounts.spotify.com/api/token';
 
-const SCOPES = ['user-read-recently-played', 'user-top-read'];
+const SCOPES = ['user-read-recently-played'];
 
 const discovery: AuthSession.DiscoveryDocument = {
   authorizationEndpoint: 'https://accounts.spotify.com/authorize',
@@ -50,18 +56,23 @@ export type SpotifyAuthState =
 
 export function useSpotifyAuth() {
   const [authState, setAuthState] = useState<SpotifyAuthState>({ status: 'idle' });
+  const isExpoGoPreview = isRunningInExpoGo();
 
   const clientId = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
-  const redirectUri =
+  const nativeRedirectUri =
     process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI ??
     AuthSession.makeRedirectUri({ scheme: 'luminary', path: 'spotify-callback' });
+  const previewConfig = createSpotifyPreviewConfig(
+    process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
+    process.env.EXPO_PUBLIC_SPOTIFY_PREVIEW_REDIRECT_URI,
+  );
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId,
       scopes: SCOPES,
       usePKCE: true,
-      redirectUri,
+      redirectUri: nativeRedirectUri,
     },
     discovery,
   );
@@ -100,7 +111,7 @@ export function useSpotifyAuth() {
       }
 
       setAuthState({ status: 'loading' });
-      exchangeCodeForTokens({ code, codeVerifier, clientId, redirectUri })
+      exchangeCodeForTokens({ code, codeVerifier, clientId, redirectUri: nativeRedirectUri })
         .then(async (tokens) => {
           await saveTokens(tokens);
           setAuthState({ status: 'connected' });
@@ -110,19 +121,75 @@ export function useSpotifyAuth() {
           setAuthState({ status: 'error', message });
         });
     }
-  }, [response, request, clientId, redirectUri]);
+  }, [response, request, clientId, nativeRedirectUri]);
 
   const connect = useCallback(async () => {
     if (!clientId) {
       setAuthState({
         status: 'error',
-        message: 'EXPO_PUBLIC_SPOTIFY_CLIENT_ID is not set.',
+        message: 'Spotify is not configured for this preview yet.',
       });
       return;
     }
+
     setAuthState({ status: 'loading' });
-    await promptAsync();
-  }, [promptAsync, clientId]);
+    try {
+      if (isExpoGoPreview) {
+        if (!previewConfig) {
+          throw new Error('Spotify preview connection is not configured yet.');
+        }
+
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
+        if (!accessToken) {
+          throw new Error('Please sign in to Luminary before connecting Spotify.');
+        }
+
+        const previewRequest = new AuthSession.AuthRequest({
+          clientId,
+          scopes: SCOPES,
+          usePKCE: true,
+          redirectUri: previewConfig.redirectUri,
+          responseType: AuthSession.ResponseType.Code,
+        });
+        const authorizationUrl = await previewRequest.makeAuthUrlAsync(discovery);
+        const codeVerifier = previewRequest.codeVerifier;
+        if (!previewRequest.state || !codeVerifier) {
+          throw new Error('Spotify could not prepare a secure connection. Please try again.');
+        }
+
+        await startSpotifyPreviewSession({
+          endpoint: previewConfig.endpoint,
+          accessToken,
+          state: previewRequest.state,
+        });
+
+        const browserResult = await WebBrowser.openBrowserAsync(authorizationUrl);
+        const code = await waitForSpotifyPreviewCode({
+          endpoint: previewConfig.endpoint,
+          accessToken,
+          state: previewRequest.state,
+          // Android reports "opened" immediately; iOS waits until the sheet closes.
+          maxAttempts: browserResult.type === 'opened' ? 120 : 5,
+        });
+
+        const tokens = await exchangeCodeForTokens({
+          code,
+          codeVerifier,
+          clientId,
+          redirectUri: previewConfig.redirectUri,
+        });
+        await saveTokens(tokens);
+        setAuthState({ status: 'connected' });
+        return;
+      }
+
+      await promptAsync();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Spotify could not connect just now.';
+      setAuthState({ status: 'error', message });
+    }
+  }, [promptAsync, clientId, isExpoGoPreview, previewConfig]);
 
   const disconnect = useCallback(async () => {
     await clearTokens();
@@ -135,8 +202,8 @@ export function useSpotifyAuth() {
     isConnected: authState.status === 'connected',
     isLoading: authState.status === 'loading',
     error: authState.status === 'error' ? authState.message : null,
-    /** True once expo-auth-session has built the PKCE request and is ready. */
-    ready: !!request,
+    /** True once the active preview path has enough configuration to begin. */
+    ready: isExpoGoPreview ? Boolean(clientId && previewConfig) : !!request,
   };
 }
 

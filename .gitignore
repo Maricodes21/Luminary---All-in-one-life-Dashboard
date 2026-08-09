@@ -53,5 +53,9 @@ supabase/seed.sql
 
 # Misc
 .cache/
+.codex-*
+.firecrawl/
 .turbo/
 coverage/
+.superpowers/
+.worktrees/

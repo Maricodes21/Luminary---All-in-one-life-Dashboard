@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { enqueue } from '@/lib/offlineQueue';
 import type { MoodLabel, MoodSource } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
+import type { DailyRitualSession } from '@/lib/dailyRitual';
 
 function uuid(): string {
   // crypto.randomUUID is available in Hermes (RN 0.73+) and on web.
@@ -62,8 +63,6 @@ export async function writeMoodEvent(params: WriteMoodEventParams): Promise<stri
 
 export type WriteSpotifySnapshotParams = {
   recap: SpotifyRecap;
-  estimatedMood: MoodLabel;
-  estimatedConfidence: number;
 };
 
 /**
@@ -71,22 +70,22 @@ export type WriteSpotifySnapshotParams = {
  * (unique constraint on user_id + snapshot_date).
  */
 export async function writeSpotifySnapshot(params: WriteSpotifySnapshotParams): Promise<void> {
-  const { recap, estimatedMood, estimatedConfidence } = params;
+  const { recap } = params;
   const payload = {
     snapshot_date: recap.date,
     tracks_count: recap.trackCount,
     minutes_listened: recap.minutesListened,
     top_artists: recap.topArtists,
-    avg_valence: recap.averageFeatures.valence,
-    avg_energy: recap.averageFeatures.energy,
-    avg_tempo: recap.averageFeatures.tempo,
-    estimated_mood: estimatedMood,
-    estimated_confidence: estimatedConfidence,
+    avg_valence: null,
+    avg_energy: null,
+    avg_tempo: null,
+    estimated_mood: null,
+    estimated_confidence: null,
   };
 
-  const { error } = await supabase.from('spotify_snapshots').upsert(payload);
+  const { error } = await supabase.from('spotify_snapshots').upsert(payload as never);
   if (error) {
-    await enqueue({ type: 'spotify_snapshot', id: `snapshot-${recap.date}`, payload });
+    await enqueue({ type: 'spotify_snapshot', id: `snapshot-${recap.date}`, payload: payload as never });
   }
 }
 
@@ -166,4 +165,35 @@ export async function writeJournalEntry(params: WriteJournalEntryParams): Promis
     return id;
   }
   return data.id as string;
+}
+
+// --- Daily ritual session ----------------------------------------------------
+
+/**
+ * Persist the current daily ritual checkpoint. The same shape is queued when
+ * offline so closing the app never turns a completed ritual back into an
+ * unfinished one.
+ */
+export async function writeDailyRitualSession(session: DailyRitualSession): Promise<void> {
+  const payload = {
+    id: session.id,
+    session_date: session.localDate,
+    status: session.status,
+    current_stage: session.currentStage,
+    started_at: session.startedAt,
+    completed_at: session.completedAt,
+    mood: session.mood,
+    mood_skipped: session.moodSkipped,
+    journal_added: session.journalAdded,
+    selected_signal_ids: session.selectedSignalIds,
+    summary: session.summary,
+  };
+
+  const { error } = await supabase
+    .from('daily_ritual_sessions')
+    .upsert(payload, { onConflict: 'user_id,session_date' });
+
+  if (error) {
+    await enqueue({ type: 'daily_ritual_session', id: session.id, payload });
+  }
 }

@@ -8,7 +8,6 @@ import { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   KeyboardAvoidingView,
@@ -17,6 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
+import { NumberField } from '@/components/ui';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { OnboardingProgress } from './_layout';
 
@@ -51,31 +51,23 @@ export default function BodyScreen() {
             Used by the Health module when you're ready for it. Completely optional.
           </Text>
 
-          <View style={styles.row}>
-            <View style={styles.field}>
-              <Text style={[t.labelMd, styles.label]}>weight (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={weight}
-                onChangeText={setWeightLocal}
-                keyboardType="decimal-pad"
-                placeholderTextColor={palette.onSurfaceVariant}
-                placeholder="70"
-                accessibilityLabel="Weight in kilograms"
-              />
-            </View>
-            <View style={styles.field}>
-              <Text style={[t.labelMd, styles.label]}>height (cm)</Text>
-              <TextInput
-                style={styles.input}
-                value={height}
-                onChangeText={setHeightLocal}
-                keyboardType="decimal-pad"
-                placeholderTextColor={palette.onSurfaceVariant}
-                placeholder="170"
-                accessibilityLabel="Height in centimetres"
-              />
-            </View>
+          <View style={styles.measurementFields}>
+            <NumberField
+              label="Weight"
+              value={weight}
+              onChangeText={setWeightLocal}
+              unit="kg"
+              step={0.5}
+              placeholder="70"
+            />
+            <NumberField
+              label="Height"
+              value={height}
+              onChangeText={setHeightLocal}
+              unit="cm"
+              step={1}
+              placeholder="170"
+            />
           </View>
         </View>
 
@@ -113,23 +105,7 @@ const styles = StyleSheet.create({
   },
   headline: { color: palette.onSurface },
   sub: { color: palette.onSurfaceVariant },
-  row: { flexDirection: 'row', gap: spacing.md },
-  field: { flex: 1 },
-  label: {
-    color: palette.onSurfaceVariant,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.xs,
-  },
-  input: {
-    backgroundColor: palette.surfaceContainerLow,
-    borderRadius: radii.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 4,
-    color: palette.onSurface,
-    fontFamily: 'Inter_400Regular',
-    fontSize: 16,
-  },
+  measurementFields: { gap: spacing.md },
   actions: { paddingHorizontal: spacing.lg, gap: spacing.sm },
   primaryBtn: {
     backgroundColor: palette.primary,

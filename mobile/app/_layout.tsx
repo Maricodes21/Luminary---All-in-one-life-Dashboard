@@ -3,14 +3,13 @@
  *
  * Auth routing logic:
  *   no session              → /onboarding/welcome
- *   session + incomplete    → /onboarding/welcome  (resume from start)
+ *   session + incomplete    → last persisted onboarding step
  *   session + complete      → /(tabs)
  *
  * The gate runs once hydration is complete (supabase session restored from
  * AsyncStorage + profile fetched). Until then the splash screen stays visible.
  */
-
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -32,6 +31,12 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { palette } from '@luminary/design-system';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useMealsBootstrap } from '@/hooks/useMealsBootstrap';
+import { useMealsStore } from '@/stores/useMealsStore';
+import { clearMealPhotoCache } from '@/lib/meals/photos';
+import { loadCachedOnboardingStatus, saveCachedOnboardingStatus } from '@/lib/authProfileCache';
+import { resolveProfileRestore, routeForAuthState } from '@/lib/authRouting';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -45,7 +50,8 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  const [fontWaitExpired, setFontWaitExpired] = useState(false);
+  const [fontsLoaded, fontError] = useFonts({
     Manrope_600SemiBold,
     Manrope_700Bold,
     Manrope_800ExtraBold,
@@ -55,66 +61,132 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  const { setSession, setDisplayName, setOnboardingComplete, setHydrated, hydrated } = useAuthStore();
+  const {
+    session,
+    onboardingStatus,
+    authResolving,
+    beginSessionResolution,
+    setAuthSnapshot,
+    setHydrated,
+    hydrated,
+  } = useAuthStore();
+  const onboardingStoreHydrated = useOnboardingStore((state) => state.hasHydrated);
+  const onboardingResumeStep = useOnboardingStore((state) => state.currentStep);
   const router = useRouter();
   const segments = useSegments();
+  useMealsBootstrap();
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setFontWaitExpired(true), 3000);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  useEffect(() => {
+    if (fontError) {
+      console.warn('[fonts] Falling back to system fonts', fontError);
+    }
+  }, [fontError]);
+
+  const appReady = fontsLoaded || !!fontError || fontWaitExpired;
 
   // Subscribe to Supabase auth state and mirror into the store.
   useEffect(() => {
-    // Restore session from AsyncStorage on first load.
-    supabase.auth.getSession().then(async ({ data }) => {
-      const session = data.session ?? null;
-      setSession(session);
+    let cancelled = false;
+    let resolutionVersion = 0;
+    const hydrationTimeout = setTimeout(() => {
+      if (!cancelled) {
+        console.warn('[auth] Session restore timed out; continuing without a restored session.');
+        const current = useAuthStore.getState();
+        if (current.authResolving) setAuthSnapshot(current.session, 'unknown', current.displayName);
+        setHydrated(true);
+      }
+    }, 5000);
 
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_complete, display_name')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        setOnboardingComplete(profile?.onboarding_complete ?? false);
-        setDisplayName(profile?.display_name ?? null);
+    async function syncSessionProfile(nextSession: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) {
+      if (cancelled) return;
+      const currentResolution = ++resolutionVersion;
+      beginSessionResolution(nextSession);
+
+      if (!nextSession?.user) {
+        useMealsStore.getState().clearPrivateCache();
+        void clearMealPhotoCache().catch(() => {});
+        setAuthSnapshot(null, 'incomplete', null);
+        return;
       }
 
-      setHydrated(true);
+      const cachedStatus = await loadCachedOnboardingStatus(nextSession.user.id).catch(() => null);
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('onboarding_complete, display_name')
+        .eq('user_id', nextSession.user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('[auth] Profile restore failed', error.message);
+      }
+
+      if (!cancelled && currentResolution === resolutionVersion) {
+        const restoredStatus = resolveProfileRestore({
+          remoteComplete: typeof profile?.onboarding_complete === 'boolean' ? profile.onboarding_complete : null,
+          profileError: !!error,
+          cachedStatus,
+        });
+        useMealsStore.getState().setActiveUser(nextSession.user.id);
+        setAuthSnapshot(nextSession, restoredStatus, profile?.display_name ?? null);
+        if (restoredStatus !== 'unknown') {
+          void saveCachedOnboardingStatus(nextSession.user.id, restoredStatus).catch(() => {});
+        }
+      }
+    }
+
+    // Restore session from AsyncStorage on first load.
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        await syncSessionProfile(data.session ?? null);
+      })
+      .catch((error) => {
+        console.warn('[auth] Session restore failed', error);
+        setAuthSnapshot(null, 'unknown', null);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          clearTimeout(hydrationTimeout);
+          setHydrated(true);
+        }
+      });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      void syncSessionProfile(nextSession);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [setSession, setOnboardingComplete, setHydrated]);
+    return () => {
+      cancelled = true;
+      clearTimeout(hydrationTimeout);
+      listener.subscription.unsubscribe();
+    };
+  }, [beginSessionResolution, setAuthSnapshot, setHydrated]);
 
   // Route guard — runs after hydration and font load.
   useEffect(() => {
-    if (!hydrated || !fontsLoaded) return;
+    if (!hydrated || !appReady || !onboardingStoreHydrated || authResolving) return;
 
     SplashScreen.hideAsync().catch(() => {});
 
-    const { session, onboardingComplete } = useAuthStore.getState();
-    const inTabs = segments[0] === '(tabs)';
-    const inOnboarding = segments[0] === 'onboarding';
-    const inRitual = segments[0] === 'ritual';
+    const destination = routeForAuthState({
+      hasSession: !!session,
+      onboardingStatus,
+      firstSegment: segments[0],
+      resumeStep: onboardingResumeStep,
+    });
 
-    if (!session) {
-      if (!inOnboarding) router.replace('/onboarding/welcome');
-      return;
-    }
+    if (destination) router.replace(destination);
 
-    if (!onboardingComplete) {
-      if (!inOnboarding) router.replace('/onboarding/welcome');
-      return;
-    }
-
-    // Allow authenticated users in tabs or the ritual modal — don't redirect either.
-    if (!inTabs && !inRitual) {
-      router.replace('/(tabs)');
-    }
-  }, [hydrated, fontsLoaded, segments, router]);
+  }, [hydrated, appReady, onboardingStoreHydrated, authResolving, segments, router, session, onboardingStatus, onboardingResumeStep]);
 
   // Hold render until fonts + hydration are both done to avoid flash.
-  if (!fontsLoaded || !hydrated) return null;
+  if (!appReady || !hydrated || !onboardingStoreHydrated) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.surface }}>
@@ -132,6 +204,11 @@ export default function RootLayout() {
               name="ritual"
               options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
             />
+            <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="habits" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="health" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="spotify-callback" options={{ animation: 'fade' }} />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="+not-found" />
           </Stack>

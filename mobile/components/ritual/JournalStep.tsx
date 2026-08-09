@@ -1,155 +1,94 @@
-import { useState, useRef } from 'react';
-import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
-import { palette, spacing, radii, type } from '@luminary/design-system';
-import { Chip } from '@/components/ui/Chip';
-import { Icon } from '@/components/ui/Icon';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { palette, radii, spacing, type } from '@luminary/design-system';
+import { moodCopy } from '@/lib/mood';
 import { writeJournalEntry } from '@/lib/ritual';
 import { useRitualStore } from '@/stores/useRitualStore';
 
-const PROMPTS = [
-  'What surprised you today?',
-  "What's still sitting with you?",
-  'What did you let go of today?',
-  'What felt hard, and what helped?',
-  'If today had a colour, what would it be?',
-] as const;
-
-const TAG_CHIPS = ['#work', '#body', '#people', '#money', '#home', '#mind'] as const;
-
-// Pick once at module evaluation time so it stays stable across re-renders
-// without needing a ref or state — the prompt only needs to rotate between sessions.
-function pickPrompt(): string {
-  return PROMPTS[Math.floor(Math.random() * PROMPTS.length)];
-}
+const TAG_CHIPS = ['music', 'work', 'body', 'people', 'home', 'mind'] as const;
 
 export function JournalStep() {
-  const moodEventId = useRitualStore((s) => s.moodEventId);
-  const journalText = useRitualStore((s) => s.journalText);
-  const journalTags = useRitualStore((s) => s.journalTags);
-  const setJournalText = useRitualStore((s) => s.setJournalText);
-  const setJournalTags = useRitualStore((s) => s.setJournalTags);
-  const setStage = useRitualStore((s) => s.setStage);
-
-  // Stable for this component's lifetime — survives re-renders, resets on unmount.
-  const promptRef = useRef<string>(pickPrompt());
-  const prompt = promptRef.current;
-
+  const mood = useRitualStore((state) => state.mood);
+  const moodEventId = useRitualStore((state) => state.moodEventId);
+  const journalText = useRitualStore((state) => state.journalText);
+  const journalTags = useRitualStore((state) => state.journalTags);
+  const setJournalText = useRitualStore((state) => state.setJournalText);
+  const setJournalTags = useRitualStore((state) => state.setJournalTags);
+  const setJournalAdded = useRitualStore((state) => state.setJournalAdded);
+  const setStage = useRitualStore((state) => state.setStage);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [activeError, setActiveError] = useState<string | null>(null);
 
-  function handleToggleTag(tag: string) {
-    if (journalTags.includes(tag)) {
-      setJournalTags(journalTags.filter((t) => t !== tag));
-    } else {
-      setJournalTags([...journalTags, tag]);
-    }
+  const moodDisplay = mood ? moodCopy[mood.label].display : 'Today';
+
+  function toggleTag(tag: string) {
+    setJournalTags(journalTags.includes(tag) ? journalTags.filter((item) => item !== tag) : [...journalTags, tag]);
   }
 
   async function handleCapture() {
-    if (journalText.trim().length === 0) {
-      setValidationError('Write something first, or skip below.');
+    if (!journalText.trim()) {
+      setActiveError('Write one line first, or skip Journal.');
       return;
     }
-
-    setValidationError(null);
-    setSaveError(null);
+    setActiveError(null);
     setIsSaving(true);
-
     try {
-      await writeJournalEntry({
-        body: journalText.trim(),
-        tags: journalTags,
-        moodEventId,
-      });
+      await writeJournalEntry({ body: journalText.trim(), tags: journalTags, moodEventId });
+      setJournalAdded(true);
       setStage('habits');
     } catch {
-      setSaveError("We couldn't save that. Try again?");
+      setActiveError("We couldn't save that. Try again?");
     } finally {
       setIsSaving(false);
     }
   }
 
   function handleSkip() {
+    setJournalAdded(false);
     setStage('habits');
   }
 
-  const activeError = validationError ?? saveError;
-
   return (
     <View style={styles.container}>
-      <Text style={[type.displayMd, styles.prompt]}>{prompt}</Text>
-
-      <TextInput
-        value={journalText}
-        onChangeText={(text) => {
-          setJournalText(text);
-          if (validationError) setValidationError(null);
-        }}
-        placeholder="Write something, or don't."
-        placeholderTextColor={palette.onSurfaceVariant}
-        multiline
-        textAlignVertical="top"
-        style={[type.bodyLg, styles.input]}
-        accessibilityLabel="Journal entry"
-        accessibilityHint={prompt}
-      />
-
-      <View style={styles.tagRow}>
-        {TAG_CHIPS.map((tag) => (
-          <Chip
-            key={tag}
-            label={tag}
-            selected={journalTags.includes(tag)}
-            onPress={() => handleToggleTag(tag)}
-          />
-        ))}
+      <View style={styles.moodLink}>
+        <Text style={[type.labelSm, styles.accent]}>Going to Journal</Text>
+        <Text style={[type.headlineSm, styles.title]}>{moodDisplay}</Text>
+        <Text style={[type.bodySm, styles.copy]}>
+          {mood?.source === 'luminary_local' || mood?.source === 'luminary_ai' ? 'Luminary suggested this from the wellbeing signals you allowed. Add what it meant—or move on.' : 'You chose this mood. Add what it meant—or move on without writing.'}
+        </Text>
       </View>
 
-      {/* Voice note — stub only, no audio logic */}
-      <Pressable
-        disabled
-        accessibilityRole="button"
-        accessibilityLabel="Voice note — coming in a future update"
-        style={styles.voiceBtn}
-      >
-        <Icon name="journal" size={18} color={palette.onSurfaceVariant} />
-        <Text style={[type.bodySm, styles.voiceBtnLabel]}>Voice note (coming soon)</Text>
-      </Pressable>
+      <View style={styles.composer}>
+        <Text style={[type.labelSm, styles.copy]}>What made today feel {moodDisplay.toLowerCase()}?</Text>
+        <TextInput
+          value={journalText}
+          onChangeText={(text) => { setJournalText(text); if (activeError) setActiveError(null); }}
+          placeholder="The day felt louder than it looked."
+          placeholderTextColor={palette.onSurfaceVariant}
+          multiline
+          textAlignVertical="top"
+          style={[type.headlineSm, styles.input]}
+          accessibilityLabel="Journal entry"
+        />
+        <View style={styles.tagRow}>
+          {TAG_CHIPS.map((tag) => {
+            const selected = journalTags.includes(tag);
+            return (
+              <Pressable key={tag} onPress={() => toggleTag(tag)} style={[styles.tag, selected && styles.tagSelected]} accessibilityRole="checkbox" accessibilityState={{ checked: selected }}>
+                <Text style={[type.labelSm, selected ? styles.accent : styles.title]}>{tag}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
 
-      {activeError && (
-        <Text style={[type.bodySm, styles.errorText]}>{activeError}</Text>
-      )}
-
-      <View style={styles.buttonStack}>
-        <Pressable
-          onPress={handleCapture}
-          disabled={isSaving}
-          accessibilityRole="button"
-          accessibilityLabel="Capture journal entry"
-          style={({ pressed }) => [
-            styles.primaryBtn,
-            (pressed || isSaving) && { opacity: 0.75 },
-          ]}
-        >
-          {isSaving ? (
-            <ActivityIndicator color={palette.onPrimary} />
-          ) : (
-            <Text style={[type.titleMd, { color: palette.onPrimary }]}>Capture</Text>
-          )}
+      {activeError ? <Text style={[type.bodySm, styles.error]}>{activeError}</Text> : null}
+      <View style={styles.actionRow}>
+        <Pressable onPress={handleSkip} disabled={isSaving} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
+          <Text style={[type.labelMd, styles.title]}>Skip Journal</Text>
         </Pressable>
-
-        <Pressable
-          onPress={handleSkip}
-          disabled={isSaving}
-          accessibilityRole="button"
-          accessibilityLabel="Skip journal for now"
-          style={({ pressed }) => [
-            styles.tertiaryBtn,
-            pressed && { opacity: 0.75 },
-          ]}
-        >
-          <Text style={[type.titleMd, { color: palette.onSurfaceVariant }]}>Skip for now</Text>
+        <Pressable onPress={handleCapture} disabled={isSaving} style={({ pressed }) => [styles.primaryButton, (pressed || isSaving) && styles.disabled]} accessibilityRole="button">
+          {isSaving ? <ActivityIndicator color={palette.onPrimary} /> : <Text style={[type.labelMd, styles.primaryText]}>Add to Journal</Text>}
         </Pressable>
       </View>
     </View>
@@ -157,54 +96,21 @@ export function JournalStep() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-  },
-  prompt: {
-    color: palette.onSurface,
-  },
-  input: {
-    backgroundColor: palette.surfaceContainer,
-    borderRadius: radii.sm,
-    padding: spacing.md,
-    color: palette.onSurface,
-    minHeight: 120,
-  },
-  tagRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  voiceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    opacity: 0.45,
-  },
-  voiceBtnLabel: {
-    color: palette.onSurfaceVariant,
-  },
-  errorText: {
-    color: palette.error,
-  },
-  buttonStack: {
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  primaryBtn: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    backgroundColor: palette.primary,
-    minHeight: 52,
-  },
-  tertiaryBtn: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.lg,
-    minHeight: 52,
-  },
+  container: { gap: spacing.sm },
+  moodLink: { gap: spacing.xs, padding: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
+  composer: { gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerLow },
+  input: { minHeight: 160, padding: spacing.md, borderRadius: radii.md, color: palette.onSurface, backgroundColor: palette.surfaceContainerLowest },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  tag: { width: '31%', flexGrow: 1, minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radii.pill },
+  tagSelected: { backgroundColor: palette.primaryContainer },
+  actionRow: { flexDirection: 'row', gap: spacing.sm },
+  secondaryButton: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
+  primaryButton: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.primary },
+  title: { color: palette.onSurface },
+  copy: { color: palette.onSurfaceVariant },
+  accent: { color: palette.primary },
+  primaryText: { color: palette.onPrimary },
+  error: { color: palette.error },
+  pressed: { opacity: 0.74 },
+  disabled: { opacity: 0.48 },
 });

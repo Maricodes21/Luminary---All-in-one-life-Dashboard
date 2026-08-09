@@ -4,12 +4,13 @@
  * "Not quite right" is the brand-mandated reject CTA (TONE.md).
  */
 
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { shouldAdvanceSpotifyOnReturn } from '@/lib/authRouting';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { OnboardingProgress } from './_layout';
 
@@ -17,30 +18,28 @@ export default function SpotifyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { connect, isConnected, isLoading, error, ready } = useSpotifyAuth();
-  const { setSpotifyConnected } = useOnboardingStore();
+  const { spotifyAuthPending, setSpotifyConnected, setSpotifyAuthPending } = useOnboardingStore();
 
-  // Track whether the user explicitly tapped Connect on THIS screen. We don't
-  // want to auto-advance when isConnected hydrates true from previously-saved
-  // tokens — that turns the screen into a flash on every entry.
-  const userInitiatedRef = useRef(false);
-
+  // Persist explicit connect intent across the browser round trip. Existing
+  // stored tokens alone still do not auto-advance this screen.
   const advance = useCallback(
     (connected: boolean) => {
+      setSpotifyAuthPending(false);
       setSpotifyConnected(connected);
       router.push('/onboarding/body');
     },
-    [setSpotifyConnected, router],
+    [setSpotifyAuthPending, setSpotifyConnected, router],
   );
 
   const handleConnect = useCallback(() => {
-    userInitiatedRef.current = true;
+    setSpotifyAuthPending(true);
     connect();
-  }, [connect]);
+  }, [connect, setSpotifyAuthPending]);
 
-  // Auto-advance only after a fresh OAuth completion in this session.
+  // Auto-advance only after the user-initiated OAuth flow completes.
   useEffect(() => {
-    if (isConnected && userInitiatedRef.current) advance(true);
-  }, [isConnected, advance]);
+    if (shouldAdvanceSpotifyOnReturn(isConnected, spotifyAuthPending)) advance(true);
+  }, [isConnected, spotifyAuthPending, advance]);
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + spacing.xl }]}>

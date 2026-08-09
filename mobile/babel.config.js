@@ -8,13 +8,19 @@
  * If you upgrade Reanimated again later, double-check this path against the
  * release notes.
  */
+const { createRequire } = require('module');
+
+const expoRequire = createRequire(require.resolve('expo/package.json'));
+const { expoRouterBabelPlugin } = expoRequire('babel-preset-expo/build/expo-router-plugin');
+
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: ['babel-preset-expo'],
+    presets: [expoRequire.resolve('babel-preset-expo')],
     plugins: [
+      expoRouterBabelPlugin,
       // Worklets plugin must be the LAST entry.
-      'react-native-worklets/plugin',
+      require.resolve('react-native-worklets/plugin'),
     ],
   };
 };

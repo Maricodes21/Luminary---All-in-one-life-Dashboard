@@ -27,12 +27,22 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0c0e10"
       },
-      "permissions": ["ACTIVITY_RECOGNITION", "RECORD_AUDIO"]
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "RECORD_AUDIO",
+        "CAMERA"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Luminary to scan meals and barcodes you choose."
+        }
+      ],
       [
         "expo-notifications",
         {
@@ -41,12 +51,15 @@
       ]
     ],
     "experiments": {
-      "typedRoutes": true,
+      "typedRoutes": false,
       "tsconfigPaths": true
     },
     "extra": {
       "router": {
         "origin": false
+      },
+      "eas": {
+        "projectId": "63aa0a65-7a92-4a88-8ce7-b911f2ca517e"
       }
     }
   }
