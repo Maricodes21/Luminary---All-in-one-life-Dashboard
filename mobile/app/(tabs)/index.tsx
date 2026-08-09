@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,7 @@ import { useJournalEntries } from '@/hooks/useJournalEntries';
 import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { localDateKey } from '@/lib/meals/dates';
 import { getHabitIconName } from '@/lib/habitIcons';
+import { activeHabitsForDate } from '@/lib/habits';
 import type { MoodLabel } from '@/lib/mood';
 import {
   formatHomeDate,
@@ -47,9 +48,7 @@ export default function HomeScreen() {
   const today = localDateKey(todayDate);
   const authDisplayName = useAuthStore((state) => state.displayName);
   const profileDisplayName = useProductionStore((state) => state.profileSettings.displayName);
-  const habits = useProductionStore((state) =>
-    state.habits.filter((habit) => !habit.archivedAt).sort((left, right) => left.position - right.position),
-  );
+  const allHabits = useProductionStore((state) => state.habits);
   const workoutPlans = useProductionStore((state) => state.workoutPlans);
   const workoutLogs = useProductionStore((state) => state.workoutLogs);
   const localExpenses = useProductionStore((state) => state.expenses);
@@ -80,7 +79,7 @@ export default function HomeScreen() {
   const journalCount =
     localJournalEntries.filter((entry) => !entry.deletedAt && localDateKey(new Date(entry.writtenAt)) === today).length +
     remoteJournalEntries.filter((entry) => localDateKey(new Date(entry.written_at)) === today).length;
-  const homeHabits = habits.slice(0, 3);
+  const homeHabits = useMemo(() => activeHabitsForDate(allHabits, today), [allHabits, today]);
   const completedHome = homeHabits.filter((habit) => habit.completedOn.includes(today)).length;
   const ritualComplete = ritualHydrated && isRitualCompletedForDate(ritualSession, today);
   const ritualInProgress = ritualSession.localDate === today && ritualSession.status === 'in_progress';
@@ -127,7 +126,6 @@ export default function HomeScreen() {
       }
     : null;
   const focusSignal = plannedMealSignal ?? ritualSignals.find((signal) => signal.kind === 'health') ?? null;
-  const useSplitCockpit = width >= 360 && Boolean(focusSignal);
   const displayName = authDisplayName ?? profileDisplayName ?? 'Mari';
 
   return (
@@ -182,21 +180,18 @@ export default function HomeScreen() {
         />
       )}
 
-      <View style={[styles.cockpitRow, useSplitCockpit && styles.cockpitRowSplit]}>
-        <View style={styles.commitmentsColumn}>
-          <CommitmentsCard
+      <View style={styles.cockpitRow}>
+          <CommitmentsPager
             habits={homeHabits}
             completedCount={completedHome}
             date={today}
+            pageWidth={Math.max(280, width - spacing.md * 2)}
             onToggle={toggleHabitCompletion}
             onOpen={() => router.push('/habits')}
             onOpenHabit={(id) => router.push({ pathname: '/habits/[id]', params: { id } })}
           />
-        </View>
         {focusSignal ? (
-          <View style={useSplitCockpit ? styles.focusColumn : undefined}>
-            <FocusCard signal={focusSignal} onPress={() => router.push(focusSignal.route)} />
-          </View>
+          <FocusCard signal={focusSignal} onPress={() => router.push(focusSignal.route)} />
         ) : null}
       </View>
 
@@ -271,44 +266,38 @@ function TonightCard({ inProgress, optionalCount, onPress }: {
 
 type CommitmentHabit = { id: string; name: string; completedOn: string[] };
 
-function CommitmentsCard({ habits, completedCount, date, onToggle, onOpen, onOpenHabit }: {
+function CommitmentsPager({ habits, completedCount, date, pageWidth, onToggle, onOpen, onOpenHabit }: {
   habits: CommitmentHabit[];
   completedCount: number;
   date: string;
+  pageWidth: number;
   onToggle: (id: string, date: string) => void;
   onOpen: () => void;
   onOpenHabit: (id: string) => void;
 }) {
+  const pages = chunk(habits, 5);
+  const [currentPage, setCurrentPage] = useState(0);
   return (
-    <Card style={styles.commitmentsCard}>
-      <Pressable onPress={onOpen} style={styles.cardHeading} accessibilityRole="button" accessibilityLabel="Open commitments hub">
-        <Text style={[type.titleLg, styles.cardTitle]}>Commitments</Text>
-        <Text style={[type.labelSm, styles.progressText]}>{completedCount}/{habits.length} · Open hub</Text>
+    <View style={styles.commitmentBlock}>
+      <Pressable onPress={onOpen} style={styles.commitmentHeading} accessibilityRole="button" accessibilityLabel="Open commitments hub">
+        <View><SectionLabel>Today</SectionLabel><Text style={[type.titleLg, styles.cardTitle]}>Commitments</Text></View>
+        <View style={styles.commitmentProgress}><Text style={[type.headlineSm, styles.progressText]}>{completedCount}/{habits.length}</Text><Text style={[type.labelSm, styles.progressLabel]}>Open hub →</Text></View>
       </Pressable>
-      <View style={styles.habitList}>
-        {habits.map((habit) => {
-          const done = habit.completedOn.includes(date);
-          return (
-            <View key={habit.id} style={styles.habitRow}>
-              <Pressable
-                onPress={() => onToggle(habit.id, date)}
-                style={({ pressed }) => [styles.habitControl, pressed && styles.pressed]}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: done }}
-                accessibilityLabel={`Mark ${habit.name} ${done ? 'open' : 'complete'}`}
-              >
-                <View style={[styles.habitToggle, done && styles.habitToggleDone]}>
-                  <Icon name={done ? 'check' : getHabitIconName(habit.name)} size={spacing.md} color={done ? palette.onPrimary : palette.primary} />
-                </View>
+      {pages.length ? <ScrollView horizontal pagingEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} decelerationRate="fast" snapToInterval={pageWidth} onMomentumScrollEnd={(event) => setCurrentPage(Math.round(event.nativeEvent.contentOffset.x / pageWidth))}>
+        {pages.map((page, pageIndex) => <View key={`commitments-${pageIndex}`} style={[styles.commitmentPage, { width: pageWidth }]}>
+          {page.map((habit) => {
+            const done = habit.completedOn.includes(date);
+            return <View key={habit.id} style={styles.habitRow}>
+              <Pressable onPress={() => onToggle(habit.id, date)} style={({ pressed }) => [styles.habitControl, pressed && styles.pressed]} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={`Mark ${habit.name} ${done ? 'open' : 'complete'}`}>
+                <View style={[styles.habitToggle, done && styles.habitToggleDone]}><Icon name={done ? 'check' : getHabitIconName(habit.name)} size={spacing.md} color={done ? palette.onPrimary : palette.primary} /></View>
               </Pressable>
-              <Pressable onPress={() => onOpenHabit(habit.id)} style={styles.habitDetail} accessibilityRole="button" accessibilityLabel={`Open ${habit.name}`}>
-                <Text style={[type.titleMd, styles.habitName, done && styles.habitNameDone]} numberOfLines={2}>{habit.name}</Text>
-              </Pressable>
-            </View>
-          );
-        })}
-      </View>
-    </Card>
+              <Pressable onPress={() => onOpenHabit(habit.id)} style={styles.habitDetail} accessibilityRole="button" accessibilityLabel={`Open ${habit.name}`}><Text style={[type.titleMd, styles.habitName, done && styles.habitNameDone]} numberOfLines={2}>{habit.name}</Text></Pressable>
+            </View>;
+          })}
+        </View>)}
+      </ScrollView> : <Pressable onPress={onOpen} style={styles.emptyCommitments} accessibilityRole="button"><Text style={[type.bodyMd, styles.moduleMeta]}>Pick something small. Three is enough.</Text></Pressable>}
+      {pages.length > 1 ? <View style={styles.pageDots}>{pages.map((_, index) => <View key={index} style={[styles.pageDot, index === currentPage && styles.pageDotActive]} />)}</View> : null}
+    </View>
   );
 }
 
@@ -413,6 +402,10 @@ function sentenceCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function chunk<T>(items: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(items.length / size) }, (_, index) => items.slice(index * size, index * size + size));
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
   content: { paddingHorizontal: spacing.md, gap: spacing.md },
@@ -432,14 +425,13 @@ const styles = StyleSheet.create({
   primaryButton: { minWidth: 88, minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, paddingHorizontal: spacing.md, backgroundColor: palette.primary },
   primaryButtonText: { color: palette.onPrimary },
   cockpitRow: { gap: spacing.sm },
-  cockpitRowSplit: { flexDirection: 'row', alignItems: 'stretch' },
-  commitmentsColumn: { flex: 5 },
-  focusColumn: { flex: 3 },
-  commitmentsCard: { minHeight: 216, padding: spacing.sm },
-  cardHeading: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, paddingHorizontal: spacing.xs },
+  commitmentBlock: { minHeight: 332, borderRadius: radii.lg, paddingVertical: spacing.md, backgroundColor: palette.surfaceContainerLow, overflow: 'hidden' },
+  commitmentHeading: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, paddingHorizontal: spacing.md },
+  commitmentProgress: { alignItems: 'flex-end', gap: spacing.xs },
   cardTitle: { color: palette.onSurface },
   progressText: { color: palette.primary, textAlign: 'right' },
-  habitList: { gap: spacing.xs },
+  progressLabel: { color: palette.onSurfaceVariant },
+  commitmentPage: { minHeight: 232, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
   habitRow: { minHeight: spacing['2xl'], flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   habitControl: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   habitToggle: { width: 40, height: 40, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
@@ -447,8 +439,12 @@ const styles = StyleSheet.create({
   habitDetail: { flex: 1, minHeight: spacing['2xl'], justifyContent: 'center' },
   habitName: { color: palette.onSurface, flex: 1 },
   habitNameDone: { color: palette.onSurfaceVariant },
-  focusCard: { flex: 1, minHeight: 216, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: palette.surfaceContainerHigh },
-  focusTitle: { color: palette.onSurface, marginTop: spacing.lg },
+  emptyCommitments: { minHeight: 180, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+  pageDots: { minHeight: spacing.lg, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.xs },
+  pageDot: { width: spacing.sm, height: spacing.xs, borderRadius: radii.pill, backgroundColor: palette.surfaceContainerHighest },
+  pageDotActive: { width: spacing.lg, backgroundColor: palette.primary },
+  focusCard: { minHeight: 196, borderRadius: radii.lg, padding: spacing.md, gap: spacing.sm, backgroundColor: palette.surfaceContainerHigh },
+  focusTitle: { color: palette.onSurface, marginTop: spacing.md },
   focusCopy: { color: palette.onSurfaceVariant, flex: 1 },
   focusAction: { color: palette.primary },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.xs },

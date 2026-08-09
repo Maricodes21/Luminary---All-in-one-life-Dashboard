@@ -5,6 +5,7 @@ import type { BodyProfile } from '@/lib/nutrition';
 import { parseExpenseNotification } from '@/lib/expenseNotifications';
 import { buildMealPlanWeek } from '@/lib/planning';
 import { buildWorkoutPlan, type WorkoutFocus, type WorkoutSession } from '@/lib/workoutPlanning';
+import { localDateKey, previousLocalDate } from '@/lib/habits';
 
 type SyncAction = 'create' | 'update' | 'delete';
 type SyncEntity =
@@ -36,6 +37,10 @@ export type Habit = {
   completedOn: string[];
   category?: string;
   schedule?: HabitSchedule;
+  activeFrom?: string;
+  activeUntil?: string;
+  skippedOn?: string[];
+  /** Legacy persisted field. New writes use skippedOn. */
   pausedOn?: string[];
 };
 
@@ -187,11 +192,14 @@ type ProductionState = {
   expensePrompts: ExpensePrompt[];
   syncQueue: SyncQueueItem[];
   updateProfileSettings: (settings: Partial<ProfileSettings>) => void;
-  addHabit: (name: string, options?: { category?: string; schedule?: HabitSchedule }) => void;
+  addHabit: (name: string, options?: { category?: string; schedule?: HabitSchedule; activeFrom?: string }) => void;
   updateHabit: (id: string, name: string) => void;
   updateHabitDetails: (id: string, details: Partial<Pick<Habit, 'name' | 'category' | 'schedule'>>) => void;
   archiveHabit: (id: string) => void;
+  endHabit: (id: string, effectiveDate: string) => void;
+  substituteHabit: (id: string, effectiveDate: string, replacement: { name: string; category?: string; schedule?: HabitSchedule }) => void;
   toggleHabitCompletion: (id: string, date: string) => void;
+  toggleHabitSkip: (id: string, date: string) => void;
   toggleHabitPause: (id: string, date: string) => void;
   addJournalEntry: (body: string, title?: string, tags?: string[]) => void;
   deleteJournalEntry: (id: string) => void;
@@ -215,7 +223,7 @@ type ProductionState = {
   clearSyncedItem: (id: string) => void;
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localDateKey(new Date());
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -279,8 +287,9 @@ export const useProductionStore = create<ProductionState>()(
             name: name.trim(),
             position: state.habits.length,
             completedOn: [],
-            pausedOn: [],
+            skippedOn: [],
             category: options.category,
+            activeFrom: options.activeFrom ?? today(),
             schedule: options.schedule ?? { days: [0, 1, 2, 3, 4, 5, 6], timeWindow: 'anytime' as const, weeklyTarget: 5 },
           };
           return { habits: [...state.habits, habit], syncQueue: [...state.syncQueue, enqueue('habit', 'create', habit)] };
@@ -297,9 +306,41 @@ export const useProductionStore = create<ProductionState>()(
         })),
       archiveHabit: (habitId) =>
         set((state) => ({
-          habits: state.habits.map((habit) => (habit.id === habitId ? { ...habit, archivedAt: now() } : habit)),
-          syncQueue: [...state.syncQueue, enqueue('habit', 'delete', { id: habitId })],
+          habits: state.habits.map((habit) => (habit.id === habitId ? { ...habit, activeUntil: today() } : habit)),
+          syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, activeUntil: today() })],
         })),
+      endHabit: (habitId, effectiveDate) =>
+        set((state) => {
+          const activeUntil = previousLocalDate(effectiveDate);
+          return {
+            habits: state.habits.map((habit) => (habit.id === habitId ? { ...habit, activeUntil } : habit)),
+            syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, activeUntil })],
+          };
+        }),
+      substituteHabit: (habitId, effectiveDate, replacement) =>
+        set((state) => {
+          const activeUntil = previousLocalDate(effectiveDate);
+          const previous = state.habits.find((habit) => habit.id === habitId);
+          if (!previous) return state;
+          const habit: Habit = {
+            id: id('habit'),
+            name: replacement.name.trim(),
+            position: previous.position,
+            completedOn: [],
+            skippedOn: [],
+            category: replacement.category ?? previous.category,
+            schedule: replacement.schedule ?? previous.schedule,
+            activeFrom: effectiveDate,
+          };
+          return {
+            habits: [...state.habits.map((item) => (item.id === habitId ? { ...item, activeUntil } : item)), habit],
+            syncQueue: [
+              ...state.syncQueue,
+              enqueue('habit', 'update', { id: habitId, activeUntil }),
+              enqueue('habit', 'create', habit),
+            ],
+          };
+        }),
       toggleHabitCompletion: (habitId, date) =>
         set((state) => ({
           habits: state.habits.map((habit) => {
@@ -311,18 +352,19 @@ export const useProductionStore = create<ProductionState>()(
           }),
           syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, completedOn: date })],
         })),
-      toggleHabitPause: (habitId, date) =>
+      toggleHabitSkip: (habitId, date) =>
         set((state) => ({
           habits: state.habits.map((habit) => {
             if (habit.id !== habitId) return habit;
-            const pausedOn = habit.pausedOn ?? [];
+            const skippedOn = habit.skippedOn ?? habit.pausedOn ?? [];
             return {
               ...habit,
-              pausedOn: pausedOn.includes(date) ? pausedOn.filter((value) => value !== date) : [...pausedOn, date],
+              skippedOn: skippedOn.includes(date) ? skippedOn.filter((value) => value !== date) : [...skippedOn, date],
             };
           }),
-          syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, pausedOn: date })],
+          syncQueue: [...state.syncQueue, enqueue('habit', 'update', { id: habitId, skippedOn: date })],
         })),
+      toggleHabitPause: (habitId, date) => get().toggleHabitSkip(habitId, date),
       addJournalEntry: (body, title = '', tags = []) =>
         set((state) => {
           const entry = { id: id('journal'), title, body, tags, writtenAt: now() };

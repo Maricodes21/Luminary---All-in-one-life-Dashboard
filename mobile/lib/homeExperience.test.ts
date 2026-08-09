@@ -30,9 +30,10 @@ test('home swaps the ritual invitation for music only after explicit completion'
   assert.match(source, /<TonightCard/);
   assert.match(source, /Good day,/);
   assert.match(source, /Open profile and settings/);
-  assert.match(source, /<CommitmentsCard/);
+  assert.match(source, /<CommitmentsPager/);
   assert.match(source, /Today at a glance/);
-  assert.match(source, /homeHabits = habits\.slice\(0, 3\)/);
+  assert.match(source, /activeHabitsForDate\(allHabits, today\)/);
+  assert.match(source, /chunk\(habits, 5\)/);
   assert.match(source, /completedHome = homeHabits\.filter/);
   assert.match(source, /confirmedMood=\{ritualSession\.mood\}/);
   assert.match(source, /moodSkipped=\{ritualSession\.moodSkipped\}/);
@@ -76,15 +77,17 @@ test('nightly ritual explains music, clarifies decisions, and persists explicit 
   assert.doesNotMatch(summary, /reset\(\)/);
 });
 
-test('commitments hub keeps one add path and uses pause and edit language', () => {
+test('commitments hub keeps one add path and uses skip, substitute, and future removal language', () => {
   const hub = fs.readFileSync(path.join(mobileRoot, 'app/habits/index.tsx'), 'utf8');
   const detail = fs.readFileSync(path.join(mobileRoot, 'app/habits/[id].tsx'), 'utf8');
   const library = fs.readFileSync(path.join(mobileRoot, 'app/habits/library.tsx'), 'utf8');
 
   assert.match(hub, /Add commitment/);
-  assert.match(hub, /'Pause'/);
-  assert.doesNotMatch(hub, /Browse library|\bRest\b/);
+  assert.match(hub, /Skip day/);
+  assert.doesNotMatch(hub, /Browse library|\bRest\b|\bPause\b/);
   assert.match(detail, />Edit</);
+  assert.match(detail, /Substitute from tomorrow/);
+  assert.match(detail, /Remove from future days/);
   assert.doesNotMatch(detail, /Edit rhythm/);
   assert.match(library, /habitCategories\.map/);
 });

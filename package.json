@@ -19,6 +19,7 @@
     "supabase:db:reset": "supabase db reset",
     "test:meals:backend": "node --test supabase/tests/personalized-meals-schema.test.cjs supabase/tests/supabase-hardening-schema.test.cjs supabase/tests/supabase-role-privileges-schema.test.cjs supabase/tests/supabase-meals-performance-schema.test.cjs supabase/tests/meals-api-contract.test.cjs supabase/tests/meal-vision-benchmark.test.cjs",
     "test:spotify:backend": "node --test supabase/tests/spotify-preview-auth-contract.test.cjs",
+    "test:personalization:backend": "node --test supabase/tests/commitment-signals-schema.test.cjs",
     "benchmark:meal-vision": "node supabase/benchmarks/meal-vision/run.cjs",
     "mobile:android:open": "npm run android:open --workspace=mobile",
     "mobile:clear": "npm run start:clear --workspace=mobile",

@@ -21,4 +21,5 @@ require(path.resolve(__dirname, '../lib/spotify.test.ts'));
 require(path.resolve(__dirname, '../lib/spotifyRecap.test.ts'));
 require(path.resolve(__dirname, '../lib/dailyRitual.test.ts'));
 require(path.resolve(__dirname, '../lib/homeExperience.test.ts'));
+require(path.resolve(__dirname, '../lib/habits.test.ts'));
 require(path.resolve(__dirname, '../lib/journal.test.ts'));

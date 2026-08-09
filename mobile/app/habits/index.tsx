@@ -9,19 +9,21 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { useProductionStore } from '@/stores/useProductionStore';
 import { getHabitIconName } from '@/lib/habitIcons';
 import { localDateKey } from '@/lib/meals/dates';
+import { isHabitActiveOn, isHabitScheduledOn, scheduledHabitsForDate } from '@/lib/habits';
 
 export default function CommitmentsHub() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState(localDateKey(new Date()));
-  const habits = useProductionStore((state) => state.habits.filter((habit) => !habit.archivedAt).sort((a, b) => a.position - b.position));
+  const allHabits = useProductionStore((state) => state.habits);
   const toggleCompletion = useProductionStore((state) => state.toggleHabitCompletion);
-  const togglePause = useProductionStore((state) => state.toggleHabitPause);
+  const toggleSkip = useProductionStore((state) => state.toggleHabitSkip);
   const dates = useMemo(() => recentDates(7), []);
+  const habits = useMemo(() => scheduledHabitsForDate(allHabits, selectedDate), [allHabits, selectedDate]);
   const completed = habits.filter((habit) => habit.completedOn.includes(selectedDate)).length;
-  const paused = habits.filter((habit) => habit.pausedOn?.includes(selectedDate)).length;
-  const weeklyDone = habits.reduce((total, habit) => total + habit.completedOn.filter((date) => dates.some((item) => item.key === date)).length, 0);
-  const weeklyPossible = Math.max(1, habits.reduce((total, habit) => total + Math.min(habit.schedule?.weeklyTarget ?? 5, 7), 0));
+  const skipped = allHabits.filter((habit) => (habit.skippedOn ?? habit.pausedOn)?.includes(selectedDate)).length;
+  const weeklyDone = allHabits.reduce((total, habit) => total + habit.completedOn.filter((date) => dates.some((item) => item.key === date) && isHabitActiveOn(habit, date)).length, 0);
+  const weeklyPossible = Math.max(1, allHabits.reduce((total, habit) => total + dates.filter((date) => isHabitScheduledOn(habit, date.key)).length, 0));
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.sm, paddingBottom: spacing['2xl'] }]}>
@@ -46,30 +48,30 @@ export default function CommitmentsHub() {
       </ScrollView>
 
       <View style={styles.metricRow}>
-        <Card style={styles.metricCard}><SectionLabel>Selected day</SectionLabel><Text style={[type.headlineLg, styles.title]}>{completed}/{habits.length}</Text><Text style={[type.bodySm, styles.muted]}>{paused ? `${paused} paused intentionally` : 'No penalties for a lighter day'}</Text></Card>
+        <Card style={styles.metricCard}><SectionLabel>Selected day</SectionLabel><Text style={[type.headlineLg, styles.title]}>{completed}/{habits.length}</Text><Text style={[type.bodySm, styles.muted]}>{skipped ? `${skipped} left clear` : 'The shape of this day'}</Text></Card>
         <Card style={styles.metricCard}><SectionLabel>This week</SectionLabel><Text style={[type.headlineLg, styles.title]}>{Math.round((weeklyDone / weeklyPossible) * 100)}%</Text><Text style={[type.bodySm, styles.muted]}>Consistency, not a brittle streak</Text></Card>
       </View>
 
-      <View style={styles.sectionHeading}><View><SectionLabel>For this day</SectionLabel><Text style={[type.headlineMd, styles.sectionTitle]}>Your commitments</Text></View></View>
+      <View style={styles.sectionHeading}><SectionLabel>For this day</SectionLabel><Text style={[type.headlineMd, styles.sectionTitle]}>Your commitments</Text></View>
       <Card>
-        {habits.map((habit) => {
+        {habits.length ? habits.map((habit) => {
           const isDone = habit.completedOn.includes(selectedDate);
-          const isPaused = habit.pausedOn?.includes(selectedDate) ?? false;
+          const isSkipped = (habit.skippedOn ?? habit.pausedOn)?.includes(selectedDate) ?? false;
           return (
             <View key={habit.id} style={styles.habitRow}>
-              <Pressable onPress={() => toggleCompletion(habit.id, selectedDate)} disabled={isPaused} style={[styles.check, isDone && styles.checkDone, isPaused && styles.checkPaused]} accessibilityRole="checkbox" accessibilityState={{ checked: isDone, disabled: isPaused }}>
+              <Pressable onPress={() => toggleCompletion(habit.id, selectedDate)} disabled={isSkipped} style={[styles.check, isDone && styles.checkDone, isSkipped && styles.checkSkipped]} accessibilityRole="checkbox" accessibilityState={{ checked: isDone, disabled: isSkipped }} accessibilityLabel={`Mark ${habit.name} ${isDone ? 'open' : 'complete'}`}>
                 <Icon name={isDone ? 'check' : getHabitIconName(habit.name)} size={16} color={isDone ? palette.onPrimary : palette.onSurfaceVariant} />
               </Pressable>
               <Pressable onPress={() => router.push(`/habits/${habit.id}`)} style={styles.habitBody} accessibilityRole="button">
                 <Text style={[type.titleMd, styles.title, isDone && styles.doneText]}>{habit.name}</Text>
-                <Text style={[type.bodySm, styles.muted]}>{isPaused ? 'Paused for this day' : `${sentenceCase(habit.schedule?.timeWindow ?? 'anytime')} · ${habit.schedule?.weeklyTarget ?? 5} times weekly`}</Text>
+                <Text style={[type.bodySm, styles.muted]}>{isSkipped ? 'Left clear for this day' : `${sentenceCase(habit.schedule?.timeWindow ?? 'anytime')} · ${habit.schedule?.weeklyTarget ?? 5} times weekly`}</Text>
               </Pressable>
-              <Pressable onPress={() => togglePause(habit.id, selectedDate)} style={styles.pauseButton} accessibilityRole="button" accessibilityLabel={`${isPaused ? 'Resume' : 'Pause'} ${habit.name}`}>
-                <Text style={[type.labelSm, { color: isPaused ? palette.tertiaryDim : palette.onSurfaceVariant }]}>{isPaused ? 'Resume' : 'Pause'}</Text>
+              <Pressable onPress={() => toggleSkip(habit.id, selectedDate)} style={styles.skipButton} accessibilityRole="button" accessibilityLabel={`${isSkipped ? 'Restore' : 'Skip'} ${habit.name} for this day`}>
+                <Text style={[type.labelSm, { color: isSkipped ? palette.tertiaryDim : palette.onSurfaceVariant }]}>{isSkipped ? 'Restore' : 'Skip day'}</Text>
               </Pressable>
             </View>
           );
-        })}
+        }) : <Text style={[type.bodyMd, styles.muted]}>This day is clear. Add something only if it belongs here.</Text>}
       </Card>
 
       <Pressable onPress={() => router.push('/habits/library')} style={styles.addButton} accessibilityRole="button">
@@ -96,10 +98,10 @@ const styles = StyleSheet.create({
   title: { color: palette.onSurface }, muted: { color: palette.onSurfaceVariant },
   dateStrip: { gap: spacing.sm }, dateChip: { width: 58, minHeight: 64, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainer, gap: 2 }, dateChipSelected: { backgroundColor: palette.primary }, dateTextSelected: { color: palette.onPrimary },
   metricRow: { flexDirection: 'row', gap: spacing.sm }, metricCard: { flex: 1, gap: spacing.xs },
-  sectionHeading: { marginTop: spacing.sm }, sectionTitle: { color: palette.onSurface, marginTop: spacing.xs },
+  sectionHeading: { marginTop: spacing.sm, gap: spacing.xs }, sectionTitle: { color: palette.onSurface },
   habitRow: { minHeight: 68, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  check: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest }, checkDone: { backgroundColor: palette.tertiaryDim }, checkPaused: { opacity: 0.45 },
+  check: { width: 36, height: 36, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest }, checkDone: { backgroundColor: palette.tertiaryDim }, checkSkipped: { opacity: 0.45 },
   habitBody: { flex: 1, paddingVertical: spacing.sm }, doneText: { textDecorationLine: 'line-through', color: palette.onSurfaceVariant },
-  pauseButton: { minWidth: 58, minHeight: 44, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHigh },
+  skipButton: { minWidth: 68, minHeight: 44, paddingHorizontal: spacing.sm, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHigh },
   addButton: { minHeight: 48, borderRadius: radii.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: palette.primary }, addText: { color: palette.onPrimary },
 });

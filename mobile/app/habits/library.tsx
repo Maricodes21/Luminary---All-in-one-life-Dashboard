@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
-import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Icon } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -18,8 +17,7 @@ export default function CommitmentLibrary() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState('Morning');
-  const [customName, setCustomName] = useState('');
-  const habits = useProductionStore((state) => state.habits.filter((habit) => !habit.archivedAt));
+  const habits = useProductionStore((state) => state.habits);
   const addHabit = useProductionStore((state) => state.addHabit);
   const suggestions = useMemo(() => habitSuggestions.filter((item) => item.category === category), [category]);
 
@@ -48,14 +46,11 @@ export default function CommitmentLibrary() {
         {suggestions.map((suggestion) => <Suggestion key={suggestion.name} suggestion={suggestion} added={habits.some((habit) => habit.name.toLowerCase() === suggestion.name.toLowerCase())} onAdd={() => add(suggestion.name, suggestion.category)} />)}
       </View>
 
-      <Card variant="featured">
-        <SectionLabel>Your own</SectionLabel>
-        <Text style={[type.titleLg, styles.customTitle]}>Name a small promise</Text>
-        <View style={styles.customRow}>
-          <TextInput value={customName} onChangeText={setCustomName} placeholder="e.g. Pack lunch before bed" placeholderTextColor={palette.onSurfaceVariant} style={styles.input} returnKeyType="done" onSubmitEditing={() => { add(customName); setCustomName(''); }} />
-          <Pressable onPress={() => { add(customName); setCustomName(''); }} style={styles.addCustom} accessibilityRole="button"><Icon name="plus" color={palette.onPrimary} /></Pressable>
-        </View>
-      </Card>
+      <Pressable onPress={() => router.push('/habits/new')} style={styles.customCard} accessibilityRole="button" accessibilityLabel="Create your own commitment">
+        <View style={styles.customIcon}><Icon name="edit" color={palette.primary} /></View>
+        <View style={styles.customBody}><SectionLabel>Your own</SectionLabel><Text style={[type.titleLg, styles.title]}>Create a commitment</Text><Text style={[type.bodySm, styles.muted]}>Choose its category, days and place in your day.</Text></View>
+        <Icon name="plus" color={palette.primary} />
+      </Pressable>
     </ScrollView>
   );
 }
@@ -78,6 +73,7 @@ const styles = StyleSheet.create({
   suggestion: { minHeight: 76, borderRadius: radii.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: palette.surfaceContainer }, added: { opacity: 0.58 },
   suggestionIcon: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh }, suggestionBody: { flex: 1, gap: 2 },
   roundAdd: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }, roundAdded: { backgroundColor: palette.tertiaryDim },
-  customTitle: { color: palette.onSurface, marginTop: spacing.xs }, customRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  input: { flex: 1, minHeight: 48, borderRadius: radii.md, paddingHorizontal: spacing.md, backgroundColor: palette.surfaceContainerHighest, color: palette.onSurface }, addCustom: { width: 48, height: 48, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
+  customCard: { minHeight: 104, borderRadius: radii.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: palette.surfaceContainerHigh },
+  customIcon: { width: 48, height: 48, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primaryContainer },
+  customBody: { flex: 1, gap: spacing.xs },
 });
