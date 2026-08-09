@@ -821,8 +821,23 @@ function withoutAlternatives(exercise: PlannedExercise): PlannedExerciseAlternat
 function hasCurrentWorkoutSessions(sessions: WorkoutSession[] | undefined): sessions is WorkoutSession[] {
   return Boolean(sessions?.length && sessions.every((session) => session.exercises.every((exercise) =>
     typeof exercise.visualId === 'string'
-    && exercise.alternatives.every((alternative) => typeof alternative === 'object' && typeof alternative.visualId === 'string'),
+    && hasExerciseInstructions(exercise)
+    && exercise.alternatives.every((alternative) =>
+      typeof alternative === 'object'
+      && typeof alternative.visualId === 'string'
+      && hasExerciseInstructions(alternative),
+    ),
   )));
+}
+
+function hasExerciseInstructions(exercise: PlannedExerciseAlternative) {
+  return Boolean(
+    exercise.instructions
+    && typeof exercise.instructions.setup === 'string'
+    && typeof exercise.instructions.movement === 'string'
+    && typeof exercise.instructions.breathing === 'string'
+    && typeof exercise.instructions.completion === 'string',
+  );
 }
 
 function normalizeWorkoutVisuals(sessions: WorkoutSession[]) {
