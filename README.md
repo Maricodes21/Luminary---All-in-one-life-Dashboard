@@ -20,7 +20,6 @@ The August 2026 mobile release includes:
 
 See [the release summary](docs/releases/2026-08-luminary-mobile.md) for behavior, privacy boundaries, validation, and rollout notes.
 
-![Luminary Android onboarding](docs/screenshots/luminary-onboarding-android.png)
 
 ## Repository layout
 
