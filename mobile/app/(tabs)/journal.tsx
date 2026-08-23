@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,8 @@ import { MultiChoiceField } from '@/components/ui';
 import { useDeleteJournalEntry, useJournalEntries } from '@/hooks/useJournalEntries';
 import { useProductionStore } from '@/stores/useProductionStore';
 import { moodTags } from '@/lib/modulePresets';
-import { deriveJournalPatterns, selectJournalPrompts } from '@/lib/journal';
+import { deriveJournalPatterns, selectJournalPrompts, type JournalPattern } from '@/lib/journal';
+import { compactAiConfigured, requestCompactJournalPatterns } from '@/lib/ai/localGateway';
 
 type TabView = 'timeline' | 'trends';
 type PeriodMode = 'week' | 'month';
@@ -38,6 +39,10 @@ export default function JournalScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [periodMode, setPeriodMode] = useState<PeriodMode>('week');
   const [periodOffset, setPeriodOffset] = useState(0);
+  const [aiPatterns, setAiPatterns] = useState<JournalPattern[]>([]);
+  const [aiPatternsLoading, setAiPatternsLoading] = useState(false);
+  const [aiPatternsUnavailable, setAiPatternsUnavailable] = useState(false);
+  const lastAiPatternSignature = useRef<string | null>(null);
   const { data: remoteEntries = [], isLoading, isError } = useJournalEntries();
   const remoteDeletion = useDeleteJournalEntry();
   const localEntries = useProductionStore((state) =>
@@ -45,6 +50,8 @@ export default function JournalScreen() {
   );
   const addJournalEntry = useProductionStore((state) => state.addJournalEntry);
   const deleteJournalEntry = useProductionStore((state) => state.deleteJournalEntry);
+  const aiPersonalization = useProductionStore((state) => state.profileSettings.aiPersonalization);
+  const aiJournalText = useProductionStore((state) => state.profileSettings.aiJournalText);
 
   const entries = useMemo<TimelineEntry[]>(() => {
     const combined: TimelineEntry[] = [
@@ -88,7 +95,56 @@ export default function JournalScreen() {
     () => selectJournalPrompts({ now: new Date(), entries, limit: 4 }),
     [entries],
   );
-  const patterns = useMemo(() => deriveJournalPatterns(entries), [entries]);
+  const localPatterns = useMemo(() => deriveJournalPatterns(entries), [entries]);
+  const patterns = useMemo(() => {
+    const seen = new Set<string>();
+    return [...aiPatterns, ...localPatterns]
+      .filter((pattern) => {
+        const key = pattern.title.toLocaleLowerCase('en');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 4);
+  }, [aiPatterns, localPatterns]);
+
+  useEffect(() => {
+    if (view !== 'trends' || !aiPersonalization || entries.length < 3 || !compactAiConfigured()) {
+      setAiPatternsUnavailable(view === 'trends' && aiPersonalization && !compactAiConfigured());
+      return;
+    }
+    const recentCutoff = Date.now() - 28 * 86_400_000;
+    const evidence = entries
+      .filter((entry) => new Date(entry.writtenAt).getTime() >= recentCutoff)
+      .slice(0, 12)
+      .map((entry) => ({
+        writtenAt: entry.writtenAt,
+        tags: entry.tags,
+        ...(aiJournalText ? { body: entry.body.slice(0, 600) } : {}),
+      }));
+    if (evidence.length < 3) return;
+    const signature = evidence
+      .map((entry) => `${entry.writtenAt}:${entry.tags.join(',')}:${entry.body?.length ?? 0}`)
+      .join('|');
+    if (lastAiPatternSignature.current === signature) return;
+    lastAiPatternSignature.current = signature;
+    let cancelled = false;
+    setAiPatternsLoading(true);
+    setAiPatternsUnavailable(false);
+    void requestCompactJournalPatterns({ windowLabel: 'Last 28 days', entries: evidence })
+      .then((generated) => {
+        if (!cancelled) {
+          setAiPatterns(generated);
+          setAiPatternsUnavailable(generated.length === 0);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setAiPatternsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [aiJournalText, aiPersonalization, entries, view]);
 
   function onSave() {
     if (!draft.trim()) return;
@@ -286,6 +342,9 @@ export default function JournalScreen() {
           <PatternsView
             entriesNeeded={entriesNeeded}
             patterns={patterns}
+            aiEnabled={aiPersonalization}
+            aiLoading={aiPatternsLoading}
+            aiUnavailable={aiPatternsUnavailable}
             onBack={() => setView('timeline')}
           />
         )}
@@ -458,10 +517,16 @@ function TimelineEntryCard({
 function PatternsView({
   entriesNeeded,
   patterns,
+  aiEnabled,
+  aiLoading,
+  aiUnavailable,
   onBack,
 }: {
   entriesNeeded: number;
-  patterns: ReturnType<typeof deriveJournalPatterns>;
+  patterns: JournalPattern[];
+  aiEnabled: boolean;
+  aiLoading: boolean;
+  aiUnavailable: boolean;
   onBack: () => void;
 }) {
   const [hidden, setHidden] = useState<string[]>([]);
@@ -506,7 +571,15 @@ function PatternsView({
           <Text style={[type.bodySm, styles.mutedText]}>
             {entriesNeeded
               ? 'Patterns wait for enough context.'
-              : 'Built locally from tags, timing and entry frequency.'}
+              : aiLoading
+                ? 'Looking for repeated evidence across your recent notes…'
+                : aiEnabled && patterns.some((pattern) => pattern.source === 'ai')
+                  ? 'AI-assisted observations are shown beside local timing, tag and frequency patterns.'
+                  : aiUnavailable
+                    ? 'AI patterns are unavailable right now. Local observations still use tags, timing and entry frequency.'
+                    : aiEnabled
+                      ? 'No additional AI pattern met the evidence threshold. Local observations remain available.'
+                      : 'Built locally from tags, timing and entry frequency. AI patterns are optional in Settings.'}
           </Text>
           <ProgressBar
             value={3 - entriesNeeded}
@@ -522,6 +595,7 @@ function PatternsView({
             <Text style={[type.titleMd, styles.entryTitle]}>{pattern.title}</Text>
             <Text style={[type.bodySm, styles.mutedText]}>{pattern.detail}</Text>
             <Text style={[type.labelSm, styles.accentText]}>
+              {pattern.source === 'ai' ? 'AI-assisted · ' : ''}
               {pattern.windowLabel} · {Math.round(pattern.confidence * 100)}% confidence ·{' '}
               {pattern.evidence}
             </Text>

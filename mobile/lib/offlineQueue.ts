@@ -8,6 +8,8 @@
  * Schema:  each item is a discriminated union so flush() knows how to replay it.
  *
  * Limitations (Phase 2):
+ *   - Legacy entries created before owner scoping remain local and require an
+ *     explicit migration; they are never replayed into a different account.
  *   - No conflict resolution — last write wins on sync.
  *   - No retry back-off — flush is attempted on every foreground event.
  *   - Duplicate prevention relies on Supabase upsert / unique constraints.
@@ -107,23 +109,27 @@ export type PendingWrite =
   | PendingDailyRitualSession
   | PendingAiReflection;
 
+export type OwnedPendingWrite = PendingWrite & { ownerId?: string };
+
 // ─── Queue operations ─────────────────────────────────────────────────────────
 
 export async function enqueue(item: PendingWrite): Promise<void> {
   try {
+    const { data } = await supabase.auth.getSession();
+    const ownerId = data.session?.user.id;
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    const queue: PendingWrite[] = raw ? (JSON.parse(raw) as PendingWrite[]) : [];
-    queue.push(item);
+    const queue: OwnedPendingWrite[] = raw ? (JSON.parse(raw) as OwnedPendingWrite[]) : [];
+    queue.push({ ...item, ...(ownerId ? { ownerId } : {}) });
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   } catch (err) {
     console.warn('[offlineQueue] enqueue failed', err);
   }
 }
 
-export async function getQueue(): Promise<PendingWrite[]> {
+export async function getQueue(): Promise<OwnedPendingWrite[]> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    return raw ? (JSON.parse(raw) as PendingWrite[]) : [];
+    return raw ? (JSON.parse(raw) as OwnedPendingWrite[]) : [];
   } catch {
     return [];
   }
@@ -132,7 +138,7 @@ export async function getQueue(): Promise<PendingWrite[]> {
 async function removeById(id: string): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
-    const queue: PendingWrite[] = raw ? (JSON.parse(raw) as PendingWrite[]) : [];
+    const queue: OwnedPendingWrite[] = raw ? (JSON.parse(raw) as OwnedPendingWrite[]) : [];
     const next = queue.filter((item) => item.id !== id);
     await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(next));
   } catch (err) {
@@ -146,13 +152,15 @@ async function removeById(id: string): Promise<void> {
  * Attempt to replay every queued write against Supabase.
  * Successfully replayed items are removed; failed ones stay for the next flush.
  */
-export async function flushQueue(): Promise<{ flushed: number; remaining: number }> {
+export async function flushQueue(
+  ownerId: string | null,
+): Promise<{ flushed: number; remaining: number }> {
   const queue = await getQueue();
-  if (queue.length === 0) return { flushed: 0, remaining: 0 };
+  if (queue.length === 0 || !ownerId) return { flushed: 0, remaining: queue.length };
 
   let flushed = 0;
 
-  for (const item of queue) {
+  for (const item of queue.filter((pending) => pending.ownerId === ownerId)) {
     try {
       await replayWrite(item);
       await removeById(item.id);

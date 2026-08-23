@@ -1,6 +1,7 @@
 import { ALL_MOOD_LABELS, type MoodLabel } from '../mood';
 import type { MoodEstimate } from '../moodEstimation';
 import type { NightlyReflection, PersonalizationContext } from '../personalization';
+import type { JournalPattern } from '../journal';
 import { z } from 'zod';
 
 type OllamaResponse = { model?: string; message?: { content?: string } };
@@ -39,6 +40,24 @@ const reflectionResponseSchema = z.object({
 const foodInterpretationSchema = z.object({
   normalizedQuery: z.string().min(2).max(100),
 });
+
+const journalPatternResponseSchema = z.object({
+  patterns: z
+    .array(
+      z.object({
+        title: z.string(),
+        detail: z.string(),
+        supportingEntryIndexes: z.array(z.number().int().nonnegative()),
+        confidence: z.number(),
+      }),
+    )
+    .max(3),
+});
+
+export type CompactJournalPatternInput = {
+  windowLabel: string;
+  entries: Array<{ writtenAt: string; tags: string[]; body?: string }>;
+};
 
 export async function requestCompactMoodEstimate(
   context: PersonalizationContext,
@@ -142,6 +161,62 @@ export async function requestCompactFoodInterpretation(query: string, locale: st
     : normalizedQuery;
 }
 
+export async function requestCompactJournalPatterns(
+  input: CompactJournalPatternInput,
+): Promise<JournalPattern[]> {
+  if (input.entries.length < 3) return [];
+  assertSpotifyFree(input);
+  const numberedEntries = input.entries.slice(0, 12).map((entry, index) => ({ index, ...entry }));
+  const raw = await runLocalJson<unknown>({
+    operation: 'journal-patterns-v1',
+    system: [
+      'Find up to three tentative, useful patterns across an adult user’s journal evidence.',
+      'Use only repeated evidence supported by at least two different entries. Missing data is unknown.',
+      'Do not diagnose, label personality, infer protected traits, or turn one difficult day into a trend.',
+      'Keep the language warm, plain, specific, and easy to correct.',
+      'Return JSON only with patterns containing title, detail, supportingEntryIndexes, and confidence from 0 to 1.',
+    ].join(' '),
+    input: { windowLabel: input.windowLabel, entries: numberedEntries },
+  });
+  return parseCompactJournalPatterns(raw, numberedEntries.length, input.windowLabel);
+}
+
+export function parseCompactJournalPatterns(
+  raw: unknown,
+  entryCount: number,
+  windowLabel: string,
+): JournalPattern[] {
+  const parsed = journalPatternResponseSchema.safeParse(raw);
+  if (!parsed.success || entryCount < 3) return [];
+  const seen = new Set<string>();
+  const result: JournalPattern[] = [];
+  parsed.data.patterns.forEach((pattern, index) => {
+    const supporting = [...new Set(pattern.supportingEntryIndexes)].filter(
+      (entryIndex) => entryIndex >= 0 && entryIndex < entryCount,
+    );
+    const title = cleanText(pattern.title, 80);
+    const detail = cleanText(pattern.detail, 240);
+    const confidence = Math.min(
+      clamp(pattern.confidence),
+      0.5 + (supporting.length / entryCount) * 0.42,
+    );
+    const signature = title.toLocaleLowerCase('en');
+    if (!title || !detail || supporting.length < 2 || confidence < 0.55 || seen.has(signature))
+      return;
+    seen.add(signature);
+    result.push({
+      id: `ai:${slug(title)}:${index}`,
+      title,
+      detail,
+      evidence: `${supporting.length} supporting entries`,
+      windowLabel,
+      confidence,
+      source: 'ai',
+    });
+  });
+  return result;
+}
+
 export function compactAiConfigured() {
   return Boolean(configuredBaseUrl());
 }
@@ -239,4 +314,12 @@ function cleanText(value: unknown, max: number) {
 
 function clamp(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
+}
+
+function slug(value: string) {
+  return value
+    .toLocaleLowerCase('en')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 48);
 }

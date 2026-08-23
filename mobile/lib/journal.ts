@@ -27,6 +27,7 @@ export type JournalPattern = {
   evidence: string;
   windowLabel: string;
   confidence: number;
+  source: 'local' | 'ai';
 };
 
 const promptLibrary = [
@@ -111,6 +112,7 @@ export function deriveJournalPatterns(
       evidence: `${topTag[1]} tagged entries`,
       windowLabel: 'Last 28 days',
       confidence: confidence(topTag[1], recent.length),
+      source: 'local',
     });
   const buckets = count(recent.map((entry) => hourBucket(new Date(entry.writtenAt).getHours())));
   const topBucket = [...buckets.entries()].sort((a, b) => b[1] - a[1])[0];
@@ -122,6 +124,7 @@ export function deriveJournalPatterns(
       evidence: `${topBucket[1]} timestamps`,
       windowLabel: 'Last 28 days',
       confidence: confidence(topBucket[1], recent.length),
+      source: 'local',
     });
   const days = new Set(recent.map((entry) => dateKey(new Date(entry.writtenAt))));
   if (days.size >= 3)
@@ -132,6 +135,7 @@ export function deriveJournalPatterns(
       evidence: `${recent.length} entries across ${days.size} days`,
       windowLabel: 'Last 28 days',
       confidence: Math.min(0.95, 0.6 + days.size * 0.04),
+      source: 'local',
     });
   return patterns.slice(0, 3);
 }

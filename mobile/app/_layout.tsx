@@ -39,6 +39,7 @@ import { resolveProfileRestore, routeForAuthState } from '@/lib/authRouting';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { usePersonalizationStore } from '@/stores/usePersonalizationStore';
 import { loadPersistedReflections } from '@/lib/personalizationPersistence';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -77,6 +78,7 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   useMealsBootstrap();
+  useOfflineSync(session?.user.id ?? null);
 
   useEffect(() => {
     const timeout = setTimeout(() => setFontWaitExpired(true), 3000);
