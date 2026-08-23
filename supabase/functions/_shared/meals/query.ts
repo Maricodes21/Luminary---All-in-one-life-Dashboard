@@ -9,6 +9,24 @@ export function isWeakOrAmbiguousQuery(query: string): boolean {
   return tokens.length === 1 && AMBIGUOUS_TERMS.has(tokens[0]);
 }
 
+const CONNECTING_TERMS = new Set(['a', 'an', 'and', 'for', 'of', 'on', 'the', 'with']);
+
+export function hasRelevantFoodMatch(
+  results: ReadonlyArray<{ name: string }>,
+  query: string,
+): boolean {
+  const terms = query
+    .trim()
+    .toLocaleLowerCase('en')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((term) => term.length > 1 && !CONNECTING_TERMS.has(term));
+  if (!terms.length) return false;
+  return results.some((result) => {
+    const name = result.name.toLocaleLowerCase('en');
+    return terms.every((term) => name.includes(term));
+  });
+}
+
 export function sanitizeQueryInterpretation(
   value: unknown,
   allowedProviderIds: ReadonlySet<string>,

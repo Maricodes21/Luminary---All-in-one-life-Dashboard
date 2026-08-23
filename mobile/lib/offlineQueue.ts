@@ -80,12 +80,32 @@ type PendingDailyRitualSession = {
   };
 };
 
+type PendingAiReflection = {
+  type: 'ai_reflection';
+  id: string;
+  action: 'upsert' | 'delete';
+  payload: {
+    id: string;
+    user_id: string;
+    local_date: string;
+    generated_at: string;
+    model: string;
+    theme: string;
+    reflection: string;
+    question: string;
+    evidence_categories: string[];
+    confidence: number;
+    status: 'pending' | 'accepted';
+  };
+};
+
 export type PendingWrite =
   | PendingMoodEvent
   | PendingSpotifySnapshot
   | PendingHabitCompletion
   | PendingJournalEntry
-  | PendingDailyRitualSession;
+  | PendingDailyRitualSession
+  | PendingAiReflection;
 
 // ─── Queue operations ─────────────────────────────────────────────────────────
 
@@ -178,6 +198,20 @@ async function replayWrite(item: PendingWrite): Promise<void> {
       const { error } = await supabase
         .from('daily_ritual_sessions')
         .upsert(item.payload, { onConflict: 'user_id,session_date' });
+      if (error) throw error;
+      break;
+    }
+    case 'ai_reflection': {
+      if (item.action === 'delete') {
+        const { error } = await supabase
+          .from('ai_reflections')
+          .delete()
+          .eq('id', item.payload.id)
+          .eq('user_id', item.payload.user_id);
+        if (error) throw error;
+        break;
+      }
+      const { error } = await supabase.from('ai_reflections').upsert(item.payload);
       if (error) throw error;
       break;
     }

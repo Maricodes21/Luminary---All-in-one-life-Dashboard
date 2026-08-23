@@ -117,6 +117,15 @@ test('ranks localized branded records before generic records deterministically',
   assert.deepEqual(reversed, forward);
 });
 
+test('compound meal searches reject partial-name distractions', async () => {
+  const [, , { hasRelevantFoodMatch }] = await modules;
+  assert.equal(
+    hasRelevantFoodMatch([{ name: 'Shrimp toast' }, { name: 'Boiled egg' }], 'egg and toast'),
+    false,
+  );
+  assert.equal(hasRelevantFoodMatch([{ name: 'Egg on toast' }], 'egg and toast'), true);
+});
+
 test('query interpretation is conditional and restricted to terms and known IDs', async () => {
   const [, , { isWeakOrAmbiguousQuery, sanitizeQueryInterpretation }] = await modules;
 
@@ -246,7 +255,7 @@ test('defaults to Gemma cloud and only enables local Gemma or Qwen evaluation ex
   assert.equal(defaults.visionEvaluationModel, undefined);
 
   const local = createMealAIConfig({ MEALS_AI_MODE: 'local' });
-  assert.equal(local.model, 'gemma4:12b');
+  assert.equal(local.model, 'gemma4:e4b');
   assert.equal(local.paid, false);
 
   const evaluation = createMealAIConfig({

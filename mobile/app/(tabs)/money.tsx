@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, View, Text, StyleSheet, ActivityIndicator, Pressable, TextInput } from 'react-native';
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
+  TextInput,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type } from '@luminary/design-system';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -11,13 +19,23 @@ import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { Chip } from '@/components/ui/Chip';
 import { AutocompleteField, NumberField } from '@/components/ui';
 import { useWallet } from '@/hooks/useWallet';
-import { useProductionStore, type Expense, type ExpenseCategory } from '@/stores/useProductionStore';
+import {
+  useProductionStore,
+  type Expense,
+  type ExpenseCategory,
+} from '@/stores/useProductionStore';
 import { categoryMeta } from '@/lib/modulePresets';
 import { buildBudgetPlan } from '@/lib/contentLibrary';
 import { suggestFromHistory } from '@/lib/forms/assistedInputs';
 
 const categories: ExpenseCategory[] = ['Needs', 'Wants', 'Savings', 'Emergencies'];
-const savingGoalSuggestions = ['Emergency fund', 'Holiday', 'Home deposit', 'New phone', 'Education'];
+const savingGoalSuggestions = [
+  'Emergency fund',
+  'Holiday',
+  'Home deposit',
+  'New phone',
+  'Education',
+];
 
 export default function MoneyScreen() {
   const insets = useSafeAreaInsets();
@@ -27,13 +45,17 @@ export default function MoneyScreen() {
   const monthlyIncome = useProductionStore((s) => s.monthlyIncome);
   const monthlyBudget = useProductionStore((s) => s.monthlyBudget);
   const savingGoals = useProductionStore((s) => s.savingGoals);
-  const prompts = useProductionStore((s) => s.expensePrompts.filter((prompt) => prompt.status === 'pending'));
+  const prompts = useProductionStore((s) =>
+    s.expensePrompts.filter((prompt) => prompt.status === 'pending'),
+  );
   const addExpense = useProductionStore((s) => s.addExpense);
   const addSavingGoal = useProductionStore((s) => s.addSavingGoal);
   const updateBudget = useProductionStore((s) => s.updateBudget);
   const updateMonthlyPlan = useProductionStore((s) => s.updateMonthlyPlan);
   const contributeToSavingGoal = useProductionStore((s) => s.contributeToSavingGoal);
-  const addExpensePromptFromNotification = useProductionStore((s) => s.addExpensePromptFromNotification);
+  const addExpensePromptFromNotification = useProductionStore(
+    (s) => s.addExpensePromptFromNotification,
+  );
   const dismissExpensePrompt = useProductionStore((s) => s.dismissExpensePrompt);
   const logExpensePrompt = useProductionStore((s) => s.logExpensePrompt);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -52,25 +74,39 @@ export default function MoneyScreen() {
   const [incomeDraft, setIncomeDraft] = useState(String(monthlyIncome));
   const [monthlyBudgetDraft, setMonthlyBudgetDraft] = useState(String(monthlyBudget));
   const [budgetDrafts, setBudgetDrafts] = useState<Record<ExpenseCategory, string>>(() =>
-    categories.reduce((drafts, item) => {
-      drafts[item] = String(budgets.find((budget) => budget.category === item)?.limit ?? 0);
-      return drafts;
-    }, {} as Record<ExpenseCategory, string>),
+    categories.reduce(
+      (drafts, item) => {
+        drafts[item] = String(budgets.find((budget) => budget.category === item)?.limit ?? 0);
+        return drafts;
+      },
+      {} as Record<ExpenseCategory, string>,
+    ),
   );
   const merchantSuggestions = useMemo(
-    () => suggestFromHistory('', expenses.map((expense) => expense.merchant)),
+    () =>
+      suggestFromHistory(
+        '',
+        expenses.map((expense) => expense.merchant),
+      ),
     [expenses],
   );
 
   const remoteTotal = transactions.reduce((acc, transaction) => acc + transaction.amount, 0);
   const localTotal = expenses.reduce((acc, expense) => acc + expense.amount, 0);
   const totalSpent = remoteTotal + localTotal;
-  const spentByCategory = categories.reduce<Partial<Record<ExpenseCategory, number>>>((acc, item) => {
-    acc[item] =
-      expenses.filter((expense) => expense.category === item).reduce((sum, expense) => sum + expense.amount, 0) +
-      transactions.filter((transaction) => transaction.category === item).reduce((sum, transaction) => sum + transaction.amount, 0);
-    return acc;
-  }, {});
+  const spentByCategory = categories.reduce<Partial<Record<ExpenseCategory, number>>>(
+    (acc, item) => {
+      acc[item] =
+        expenses
+          .filter((expense) => expense.category === item)
+          .reduce((sum, expense) => sum + expense.amount, 0) +
+        transactions
+          .filter((transaction) => transaction.category === item)
+          .reduce((sum, transaction) => sum + transaction.amount, 0);
+      return acc;
+    },
+    {},
+  );
   const budgetPlan = buildBudgetPlan({ monthlyIncome, budgets, spentByCategory });
   const totalBudget = monthlyBudget || budgetPlan.totalBudget;
   const unallocated = Math.max(0, monthlyBudget - budgetPlan.totalBudget);
@@ -78,7 +114,12 @@ export default function MoneyScreen() {
   const onAddExpense = () => {
     const parsedAmount = Number(amount);
     if (!merchant.trim() || !Number.isFinite(parsedAmount) || parsedAmount <= 0) return;
-    addExpense({ merchant: merchant.trim(), amount: parsedAmount, category, note: note.trim() || undefined });
+    addExpense({
+      merchant: merchant.trim(),
+      amount: parsedAmount,
+      category,
+      note: note.trim() || undefined,
+    });
     setMerchant('');
     setAmount('');
     setNote('');
@@ -97,7 +138,13 @@ export default function MoneyScreen() {
   const onSaveBudgetPlan = () => {
     const parsedIncome = Number(incomeDraft);
     const parsedBudget = Number(monthlyBudgetDraft);
-    if (!Number.isFinite(parsedIncome) || parsedIncome < 0 || !Number.isFinite(parsedBudget) || parsedBudget < 0) return;
+    if (
+      !Number.isFinite(parsedIncome) ||
+      parsedIncome < 0 ||
+      !Number.isFinite(parsedBudget) ||
+      parsedBudget < 0
+    )
+      return;
     updateMonthlyPlan(parsedIncome, parsedBudget);
     categories.forEach((item) => {
       const limit = Number(budgetDrafts[item]);
@@ -122,24 +169,34 @@ export default function MoneyScreen() {
   };
 
   const onSimulateNotification = () => {
-    addExpensePromptFromNotification('Bank notification', 'Card purchase of R189.90 at Checkers was approved');
+    addExpensePromptFromNotification(
+      'Bank notification',
+      'Card purchase of R189.90 at Checkers was approved',
+    );
   };
 
   return (
     <>
       <ScrollView
         style={styles.root}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md, paddingBottom: 120 }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + spacing.md, paddingBottom: 120 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.headerRow}>
           <View>
-            <SectionLabel>Money</SectionLabel>
+            <SectionLabel>Money and spending</SectionLabel>
             <Text style={[type.displaySm, { color: palette.onSurface, marginTop: spacing.xs }]}>
-              Spending, quietly tracked
+              Money and spending
             </Text>
           </View>
-          <Pressable onPress={() => setQuickAddOpen(true)} style={styles.headerAction} accessibilityRole="button">
+          <Pressable
+            onPress={() => setQuickAddOpen(true)}
+            style={styles.headerAction}
+            accessibilityRole="button"
+          >
             <Icon name="plus" color={palette.onPrimary} size={20} />
           </Pressable>
         </View>
@@ -152,7 +209,9 @@ export default function MoneyScreen() {
               <View style={styles.monthSummary}>
                 <View>
                   <SectionLabel>This month</SectionLabel>
-                  <Text style={[type.displayMd, { color: palette.onSurface, marginTop: spacing.xs }]}>
+                  <Text
+                    style={[type.displayMd, { color: palette.onSurface, marginTop: spacing.xs }]}
+                  >
                     R{totalSpent.toFixed(2)}
                   </Text>
                   <Text style={[type.labelSm, { color: palette.onSurfaceVariant }]}>
@@ -178,15 +237,34 @@ export default function MoneyScreen() {
 
             <View style={styles.spaced}>
               <View style={styles.actionGrid}>
-                <QuickActionTile icon="receipt" label="Add expense" detail="Amount first, details second" onPress={() => setQuickAddOpen(true)} />
-                <QuickActionTile icon="trend" label="Income & budget" detail="Monthly plan and limits" accent={palette.tertiary} onPress={() => setBudgetOpen(true)} />
-                <QuickActionTile icon="camera" label="Receipt" detail="Manual entry" accent={palette.secondary} onPress={() => setQuickAddOpen(true)} />
+                <QuickActionTile
+                  icon="receipt"
+                  label="Add expense"
+                  detail="Amount first, details second"
+                  onPress={() => setQuickAddOpen(true)}
+                />
+                <QuickActionTile
+                  icon="trend"
+                  label="Income & budget"
+                  detail="Monthly plan and limits"
+                  accent={palette.tertiary}
+                  onPress={() => setBudgetOpen(true)}
+                />
+                <QuickActionTile
+                  icon="camera"
+                  label="Receipt"
+                  detail="Manual entry"
+                  accent={palette.secondary}
+                  onPress={() => setQuickAddOpen(true)}
+                />
               </View>
             </View>
 
             <View style={styles.spaced}>
               <View style={styles.sectionHeader}>
-                <Text style={[type.headlineMd, { color: palette.onSurface }]}>Notification assist</Text>
+                <Text style={[type.headlineMd, { color: palette.onSurface }]}>
+                  Notification assist
+                </Text>
                 <Pressable onPress={onSimulateNotification}>
                   <Text style={[type.labelMd, { color: palette.primary }]}>Test</Text>
                 </Pressable>
@@ -194,7 +272,8 @@ export default function MoneyScreen() {
               {prompts.length === 0 ? (
                 <Card variant="recessed">
                   <Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>
-                    Bank notifications can become suggested transactions. You confirm before anything is logged.
+                    Bank notifications can become suggested transactions. You confirm before
+                    anything is logged.
                   </Text>
                 </Card>
               ) : null}
@@ -209,7 +288,9 @@ export default function MoneyScreen() {
                       <Text style={[type.titleLg, { color: palette.onSurface, marginTop: 2 }]}>
                         {prompt.merchant} {prompt.amount ? `/ R${prompt.amount.toFixed(2)}` : ''}
                       </Text>
-                      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
+                      <Text
+                        style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}
+                      >
                         {Math.round(prompt.confidence * 100)} percent confidence
                       </Text>
                     </View>
@@ -226,10 +307,18 @@ export default function MoneyScreen() {
                     ))}
                   </View>
                   <View style={styles.promptActions}>
-                    <Pressable onPress={() => dismissExpensePrompt(prompt.id)} style={styles.secondaryButton}>
-                      <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>Dismiss</Text>
+                    <Pressable
+                      onPress={() => dismissExpensePrompt(prompt.id)}
+                      style={styles.secondaryButton}
+                    >
+                      <Text style={[type.labelMd, { color: palette.onSurfaceVariant }]}>
+                        Dismiss
+                      </Text>
                     </Pressable>
-                    <Pressable onPress={() => logExpensePrompt(prompt.id, promptCategory)} style={styles.primaryButtonInline}>
+                    <Pressable
+                      onPress={() => logExpensePrompt(prompt.id, promptCategory)}
+                      style={styles.primaryButtonInline}
+                    >
                       <Text style={[type.labelMd, { color: palette.onPrimary }]}>Log it</Text>
                     </Pressable>
                   </View>
@@ -238,21 +327,36 @@ export default function MoneyScreen() {
             </View>
 
             <View style={styles.spaced}>
-              <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Budgets</Text>
+              <Text
+                style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}
+              >
+                Budgets
+              </Text>
               <View style={styles.budgetGrid}>
                 {budgets.map((budget) => {
                   const spent = budgetPlan.categories[budget.category].spent;
-                  return <BudgetCard key={budget.id} category={budget.category} spent={spent} limit={budget.limit} />;
+                  return (
+                    <BudgetCard
+                      key={budget.id}
+                      category={budget.category}
+                      spent={spent}
+                      limit={budget.limit}
+                    />
+                  );
                 })}
               </View>
               <Pressable onPress={() => setBudgetOpen(true)} style={styles.secondaryFullButton}>
-                <Text style={[type.labelMd, { color: palette.primary }]}>Edit income and limits</Text>
+                <Text style={[type.labelMd, { color: palette.primary }]}>
+                  Edit income and limits
+                </Text>
               </Pressable>
             </View>
 
             <View style={styles.spaced}>
               <View style={styles.sectionHeader}>
-                <Text style={[type.headlineMd, { color: palette.onSurface }]}>Recent transactions</Text>
+                <Text style={[type.headlineMd, { color: palette.onSurface }]}>
+                  Recent transactions
+                </Text>
                 <Pressable onPress={() => setQuickAddOpen(true)}>
                   <Text style={[type.labelMd, { color: palette.primary }]}>Add</Text>
                 </Pressable>
@@ -276,13 +380,16 @@ export default function MoneyScreen() {
                   <Text style={[type.labelMd, { color: palette.primary }]}>Add</Text>
                 </Pressable>
               </View>
-              {[...savingGoals.map((goal) => ({ ...goal, local: true })), ...goals.map((goal) => ({
-                id: goal.id,
-                name: goal.name,
-                targetAmount: goal.target_amount,
-                currentAmount: goal.current_amount,
-                local: false,
-              }))].map((goal) => (
+              {[
+                ...savingGoals.map((goal) => ({ ...goal, local: true })),
+                ...goals.map((goal) => ({
+                  id: goal.id,
+                  name: goal.name,
+                  targetAmount: goal.target_amount,
+                  currentAmount: goal.current_amount,
+                  local: false,
+                })),
+              ].map((goal) => (
                 <Card key={goal.id} style={{ marginTop: spacing.sm }}>
                   <View style={styles.budgetRow}>
                     <Text style={[type.labelMd, { color: palette.onSurface }]}>{goal.name}</Text>
@@ -290,10 +397,20 @@ export default function MoneyScreen() {
                       R{goal.currentAmount} / R{goal.targetAmount}
                     </Text>
                   </View>
-                  <ProgressBar value={goal.currentAmount} max={goal.targetAmount || 1} color={palette.tertiary} style={{ marginTop: spacing.xs }} />
+                  <ProgressBar
+                    value={goal.currentAmount}
+                    max={goal.targetAmount || 1}
+                    color={palette.tertiary}
+                    style={{ marginTop: spacing.xs }}
+                  />
                   {goal.local ? (
-                    <Pressable onPress={() => onOpenContribution(goal.id)} style={styles.goalContributionButton}>
-                      <Text style={[type.labelSm, { color: palette.tertiary }]}>Add contribution</Text>
+                    <Pressable
+                      onPress={() => onOpenContribution(goal.id)}
+                      style={styles.goalContributionButton}
+                    >
+                      <Text style={[type.labelSm, { color: palette.tertiary }]}>
+                        Add contribution
+                      </Text>
                     </Pressable>
                   ) : null}
                 </Card>
@@ -302,12 +419,18 @@ export default function MoneyScreen() {
 
             {bills.length > 0 && (
               <View style={styles.spaced}>
-                <Text style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}>Upcoming bills</Text>
+                <Text
+                  style={[type.headlineMd, { color: palette.onSurface, marginBottom: spacing.sm }]}
+                >
+                  Upcoming bills
+                </Text>
                 {bills.map((bill) => (
                   <Card key={bill.id} style={{ marginBottom: spacing.sm }}>
                     <View style={styles.budgetRow}>
                       <Text style={[type.labelMd, { color: palette.onSurface }]}>{bill.name}</Text>
-                      <Text style={[type.bodyMd, { color: palette.onSurface }]}>R{bill.amount}</Text>
+                      <Text style={[type.bodyMd, { color: palette.onSurface }]}>
+                        R{bill.amount}
+                      </Text>
                     </View>
                     <Text style={[type.labelSm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
                       Due on the {bill.due_day_of_month}th
@@ -320,7 +443,12 @@ export default function MoneyScreen() {
         )}
       </ScrollView>
 
-      <ActionSheet visible={quickAddOpen} onClose={() => setQuickAddOpen(false)} eyebrow="Quick capture" title="Log an expense">
+      <ActionSheet
+        visible={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+        eyebrow="Quick capture"
+        title="Log an expense"
+      >
         <NumberField
           label="Amount"
           value={amount}
@@ -356,15 +484,31 @@ export default function MoneyScreen() {
           style={styles.input}
         />
         <View style={styles.actionGrid}>
-          <QuickActionTile icon="camera" label="Receipt" detail="Manual entry" accent={palette.secondary} />
-          <QuickActionTile icon="calendar" label="Date" detail="Today" accent={palette.primary} status="Current month" />
+          <QuickActionTile
+            icon="camera"
+            label="Receipt"
+            detail="Manual entry"
+            accent={palette.secondary}
+          />
+          <QuickActionTile
+            icon="calendar"
+            label="Date"
+            detail="Today"
+            accent={palette.primary}
+            status="Current month"
+          />
         </View>
         <Pressable onPress={onAddExpense} style={styles.primaryButton}>
           <Text style={[type.labelMd, { color: palette.onPrimary }]}>Log purchase</Text>
         </Pressable>
       </ActionSheet>
 
-      <ActionSheet visible={goalOpen} onClose={() => setGoalOpen(false)} eyebrow="Saving goal" title="Add a target">
+      <ActionSheet
+        visible={goalOpen}
+        onClose={() => setGoalOpen(false)}
+        eyebrow="Saving goal"
+        title="Add a target"
+      >
         <AutocompleteField
           label="Goal name"
           value={goalName}
@@ -386,7 +530,12 @@ export default function MoneyScreen() {
         </Pressable>
       </ActionSheet>
 
-      <ActionSheet visible={budgetOpen} onClose={() => setBudgetOpen(false)} eyebrow="Monthly plan" title="Income and budget">
+      <ActionSheet
+        visible={budgetOpen}
+        onClose={() => setBudgetOpen(false)}
+        eyebrow="Monthly plan"
+        title="Income and budget"
+      >
         <NumberField
           label="Monthly income"
           value={incomeDraft}
@@ -411,14 +560,23 @@ export default function MoneyScreen() {
         </Text>
         {categories.map((item) => (
           <View key={item} style={styles.limitRow}>
-            <View style={[styles.categoryBubbleSmall, { backgroundColor: `${categoryMeta[item].color}24` }]}>
-              <Text style={[type.labelMd, { color: categoryMeta[item].color }]}>{categoryMeta[item].icon}</Text>
+            <View
+              style={[
+                styles.categoryBubbleSmall,
+                { backgroundColor: `${categoryMeta[item].color}24` },
+              ]}
+            >
+              <Text style={[type.labelMd, { color: categoryMeta[item].color }]}>
+                {categoryMeta[item].icon}
+              </Text>
             </View>
             <View style={styles.limitField}>
               <NumberField
                 label={`${item} limit`}
                 value={budgetDrafts[item]}
-                onChangeText={(value) => setBudgetDrafts((drafts) => ({ ...drafts, [item]: value }))}
+                onChangeText={(value) =>
+                  setBudgetDrafts((drafts) => ({ ...drafts, [item]: value }))
+                }
                 unit="R"
                 min={0}
                 showStepper={false}
@@ -432,7 +590,12 @@ export default function MoneyScreen() {
         </Pressable>
       </ActionSheet>
 
-      <ActionSheet visible={contributionOpen} onClose={() => setContributionOpen(false)} eyebrow="Saving goal" title="Add contribution">
+      <ActionSheet
+        visible={contributionOpen}
+        onClose={() => setContributionOpen(false)}
+        eyebrow="Saving goal"
+        title="Add contribution"
+      >
         <NumberField
           label="Contribution"
           value={contributionAmount}
@@ -450,19 +613,36 @@ export default function MoneyScreen() {
   );
 }
 
-function BudgetCard({ category, spent, limit }: { category: ExpenseCategory; spent: number; limit: number }) {
+function BudgetCard({
+  category,
+  spent,
+  limit,
+}: {
+  category: ExpenseCategory;
+  spent: number;
+  limit: number;
+}) {
   const meta = categoryMeta[category];
   return (
     <Card style={styles.budgetCard}>
       <View style={[styles.categoryBubble, { backgroundColor: `${meta.color}24` }]}>
         <Text style={[type.titleMd, { color: meta.color }]}>{meta.icon}</Text>
       </View>
-      <Text style={[type.labelMd, { color: palette.onSurface, marginTop: spacing.sm }]}>{category}</Text>
-      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>{meta.prompt}</Text>
+      <Text style={[type.labelMd, { color: palette.onSurface, marginTop: spacing.sm }]}>
+        {category}
+      </Text>
+      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, marginTop: 2 }]}>
+        {meta.prompt}
+      </Text>
       <Text style={[type.titleMd, { color: palette.onSurface, marginTop: spacing.sm }]}>
         R{spent.toFixed(0)} / R{limit.toFixed(0)}
       </Text>
-      <ProgressBar value={spent} max={limit || 1} color={meta.color} style={{ marginTop: spacing.sm }} />
+      <ProgressBar
+        value={spent}
+        max={limit || 1}
+        color={meta.color}
+        style={{ marginTop: spacing.sm }}
+      />
     </Card>
   );
 }
@@ -500,7 +680,12 @@ const styles = StyleSheet.create({
     backgroundColor: palette.primary,
   },
   spaced: { marginTop: spacing.xl },
-  monthSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+  monthSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   budgetRing: {
     width: 96,
     height: 96,
@@ -556,8 +741,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  budgetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: spacing.md },
-  moneyPlanRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.md },
+  budgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: spacing.md,
+  },
+  moneyPlanRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
   transactionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   input: {
     color: palette.onSurface,

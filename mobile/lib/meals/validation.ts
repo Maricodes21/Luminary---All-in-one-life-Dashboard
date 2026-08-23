@@ -74,6 +74,8 @@ export const foodSearchResultSchema = z
     retrievedAt: z.string().optional(),
     verificationStatus: z.enum(['verified', 'sourced_unverified']).optional(),
     countryRelevance: z.string().optional(),
+    aiAssisted: z.boolean().optional(),
+    interpretedQuery: z.string().optional(),
   })
   .superRefine(requireProviderIdForAiNutrition);
 

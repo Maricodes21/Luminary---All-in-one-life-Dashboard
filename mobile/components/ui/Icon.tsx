@@ -41,7 +41,8 @@ export type IconName =
   | 'back'
   | 'edit'
   | 'undo'
-  | 'heart';
+  | 'heart'
+  | 'headphones';
 
 export type IconProps = {
   name: IconName;
@@ -135,7 +136,13 @@ const paths: Record<IconName, () => React.ReactNode> = {
     />
   ),
   plus: () => (
-    <Path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+    <Path
+      d="M12 5v14M5 12h14"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      fill="none"
+      strokeLinecap="round"
+    />
   ),
   search: () => (
     <Path
@@ -175,7 +182,13 @@ const paths: Record<IconName, () => React.ReactNode> = {
     />
   ),
   check: () => (
-    <Path d="M5 12.5l4.2 4L19 7" stroke="currentColor" strokeWidth={2.2} fill="none" strokeLinecap="round" />
+    <Path
+      d="M5 12.5l4.2 4L19 7"
+      stroke="currentColor"
+      strokeWidth={2.2}
+      fill="none"
+      strokeLinecap="round"
+    />
   ),
   clock: () => (
     <Path
@@ -256,16 +269,53 @@ const paths: Record<IconName, () => React.ReactNode> = {
     />
   ),
   back: () => (
-    <Path d="M19 12H5M11 6l-6 6 6 6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M19 12H5M11 6l-6 6 6 6"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   ),
   edit: () => (
-    <Path d="M5 19l1-4L16 5l3 3L9 18l-4 1zM14 7l3 3" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M5 19l1-4L16 5l3 3L9 18l-4 1zM14 7l3 3"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   ),
   undo: () => (
-    <Path d="M9 7L4 12l5 5M5 12h8a6 6 0 0 1 6 6" stroke="currentColor" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Path
+      d="M9 7L4 12l5 5M5 12h8a6 6 0 0 1 6 6"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   ),
   heart: () => (
-    <Path d="M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.8-7 10-7 10z" stroke="currentColor" strokeWidth={2} fill="none" strokeLinejoin="round" />
+    <Path
+      d="M12 20s-7-4.2-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.8-7 10-7 10z"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinejoin="round"
+    />
+  ),
+  headphones: () => (
+    <Path
+      d="M4 14v-2a8 8 0 0 1 16 0v2M4 14h3v6H5a1 1 0 0 1-1-1v-5zM20 14h-3v6h2a1 1 0 0 0 1-1v-5z"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   ),
 };
 

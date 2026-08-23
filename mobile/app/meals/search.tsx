@@ -112,6 +112,21 @@ export default function FoodSearchScreen() {
       <View style={styles.list}>
         {results.map((result) => (
           <View key={`${result.source}-${result.id}`} style={styles.result}>
+            {result.aiAssisted ? (
+              <View style={styles.aiMatch}>
+                <Icon name="sparkles" size={16} color={palette.primary} />
+                <View style={styles.aiMatchCopy}>
+                  <Text style={[type.labelMd, { color: palette.onSurface }]}>
+                    AI-assisted match
+                  </Text>
+                  <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>
+                    Luminary interpreted your wording
+                    {result.interpretedQuery ? ` as “${result.interpretedQuery}”` : ''}. Nutrition
+                    still comes from the source below.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
             <MealCard
               title={result.name}
               imageUri={result.imageUri}
@@ -208,6 +223,16 @@ const styles = StyleSheet.create({
   },
   list: { gap: spacing.sm },
   result: { gap: spacing.xs },
+  aiMatch: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: palette.surfaceContainerHigh,
+    padding: spacing.sm,
+  },
+  aiMatchCopy: { flex: 1, gap: spacing.xs },
   sourceNote: { color: palette.onSurfaceVariant, paddingHorizontal: spacing.sm },
   sourceRow: { gap: spacing.xs, paddingBottom: spacing.sm },
   sourceLink: {

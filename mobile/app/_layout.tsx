@@ -37,6 +37,8 @@ import { clearMealPhotoCache } from '@/lib/meals/photos';
 import { loadCachedOnboardingStatus, saveCachedOnboardingStatus } from '@/lib/authProfileCache';
 import { resolveProfileRestore, routeForAuthState } from '@/lib/authRouting';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
+import { usePersonalizationStore } from '@/stores/usePersonalizationStore';
+import { loadPersistedReflections } from '@/lib/personalizationPersistence';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -102,13 +104,16 @@ export default function RootLayout() {
       }
     }, 5000);
 
-    async function syncSessionProfile(nextSession: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session']) {
+    async function syncSessionProfile(
+      nextSession: Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'],
+    ) {
       if (cancelled) return;
       const currentResolution = ++resolutionVersion;
       beginSessionResolution(nextSession);
 
       if (!nextSession?.user) {
         useMealsStore.getState().clearPrivateCache();
+        usePersonalizationStore.getState().clearPrivateCache();
         void clearMealPhotoCache().catch(() => {});
         setAuthSnapshot(null, 'incomplete', null);
         return;
@@ -128,11 +133,17 @@ export default function RootLayout() {
 
       if (!cancelled && currentResolution === resolutionVersion) {
         const restoredStatus = resolveProfileRestore({
-          remoteComplete: typeof profile?.onboarding_complete === 'boolean' ? profile.onboarding_complete : null,
+          remoteComplete:
+            typeof profile?.onboarding_complete === 'boolean' ? profile.onboarding_complete : null,
           profileError: !!error,
           cachedStatus,
         });
         useMealsStore.getState().setActiveUser(nextSession.user.id);
+        void loadPersistedReflections()
+          .then((reflections) => usePersonalizationStore.getState().hydrateReflections(reflections))
+          .catch((reflectionError) =>
+            console.warn('[personalization] Reflection restore failed', reflectionError),
+          );
         setAuthSnapshot(nextSession, restoredStatus, profile?.display_name ?? null);
         if (restoredStatus !== 'unknown') {
           void saveCachedOnboardingStatus(nextSession.user.id, restoredStatus).catch(() => {});
@@ -182,8 +193,17 @@ export default function RootLayout() {
     });
 
     if (destination) router.replace(destination);
-
-  }, [hydrated, appReady, onboardingStoreHydrated, authResolving, segments, router, session, onboardingStatus, onboardingResumeStep]);
+  }, [
+    hydrated,
+    appReady,
+    onboardingStoreHydrated,
+    authResolving,
+    segments,
+    router,
+    session,
+    onboardingStatus,
+    onboardingResumeStep,
+  ]);
 
   // Hold render until fonts + hydration are both done to avoid flash.
   if (!appReady || !hydrated || !onboardingStoreHydrated) return null;
@@ -205,6 +225,7 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'fade_from_bottom' }}
             />
             <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="personalization" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="habits" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="meals" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="health" options={{ animation: 'slide_from_right' }} />

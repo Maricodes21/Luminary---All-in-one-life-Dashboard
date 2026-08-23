@@ -66,6 +66,11 @@ export default function MealsScreen() {
     ? Date.now() - new Date(user.profile.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000
     : false;
 
+  useEffect(() => {
+    if (mode !== 'plan' || !dates.length) return;
+    setSelectedDate(dates.includes(today) ? today : dates[0]);
+  }, [dates, mode, today]);
+
   const confirmMealDelete = (meal: MealLogRecord) => {
     Alert.alert('Delete meal?', `${meal.name} will be removed from today.`, [
       { text: 'Keep', style: 'cancel' },
@@ -369,6 +374,20 @@ function SmartSuggestion({
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [suggestionCursor, setSuggestionCursor] = useState(0);
   const profile = user?.profile ?? null;
+  const now = new Date();
+  const today = localDateKey(now);
+  const currentMealType = mealWindowFor(now);
+  const plannedNow = user?.plans
+    .flatMap((plan) => plan.entries)
+    .find(
+      (entry) =>
+        entry.localDate === today &&
+        entry.mealType === currentMealType &&
+        !meals.some((meal) => meal.mealType === currentMealType),
+    );
+  const plannedRecipe = plannedNow?.recipeId
+    ? recipeCatalog.find((recipe) => recipe.id === plannedNow.recipeId)
+    : undefined;
   const recentRecipeIds = useMemo(
     () =>
       user?.plans
@@ -413,6 +432,31 @@ function SmartSuggestion({
     setSuggestionCursor(0);
     setDismissedIds([]);
   }, [candidateKey]);
+  if (plannedNow && plannedRecipe) {
+    return (
+      <View style={styles.suggestionBlock}>
+        <View style={styles.suggestionLabel}>
+          <SectionLabel>Suggested for right now · from your plan</SectionLabel>
+        </View>
+        <DynamicMealCard
+          title={plannedNow.name}
+          recipeId={plannedRecipe.id}
+          imageUri={plannedNow.imageUri ?? recipeImageUri(plannedRecipe)}
+          nutrition={plannedNow.nutrition}
+          detail={`${plannedRecipe.prepMinutes + plannedRecipe.cookMinutes} min / ${plannedNow.mealType}`}
+          onPress={() => onOpenRecipe(plannedRecipe.id)}
+          actions={[
+            {
+              icon: 'plus',
+              label: `Log ${plannedNow.name}`,
+              tone: 'primary',
+              onPress: () => onLogRecipe(plannedRecipe.id),
+            },
+          ]}
+        />
+      </View>
+    );
+  }
   if (!recommendation?.primary) return null;
   const ranked = rankedIds
     .map((id) => recommendation.candidates.find((recipe) => recipe.id === id))
@@ -435,7 +479,6 @@ function SmartSuggestion({
   return (
     <View style={styles.suggestionBlock}>
       <View style={styles.suggestion}>
-        <Icon name="sparkles" size={20} color={palette.tertiary} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <SectionLabel>Suggested for right now</SectionLabel>
         </View>
@@ -739,6 +782,11 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainer,
     borderRadius: radii.sm,
     padding: spacing.md,
+  },
+  suggestionLabel: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
   },
   suggestionBlock: { gap: spacing.sm },
   section: { gap: spacing.sm },

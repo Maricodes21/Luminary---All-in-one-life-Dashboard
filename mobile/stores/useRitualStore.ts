@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { MoodLabel, MoodSource } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
+import type { ListeningReaction } from '@/lib/personalization';
 import {
   createDailyRitualSession,
   type DailyRitualSession,
@@ -23,6 +24,7 @@ export type RitualState = {
   session: DailyRitualSession;
   stage: RitualStage;
   recap: SpotifyRecap | null | undefined;
+  listeningReaction: ListeningReaction | null;
   mood: { label: MoodLabel; source: MoodSource; confidence: number } | null;
   moodEventId: string | null;
   journalText: string;
@@ -36,6 +38,7 @@ export type RitualState = {
   setStage: (stage: RitualStage) => void;
   setRecap: (recap: SpotifyRecap | null) => void;
   clearRecap: () => void;
+  setListeningReaction: (reaction: ListeningReaction | null) => void;
   setMood: (mood: { label: MoodLabel; source: MoodSource; confidence: number } | null) => void;
   setMoodEventId: (id: string | null) => void;
   markMoodSkipped: () => void;
@@ -57,6 +60,7 @@ export const useRitualStore = create<RitualState>()(
       session: createDailyRitualSession(initialDate),
       stage: 'entry',
       recap: undefined,
+      listeningReaction: null,
       mood: null,
       moodEventId: null,
       journalText: '',
@@ -69,9 +73,10 @@ export const useRitualStore = create<RitualState>()(
         set(freshState(localDate));
       },
       beginSession: (localDate, selectedSignalIds = []) => {
-        const current = get().session.localDate === localDate
-          ? get().session
-          : createDailyRitualSession(localDate);
+        const current =
+          get().session.localDate === localDate
+            ? get().session
+            : createDailyRitualSession(localDate);
         if (current.status === 'completed') return;
         const currentStage = current.status === 'in_progress' ? current.currentStage : 'music';
         set({
@@ -103,11 +108,15 @@ export const useRitualStore = create<RitualState>()(
             ...state.session,
             currentStage: stage,
             status: stage === 'entry' ? state.session.status : 'in_progress',
-            startedAt: stage === 'entry' ? state.session.startedAt : state.session.startedAt ?? new Date().toISOString(),
+            startedAt:
+              stage === 'entry'
+                ? state.session.startedAt
+                : (state.session.startedAt ?? new Date().toISOString()),
           },
         })),
       setRecap: (recap) => set({ recap }),
       clearRecap: () => set({ recap: undefined }),
+      setListeningReaction: (listeningReaction) => set({ listeningReaction }),
       setMood: (mood) =>
         set((state) => ({
           mood,
@@ -141,6 +150,7 @@ export const useRitualStore = create<RitualState>()(
         session: state.session,
         stage: state.stage,
         recap: state.recap,
+        listeningReaction: state.listeningReaction,
         mood: state.mood,
         moodEventId: state.moodEventId,
         journalText: state.journalText,
@@ -158,6 +168,7 @@ function freshState(localDate: string) {
     session: createDailyRitualSession(localDate),
     stage: 'entry' as const,
     recap: undefined,
+    listeningReaction: null,
     mood: null,
     moodEventId: null,
     journalText: '',

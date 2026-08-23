@@ -123,6 +123,8 @@ export type FoodSearchResult = {
   retrievedAt?: string;
   verificationStatus?: 'verified' | 'sourced_unverified';
   countryRelevance?: string;
+  aiAssisted?: boolean;
+  interpretedQuery?: string;
 };
 
 export type MealPhotoAnalysisStatus = 'ready' | 'timeout' | 'unavailable' | 'quota' | 'budget';

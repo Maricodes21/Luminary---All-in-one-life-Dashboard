@@ -3,7 +3,7 @@ import type { MealAIProvider, MealsAction, QueryInterpretation } from './types.t
 import { buildMealVisionPrompt } from './vision.ts';
 
 export const DEFAULT_MEAL_AI_MODEL = 'gemma4:31b-cloud';
-export const LOCAL_MEAL_AI_MODEL = 'gemma4:12b';
+export const LOCAL_MEAL_AI_MODEL = 'gemma4:e4b';
 export const DEFAULT_MEAL_AI_TIMEOUT_MS = 90_000;
 
 export type MealAIErrorCode = 'ai_timeout' | 'ai_provider_failed';

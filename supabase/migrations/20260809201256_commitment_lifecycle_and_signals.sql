@@ -20,7 +20,7 @@ alter table public.habit_pauses
 -- Selected daily signals are auditable snapshots. The client can work fully
 -- offline, then upsert the same rows when connectivity returns.
 create table if not exists public.daily_signals (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   local_date date not null,
   signal_key text not null,
@@ -48,7 +48,7 @@ create policy "daily signals are self-scoped" on public.daily_signals
   with check ((select auth.uid()) = user_id);
 
 create table if not exists public.signal_feedback (
-  id uuid primary key default uuid_generate_v4(),
+  id uuid primary key default gen_random_uuid(),
   signal_id uuid not null,
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
   response text not null check (response in ('dismissed', 'not_accurate', 'helpful', 'actioned')),

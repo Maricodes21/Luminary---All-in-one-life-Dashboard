@@ -4,6 +4,7 @@ import { foodSearchResultSchema } from './validation';
 import { normalizeGatewayResults, sourceFor } from './searchNormalization';
 import { parseMealPhotoAnalysis, unavailableMealPhotoAnalysis } from './photoAnalysis';
 import type { FoodSearchResult, MealPhotoAnalysis } from './types';
+import { compactAiConfigured, requestCompactFoodInterpretation } from '../ai/localGateway';
 
 export async function searchFoods(query: string, locale = 'en-ZA'): Promise<FoodSearchResult[]> {
   const normalized = query.trim().toLowerCase();
@@ -11,15 +12,22 @@ export async function searchFoods(query: string, locale = 'en-ZA'): Promise<Food
   if (!normalized) return local.slice(0, 8);
 
   try {
-    const { data, error } = await supabase.functions.invoke('meals-api', {
-      body: { action: 'search-foods', input: { query: query.trim(), locale } },
-    });
-    if (error) throw error;
-    const parsed = foodSearchResultSchema
-      .array()
-      .safeParse(normalizeGatewayResults(data?.data?.results ?? data?.results ?? []));
-    if (!parsed.success) throw new Error('Food search returned an invalid result.');
-    return mergeResults(parsed.data, local);
+    const first = await invokeFoodSearch(query.trim(), locale);
+    let providerResults = first.results;
+    if (
+      !hasRelevantFoodResult(providerResults, query) &&
+      first.mode !== 'ai' &&
+      compactAiConfigured()
+    ) {
+      const interpreted = await requestCompactFoodInterpretation(query, locale);
+      if (interpreted) {
+        const retry = await invokeFoodSearch(interpreted, locale);
+        providerResults = retry.results.map((result, index) =>
+          index === 0 ? { ...result, aiAssisted: true, interpretedQuery: interpreted } : result,
+        );
+      }
+    }
+    return mergeResults(providerResults, local);
   } catch (error) {
     console.warn(
       '[meals] Live food search unavailable; showing verified local results',
@@ -27,6 +35,52 @@ export async function searchFoods(query: string, locale = 'en-ZA'): Promise<Food
     );
     return local;
   }
+}
+
+async function invokeFoodSearch(query: string, locale: string) {
+  const { data, error } = await supabase.functions.invoke('meals-api', {
+    body: { action: 'search-foods', input: { query, locale } },
+  });
+  if (error) throw error;
+  const responseData = data?.data ?? data ?? {};
+  const parsed = foodSearchResultSchema
+    .array()
+    .safeParse(normalizeGatewayResults(responseData.results ?? []));
+  if (!parsed.success) throw new Error('Food search returned an invalid result.');
+  const mode = responseData.interpretation?.mode;
+  const interpretedQuery = responseData.interpretation?.normalizedTerms?.[0];
+  return {
+    mode,
+    results:
+      mode === 'ai' && parsed.data[0]
+        ? parsed.data.map((result, index) =>
+            index === 0
+              ? {
+                  ...result,
+                  aiAssisted: true,
+                  interpretedQuery:
+                    typeof interpretedQuery === 'string' ? interpretedQuery : undefined,
+                }
+              : result,
+          )
+        : parsed.data,
+  };
+}
+
+export function hasRelevantFoodResult(results: ReadonlyArray<{ name: string }>, query: string) {
+  const connectors = new Set(['a', 'an', 'and', 'for', 'of', 'on', 'the', 'with']);
+  const terms = query
+    .trim()
+    .toLocaleLowerCase('en')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((term) => term.length > 1 && !connectors.has(term));
+  return Boolean(
+    terms.length &&
+    results.some((result) => {
+      const name = result.name.toLocaleLowerCase('en');
+      return terms.every((term) => name.includes(term));
+    }),
+  );
 }
 
 export async function lookupBarcode(barcode: string): Promise<FoodSearchResult | null> {

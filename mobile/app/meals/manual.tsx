@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
@@ -52,6 +52,7 @@ export default function ManualMealScreen() {
   const [quantity, setQuantity] = useState(
     existing?.servingQuantity?.toString() ?? params.quantity ?? '1',
   );
+  const previousQuantity = useRef(Number(existing?.servingQuantity ?? params.quantity ?? 1) || 1);
   const [unit, setUnit] = useState(existing?.servingUnit ?? params.unit ?? 'serving');
   const [notes, setNotes] = useState(existing?.notes ?? params.notes ?? '');
   const [mealType, setMealType] = useState<MealType>(
@@ -62,6 +63,20 @@ export default function ManualMealScreen() {
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => setImageFailed(false), [imageUri]);
+
+  const updateQuantity = (next: string) => {
+    const parsed = Number(next);
+    const previous = previousQuantity.current;
+    if (Number.isFinite(parsed) && parsed > 0 && Number.isFinite(previous) && previous > 0) {
+      const scale = parsed / previous;
+      setCalories((value) => scaleNumberText(value, scale));
+      setProtein((value) => scaleNumberText(value, scale));
+      setCarbs((value) => scaleNumberText(value, scale));
+      setFat((value) => scaleNumberText(value, scale));
+      previousQuantity.current = parsed;
+    }
+    setQuantity(next);
+  };
 
   const save = () => {
     const calorieValue = parseRequiredNumber(calories, 0, 100000);
@@ -186,7 +201,7 @@ export default function ManualMealScreen() {
           <NumberField
             label="Quantity"
             value={quantity}
-            onChangeText={setQuantity}
+            onChangeText={updateQuantity}
             min={0.001}
             max={100000}
             step={0.25}
@@ -326,6 +341,13 @@ function currentTimezone() {
   } catch {
     return 'UTC';
   }
+}
+
+function scaleNumberText(value: string, scale: number) {
+  if (!value.trim()) return value;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return value;
+  return String(Math.round(parsed * scale * 10) / 10);
 }
 
 const styles = StyleSheet.create({

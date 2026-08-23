@@ -191,10 +191,10 @@ export default function JournalScreen() {
                     selected={selectedPrompt === null}
                     onPress={() => setSelectedPrompt(null)}
                   />
-                  {journalPrompts.map((prompt, index) => (
+                  {journalPrompts.map((prompt) => (
                     <PromptChoice
                       key={prompt}
-                      label={promptLabel(prompt, index)}
+                      label={promptLabel(prompt)}
                       selected={selectedPrompt === prompt}
                       onPress={() => setSelectedPrompt(prompt)}
                     />
@@ -553,12 +553,17 @@ function PatternsView({
   );
 }
 
-function promptLabel(prompt: string, index: number) {
-  if (prompt.toLowerCase().includes('body')) return 'Body';
-  if (prompt.toLowerCase().includes('lighter')) return 'Lighter';
-  if (prompt.toLowerCase().includes('tomorrow')) return 'Tomorrow';
-  if (prompt.toLowerCase().includes('yourself')) return 'Yourself';
-  return `Prompt ${index + 1}`;
+function promptLabel(prompt: string) {
+  const value = prompt.toLowerCase();
+  if (/body|energy/.test(value)) return 'Body check-in';
+  if (/lighter|kinder|ease|stay here|bed/.test(value)) return 'Letting go';
+  if (/tomorrow|next time|inherit|lesson/.test(value)) return 'For tomorrow';
+  if (/yourself|your own reaction|proud|difficult/.test(value)) return 'About you';
+  if (/need|attention|ask for/.test(value)) return 'What you need';
+  if (/supported|helped/.test(value)) return 'Support';
+  if (/steady|clear|quiet/.test(value)) return 'What settled';
+  if (/surprised|notice|moment/.test(value)) return 'What stood out';
+  return 'Look back';
 }
 
 function getPeriodRange(mode: PeriodMode, offset: number) {

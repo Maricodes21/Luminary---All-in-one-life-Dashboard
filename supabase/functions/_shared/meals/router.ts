@@ -1,5 +1,9 @@
 import { DisabledMealAIProvider } from './ai.ts';
-import { isWeakOrAmbiguousQuery, sanitizeQueryInterpretation } from './query.ts';
+import {
+  hasRelevantFoodMatch,
+  isWeakOrAmbiguousQuery,
+  sanitizeQueryInterpretation,
+} from './query.ts';
 import { rankFoodResults } from './ranking.ts';
 import {
   AI_JOB_BY_ACTION,
@@ -165,7 +169,10 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
     let preferredProviderIds = new Set<string>();
     let cached = false;
 
-    if ((isWeakOrAmbiguousQuery(query) || initial.results.length === 0) && aiProvider.available) {
+    if (
+      (isWeakOrAmbiguousQuery(query) || !hasRelevantFoodMatch(initial.results, query)) &&
+      aiProvider.available
+    ) {
       const allowedProviderIds = new Set(initial.results.map((result) => result.providerId));
       const hash = await queryHash(query, locale);
       let cachedInterpretation: QueryInterpretation | null = null;
@@ -239,7 +246,11 @@ export function createMealsApiHandler(dependencies: MealsApiDependencies) {
     }
 
     let ranked = rankFoodResults(allResults, interpretedTerms[0] ?? query, preferredProviderIds);
-    if (!hasUsefulNutrition(ranked) && dependencies.groundedProvider?.enabled) {
+    if (
+      (!hasUsefulNutrition(ranked) ||
+        !hasRelevantFoodMatch(ranked, interpretedTerms[0] ?? query)) &&
+      dependencies.groundedProvider?.enabled
+    ) {
       const blockReason = await policyBlock(user, 'grounded_food_retrieval');
       if (!blockReason) {
         try {

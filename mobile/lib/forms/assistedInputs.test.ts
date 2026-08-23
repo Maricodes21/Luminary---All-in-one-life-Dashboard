@@ -162,7 +162,7 @@ test('meals use assisted profile and serving controls while leaving meal details
     assert.deepEqual(servingUnitValues, expectedServingUnits);
   }
 
-  assert.match(manual, /<Field label="Food or meal name"/);
-  assert.match(manual, /<Field label="Notes"[\s\S]*?multiline/);
+  assert.match(manual, /<Field\s+label="Food or meal name"/);
+  assert.match(manual, /<Field\s+label="Notes"[\s\S]*?multiline/);
   assert.match(submitFood, /<Field label="Food name"/);
 });

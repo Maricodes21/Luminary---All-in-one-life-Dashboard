@@ -18,7 +18,11 @@
       "bundleIdentifier": "app.luminary.mobile",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Luminary reads your activity to show daily steps and movement summaries.",
-        "NSMicrophoneUsageDescription": "Luminary lets you record voice notes in your journal."
+        "NSMicrophoneUsageDescription": "Luminary lets you record voice notes in your journal.",
+        "NSLocalNetworkUsageDescription": "Luminary can connect to your private desktop AI during local field testing.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -27,11 +31,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0c0e10"
       },
-      "permissions": [
-        "ACTIVITY_RECOGNITION",
-        "RECORD_AUDIO",
-        "CAMERA"
-      ]
+      "permissions": ["ACTIVITY_RECOGNITION", "RECORD_AUDIO", "CAMERA"]
     },
     "plugins": [
       "expo-router",

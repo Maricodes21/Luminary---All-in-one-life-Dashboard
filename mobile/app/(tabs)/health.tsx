@@ -1,5 +1,14 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@luminary/design-system';
@@ -8,6 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { QuickActionTile } from '@/components/ui/QuickActionTile';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { ChoiceGroup } from '@/components/ui';
 import { ExerciseVisual } from '@/components/health/ExerciseVisual';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
 import {
@@ -41,6 +51,7 @@ export default function HealthScreen() {
   const createWorkoutPlan = useProductionStore((state) => state.createWorkoutPlan);
   const completeWorkout = useProductionStore((state) => state.completeWorkout);
   const startGuidedWorkout = useGuidedWorkoutStore((state) => state.startWorkout);
+  const activeGuidedWorkout = useGuidedWorkoutStore((state) => state.active);
   const latestPlan = workoutPlans[0];
 
   const [view, setView] = useState<HealthView>('today');
@@ -57,17 +68,19 @@ export default function HealthScreen() {
   const [replacements, setReplacements] = useState<Record<string, PlannedExerciseAlternative>>({});
 
   const previewSessions = useMemo(
-    () => buildWorkoutPlan({
-      category,
-      level,
-      durationMinutes,
-      daysPerWeek: selectedWeekdays.length,
-      weeklyFocus,
-    }),
+    () =>
+      buildWorkoutPlan({
+        category,
+        level,
+        durationMinutes,
+        daysPerWeek: selectedWeekdays.length,
+        weeklyFocus,
+      }),
     [category, durationMinutes, level, selectedWeekdays.length, weeklyFocus],
   );
   const planSessions = useMemo(() => {
-    if (hasCurrentWorkoutSessions(latestPlan?.sessions)) return normalizeWorkoutVisuals(latestPlan.sessions);
+    if (hasCurrentWorkoutSessions(latestPlan?.sessions))
+      return normalizeWorkoutVisuals(latestPlan.sessions);
     if (!latestPlan) return previewSessions;
     return buildWorkoutPlan({
       category: latestPlan.category,
@@ -82,7 +95,9 @@ export default function HealthScreen() {
     ? latestPlan.scheduledWeekdays
     : distributeWeekdays(planSessions.length);
   const currentSessionIndex = findCurrentOrNextSession(schedule, new Date().getDay());
+  const todaySessionIndex = schedule.indexOf(new Date().getDay());
   const featuredSession = planSessions[currentSessionIndex] ?? planSessions[0];
+  const todaySession = todaySessionIndex >= 0 ? planSessions[todaySessionIndex] : undefined;
   const shownSession = planSessions[selectedSessionIndex] ?? featuredSession;
   const planCategory = latestPlan?.category ?? category;
   const planDuration = latestPlan?.durationMinutes ?? durationMinutes;
@@ -108,23 +123,43 @@ export default function HealthScreen() {
   const openSetup = () => {
     if (latestPlan) {
       setCategory(latestPlan.category);
-      if (latestPlan.category === 'cardio' || latestPlan.category === 'cycling') setOutsideMode(latestPlan.category);
+      if (latestPlan.category === 'cardio' || latestPlan.category === 'cycling')
+        setOutsideMode(latestPlan.category);
       setLevel(latestPlan.level);
       setDurationMinutes(latestPlan.durationMinutes ?? 40);
-      setSelectedWeekdays(latestPlan.scheduledWeekdays?.length ? latestPlan.scheduledWeekdays : distributeWeekdays(planSessions.length));
+      setSelectedWeekdays(
+        latestPlan.scheduledWeekdays?.length
+          ? latestPlan.scheduledWeekdays
+          : distributeWeekdays(planSessions.length),
+      );
       setWeeklyFocus(latestPlan.weeklyFocus ?? 'momentum');
     }
     setView('setup');
   };
 
   const buildPlan = () => {
-    createWorkoutPlan({ category, level, durationMinutes, scheduledWeekdays: selectedWeekdays, weeklyFocus });
+    createWorkoutPlan({
+      category,
+      level,
+      durationMinutes,
+      scheduledWeekdays: selectedWeekdays,
+      weeklyFocus,
+    });
     setReplacements({});
     setSelectedSessionIndex(0);
     setView('plan');
   };
 
   const openWorkout = (index: number) => {
+    const requested = planSessions[index];
+    if (
+      requested &&
+      activeGuidedWorkout?.status === 'active' &&
+      activeGuidedWorkout.session.id === requested.id
+    ) {
+      router.push('/health/workout');
+      return;
+    }
     setSelectedSessionIndex(index);
     setWorkoutOpen(true);
   };
@@ -139,9 +174,19 @@ export default function HealthScreen() {
   };
 
   const onRequestHealthPermissions = async () => {
-    setHealthPermissionMessage('Opening Android app settings. Native Health Connect permissions are not wired yet.');
+    if (Platform.OS === 'ios') {
+      setHealthPermissionMessage(
+        'Apple Health needs Luminary’s native test build. Expo Go cannot load the required HealthKit module.',
+      );
+      return;
+    }
+    setHealthPermissionMessage(
+      'Opening Android app settings. Native Health Connect permissions are not wired yet.',
+    );
     await Linking.openSettings().catch(() => {
-      setHealthPermissionMessage('Could not open settings from the emulator. Check Android app permissions manually.');
+      setHealthPermissionMessage(
+        'Could not open settings from the emulator. Check Android app permissions manually.',
+      );
     });
   };
 
@@ -167,7 +212,9 @@ export default function HealthScreen() {
       title: session.title,
       workoutType: planCategory,
       durationMinutes: session.durationMinutes,
-      notes: session.exercises.map((exercise) => replacements[`${session.id}:${exercise.id}`]?.name ?? exercise.name).join(', '),
+      notes: session.exercises
+        .map((exercise) => replacements[`${session.id}:${exercise.id}`]?.name ?? exercise.name)
+        .join(', '),
     });
     setWorkoutOpen(false);
     setView('today');
@@ -181,7 +228,11 @@ export default function HealthScreen() {
         return replacement ? { ...replacement, alternatives: exercise.alternatives } : exercise;
       }),
     };
-    startGuidedWorkout({ planId: latestPlan?.id, session: resolvedSession, category: planCategory });
+    startGuidedWorkout({
+      planId: latestPlan?.id,
+      session: resolvedSession,
+      category: planCategory,
+    });
     setWorkoutOpen(false);
     router.push('/health/workout');
   };
@@ -198,8 +249,11 @@ export default function HealthScreen() {
             latestPlan={latestPlan}
             sessions={planSessions}
             schedule={schedule}
-            currentSessionIndex={currentSessionIndex}
             featuredSession={featuredSession}
+            todaySession={todaySession}
+            activeWorkoutSessionId={
+              activeGuidedWorkout?.status === 'active' ? activeGuidedWorkout.session.id : undefined
+            }
             category={planCategory}
             level={planLevel}
             durationMinutes={planDuration}
@@ -223,7 +277,10 @@ export default function HealthScreen() {
             weeklyFocus={weeklyFocus}
             onBack={() => setView('today')}
             onCategoryChange={setCategory}
-            onOutsideModeChange={(mode) => { setOutsideMode(mode); setCategory(mode); }}
+            onOutsideModeChange={(mode) => {
+              setOutsideMode(mode);
+              setCategory(mode);
+            }}
             onLevelChange={setLevel}
             onDurationChange={setDurationMinutes}
             onToggleWeekday={toggleWeekday}
@@ -246,12 +303,26 @@ export default function HealthScreen() {
         )}
       </ScrollView>
 
-      <ActionSheet visible={connectOpen} onClose={() => setConnectOpen(false)} eyebrow="Permissioned data" title="Connect Health services">
-        <QuickActionTile icon="health" label="Health Connect" detail="Steps, heart rate, sleep, and workouts" accent={palette.tertiary} onPress={onRequestHealthPermissions} />
+      <ActionSheet
+        visible={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        eyebrow="Permissioned data"
+        title="Connect Health services"
+      >
+        <QuickActionTile
+          icon="health"
+          label={Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}
+          detail="Steps, heart rate, sleep, and workouts"
+          accent={palette.tertiary}
+          onPress={onRequestHealthPermissions}
+        />
         <Text style={[type.bodyMd, styles.secondaryText]}>
-          Luminary requests only the signals it can explain. Your plan works without Health Connect, and access can be revoked at any time.
+          Luminary requests only the signals it can explain. Your plan works without connected
+          health data, and access can be revoked at any time.
         </Text>
-        {healthPermissionMessage ? <Text style={[type.bodySm, styles.accentText]}>{healthPermissionMessage}</Text> : null}
+        {healthPermissionMessage ? (
+          <Text style={[type.bodySm, styles.accentText]}>{healthPermissionMessage}</Text>
+        ) : null}
         <PrimaryButton label="Request permissions" onPress={onRequestHealthPermissions} />
       </ActionSheet>
 
@@ -261,10 +332,15 @@ export default function HealthScreen() {
         eyebrow={`${shownSession.durationMinutes} minutes / ${categoryLabel(planCategory)}`}
         title={shownSession.title}
       >
-        <ExerciseVisual visualId={shownSession.exercises[0]?.visualId ?? 'home_pushup'} style={styles.sheetHeroImage} />
+        <ExerciseVisual
+          visualId={shownSession.exercises[0]?.visualId ?? 'home_pushup'}
+          style={styles.sheetHeroImage}
+        />
         <Card variant="recessed">
           <SectionLabel>Warm up</SectionLabel>
-          <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>{shownSession.warmup}</Text>
+          <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
+            {shownSession.warmup}
+          </Text>
         </Card>
         <View style={styles.exerciseList}>
           {shownSession.exercises.map((exercise) => (
@@ -278,8 +354,12 @@ export default function HealthScreen() {
         </View>
         <Card variant="recessed">
           <SectionLabel>How this week grows</SectionLabel>
-          <Text style={[type.bodyMd, styles.primaryText, styles.copyTop]}>{shownSession.progression}</Text>
-          <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>{shownSession.cooldown}</Text>
+          <Text style={[type.bodyMd, styles.primaryText, styles.copyTop]}>
+            {shownSession.progression}
+          </Text>
+          <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>
+            {shownSession.cooldown}
+          </Text>
         </Card>
         <PrimaryButton label="Start workout" onPress={() => onStartWorkout(shownSession)} />
         <SecondaryButton label="Mark complete" onPress={() => onCompleteWorkout(shownSession)} />
@@ -292,8 +372,9 @@ function TodayBrief({
   latestPlan,
   sessions,
   schedule,
-  currentSessionIndex,
   featuredSession,
+  todaySession,
+  activeWorkoutSessionId,
   category,
   level,
   durationMinutes,
@@ -310,14 +391,21 @@ function TodayBrief({
   latestPlan?: WorkoutPlan;
   sessions: WorkoutSession[];
   schedule: number[];
-  currentSessionIndex: number;
   featuredSession: WorkoutSession;
+  todaySession?: WorkoutSession;
+  activeWorkoutSessionId?: string;
   category: WorkoutPlan['category'];
   level: WorkoutPlan['level'];
   durationMinutes: number;
   weeklyFocus: WorkoutFocus;
   latestMetric: ReturnType<typeof useHealthMetrics>['latestMetric'];
-  loggedWorkouts: { id: string; title: string; workoutType: string; workoutDate: string; durationMinutes: number }[];
+  loggedWorkouts: {
+    id: string;
+    title: string;
+    workoutType: string;
+    workoutDate: string;
+    durationMinutes: number;
+  }[];
   isLoading: boolean;
   onOpenSettings: () => void;
   onOpenWorkout: (index: number) => void;
@@ -325,42 +413,87 @@ function TodayBrief({
   onOpenSetup: () => void;
   onConnect: () => void;
 }) {
-  const planDates = datesForSchedule(schedule);
+  const todaySessionIndex = schedule.indexOf(new Date().getDay());
   return (
     <>
       <View style={styles.headerRow}>
         <View style={styles.headerCopy}>
           <SectionLabel>{formatLongDate(new Date())}</SectionLabel>
-          <Text style={[type.displaySm, styles.primaryText, styles.copyTop]}>Movement</Text>
+          <Text style={[type.displaySm, styles.primaryText, styles.copyTop]}>
+            Health and movement
+          </Text>
         </View>
-        <Pressable onPress={onOpenSettings} style={styles.profileButton} accessibilityRole="button" accessibilityLabel="Open profile and settings">
+        <Pressable
+          onPress={onOpenSettings}
+          style={styles.profileButton}
+          accessibilityRole="button"
+          accessibilityLabel="Open profile and settings"
+        >
           <Icon name="profile" size={spacing.lg} color={palette.onSurface} />
-          <View style={styles.profileDot}><Icon name="settings" size={spacing.md} color={palette.onPrimary} /></View>
+          <View style={styles.profileDot}>
+            <Icon name="settings" size={spacing.md} color={palette.onPrimary} />
+          </View>
         </Pressable>
       </View>
 
-      <Pressable onPress={() => latestPlan ? onOpenWorkout(currentSessionIndex) : onOpenSetup()} style={styles.sectionTop} accessibilityRole="button">
-        <Card variant="featured" padding="sm">
-          <ExerciseVisual visualId={featuredSession.exercises[0]?.visualId ?? 'home_pushup'} style={styles.heroImage} />
-          <View style={styles.heroContent}>
-            <SectionLabel>{latestPlan ? `Today / ${durationMinutes} min` : 'Your first week'}</SectionLabel>
-            <Text style={[type.headlineLg, styles.primaryText, styles.copyTop]}>{latestPlan ? featuredSession.title : 'Build a week around you.'}</Text>
-            <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
-              {latestPlan ? dailyGuidance(featuredSession, latestMetric != null) : 'Choose your setting, available days, time, and the kind of support you need.'}
-            </Text>
-            <View style={styles.heroAction}>
-              <Text style={[type.labelMd, styles.heroActionText]}>{latestPlan ? 'Open workout' : 'Plan the week'}</Text>
-              <ForwardIcon color={palette.onPrimary} />
-            </View>
+      {latestPlan && !todaySession ? (
+        <View style={[styles.restDay, styles.sectionTop]}>
+          <View style={styles.restIcon}>
+            <Icon name="health" size={22} color={palette.primary} />
           </View>
-        </Card>
-      </Pressable>
+          <View style={styles.dayLabelBlock}>
+            <SectionLabel>Today</SectionLabel>
+            <Text style={[type.headlineLg, styles.primaryText]}>Recovery day</Text>
+            <Text style={[type.bodySm, styles.secondaryText]}>
+              No workout is scheduled. Rest, walk, or stretch if that feels useful.
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => (latestPlan ? onOpenWorkout(todaySessionIndex) : onOpenSetup())}
+          style={styles.sectionTop}
+          accessibilityRole="button"
+        >
+          <Card variant="featured" padding="sm">
+            <ExerciseVisual
+              visualId={(todaySession ?? featuredSession).exercises[0]?.visualId ?? 'home_pushup'}
+              style={styles.heroImage}
+            />
+            <View style={styles.heroContent}>
+              <SectionLabel>
+                {latestPlan ? `Today / ${durationMinutes} min` : 'Your first week'}
+              </SectionLabel>
+              <Text style={[type.headlineLg, styles.primaryText, styles.copyTop]}>
+                {latestPlan ? todaySession?.title : 'Build a week around you.'}
+              </Text>
+              {!latestPlan ? (
+                <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
+                  Choose your setting, available days, time, and the kind of support you need.
+                </Text>
+              ) : null}
+              <View style={styles.heroAction}>
+                <Text style={[type.labelMd, styles.heroActionText]}>
+                  {latestPlan
+                    ? activeWorkoutSessionId === todaySession?.id
+                      ? 'Resume workout'
+                      : 'Open workout'
+                    : 'Plan the week'}
+                </Text>
+                <ForwardIcon color={palette.onPrimary} />
+              </View>
+            </View>
+          </Card>
+        </Pressable>
+      )}
 
       <View style={styles.metricSentence}>
         <Text style={[type.displayMd, styles.primaryText]}>{sessions.length}</Text>
         <Text style={[type.bodySm, styles.secondaryText]}>days planned</Text>
         <View style={styles.metricMarker} />
-        <Text style={[type.displayMd, styles.primaryText]}>{sessions.length * durationMinutes}</Text>
+        <Text style={[type.displayMd, styles.primaryText]}>
+          {sessions.length * durationMinutes}
+        </Text>
         <Text style={[type.bodySm, styles.secondaryText]}>minutes</Text>
       </View>
 
@@ -368,44 +501,62 @@ function TodayBrief({
         <View style={styles.sectionHeading}>
           <View>
             <SectionLabel>This week</SectionLabel>
-            <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>Your training brief</Text>
+            <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>
+              Your training brief
+            </Text>
           </View>
-          <TextButton label="See plan" onPress={onOpenPlan} />
+          <View style={styles.briefActions}>
+            <TextButton label="See plan" onPress={onOpenPlan} />
+            <TextButton label={latestPlan ? 'Edit plan' : 'Create plan'} onPress={onOpenSetup} />
+          </View>
         </View>
         <View style={styles.briefDays}>
-          {sessions.slice(0, 4).map((session, index) => (
-            <Pressable key={session.id} onPress={() => onOpenWorkout(index)} accessibilityRole="button">
-              <Card variant={index === currentSessionIndex ? 'featured' : 'default'} padding="md">
-                <View style={styles.dayRow}>
-                  <View style={styles.dayLabelBlock}>
-                    <Text style={[type.labelSm, index === currentSessionIndex ? styles.accentText : styles.secondaryText]}>
-                      {index === currentSessionIndex ? 'Next' : shortWeekday(planDates[index])}
-                    </Text>
-                    <Text style={[type.titleLg, styles.primaryText]}>{session.title}</Text>
-                    <Text style={[type.bodySm, styles.secondaryText]}>{session.durationMinutes} min / {session.exercises.length} movements</Text>
+          {currentWeekDates().map((date) => {
+            const index = schedule.indexOf(date.getDay());
+            const session = index >= 0 ? sessions[index] : undefined;
+            const isToday = date.getDay() === new Date().getDay();
+            return session ? (
+              <Pressable
+                key={`${date.toISOString()}-${session.id}`}
+                onPress={() => onOpenWorkout(index)}
+                accessibilityRole="button"
+              >
+                <Card variant={isToday ? 'featured' : 'default'} padding="md">
+                  <View style={styles.dayRow}>
+                    <View style={styles.dayLabelBlock}>
+                      <Text
+                        style={[type.labelSm, isToday ? styles.accentText : styles.secondaryText]}
+                      >
+                        {isToday ? 'Today' : shortWeekday(date)}
+                      </Text>
+                      <Text style={[type.titleLg, styles.primaryText]}>{session.title}</Text>
+                    </View>
+                    <ForwardIcon color={palette.primary} />
                   </View>
-                  <ForwardIcon color={palette.primary} />
-                </View>
-              </Card>
-            </Pressable>
-          ))}
+                </Card>
+              </Pressable>
+            ) : (
+              <View
+                key={date.toISOString()}
+                style={[styles.restRow, isToday && styles.restRowToday]}
+              >
+                <Text style={[type.labelSm, isToday ? styles.accentText : styles.secondaryText]}>
+                  {isToday ? 'Today' : shortWeekday(date)}
+                </Text>
+                <Text style={[type.titleMd, styles.primaryText]}>Rest day</Text>
+              </View>
+            );
+          })}
         </View>
       </View>
-
-      <Card variant="featured" style={styles.sectionTop}>
-        <SectionLabel>Your plan, your shape</SectionLabel>
-        <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>Make the week fit real life.</Text>
-        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
-          {categoryLabel(category)} / {levelLabel(level)} / {sessions.length} days. Change the shape whenever life changes.
-        </Text>
-        <SecondaryButton label={latestPlan ? 'Plan or adjust the week' : 'Plan the week'} onPress={onOpenSetup} />
-      </Card>
 
       <Card style={styles.sectionTop}>
         <View style={styles.sectionHeading}>
           <View>
             <SectionLabel>Body context</SectionLabel>
-            <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>{latestMetric ? 'Health signals connected' : 'Useful, never required'}</Text>
+            <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>
+              {latestMetric ? 'Health signals connected' : 'Useful, never required'}
+            </Text>
           </View>
           <TextButton label={latestMetric ? 'Manage' : 'Connect'} onPress={onConnect} />
         </View>
@@ -427,7 +578,10 @@ function TodayBrief({
                 <View style={styles.dayRow}>
                   <View style={styles.dayLabelBlock}>
                     <Text style={[type.titleMd, styles.primaryText]}>{workout.title}</Text>
-                    <Text style={[type.bodySm, styles.secondaryText]}>{workout.workoutDate} / {workout.durationMinutes || '--'} min / {formatLabel(workout.workoutType)}</Text>
+                    <Text style={[type.bodySm, styles.secondaryText]}>
+                      {workout.workoutDate} / {workout.durationMinutes || '--'} min /{' '}
+                      {formatLabel(workout.workoutType)}
+                    </Text>
                   </View>
                   <Icon name="check" size={spacing.md} color={palette.tertiary} />
                 </View>
@@ -436,7 +590,9 @@ function TodayBrief({
           </View>
         ) : (
           <Card variant="recessed" style={styles.copyTop}>
-            <Text style={[type.bodyMd, styles.secondaryText]}>Completed sessions will collect here without interrupting the daily brief.</Text>
+            <Text style={[type.bodyMd, styles.secondaryText]}>
+              Completed sessions will collect here without interrupting the daily brief.
+            </Text>
           </Card>
         )}
       </View>
@@ -476,36 +632,83 @@ function PlanSetup({
   onBuild: () => void;
 }) {
   const weekDates = currentWeekDates();
-  const location = category === 'gym' ? 'gym' : category === 'calisthenics' ? 'home' : category === 'yoga' ? 'yoga' : 'outside';
+  const location =
+    category === 'gym'
+      ? 'gym'
+      : category === 'calisthenics'
+        ? 'home'
+        : category === 'yoga'
+          ? 'yoga'
+          : 'outside';
   return (
     <>
       <FlowHeader eyebrow="Plan setup / 1 of 2" title="Plan around real life." onBack={onBack} />
       <Text style={[type.bodyLg, styles.secondaryText, styles.flowIntro]}>
-        Start with the shape of your week. You can review and swap every movement before you complete it.
+        Start with the shape of your week. You can review and swap every movement before you
+        complete it.
       </Text>
 
       <SetupField number="01" title="What are you doing?">
         <View style={styles.locationGrid}>
-          <LocationChoice label="Home" detail="Bodyweight + bands" icon="home" selected={location === 'home'} onPress={() => onCategoryChange('calisthenics')} />
-          <LocationChoice label="Gym" detail="Machines + weights" icon="health" selected={location === 'gym'} onPress={() => onCategoryChange('gym')} />
-          <LocationChoice label="Outside" detail="Run or cycle" icon="trend" selected={location === 'outside'} onPress={() => onCategoryChange(outsideMode)} />
-          <LocationChoice label="Yoga" detail="Stretch + restore" icon="heart" selected={location === 'yoga'} onPress={() => onCategoryChange('yoga')} />
+          <LocationChoice
+            label="Home"
+            detail="Bodyweight + bands"
+            icon="home"
+            selected={location === 'home'}
+            onPress={() => onCategoryChange('calisthenics')}
+          />
+          <LocationChoice
+            label="Gym"
+            detail="Machines + weights"
+            icon="health"
+            selected={location === 'gym'}
+            onPress={() => onCategoryChange('gym')}
+          />
+          <LocationChoice
+            label="Outside"
+            detail="Run or cycle"
+            icon="trend"
+            selected={location === 'outside'}
+            onPress={() => onCategoryChange(outsideMode)}
+          />
+          <LocationChoice
+            label="Yoga"
+            detail="Stretch + restore"
+            icon="heart"
+            selected={location === 'yoga'}
+            onPress={() => onCategoryChange('yoga')}
+          />
         </View>
         {location === 'outside' ? (
           <View style={styles.segmentedRow}>
-            <Segment label="Run" selected={outsideMode === 'cardio'} onPress={() => onOutsideModeChange('cardio')} />
-            <Segment label="Cycle" selected={outsideMode === 'cycling'} onPress={() => onOutsideModeChange('cycling')} />
+            <Segment
+              label="Run"
+              selected={outsideMode === 'cardio'}
+              onPress={() => onOutsideModeChange('cardio')}
+            />
+            <Segment
+              label="Cycle"
+              selected={outsideMode === 'cycling'}
+              onPress={() => onOutsideModeChange('cycling')}
+            />
           </View>
         ) : null}
       </SetupField>
 
       <SetupField number="02" title="How should it meet you?">
-        <View style={styles.segmentedRow}>
-          {levels.map((item) => <Segment key={item} label={levelLabel(item)} selected={level === item} onPress={() => onLevelChange(item)} />)}
-        </View>
+        <ChoiceGroup
+          label="Starting point"
+          value={level}
+          options={levels.map((item) => ({ value: item, label: levelLabel(item) }))}
+          onChange={onLevelChange}
+        />
       </SetupField>
 
-      <SetupField number="03" title="Which days have room?" detail={`${selectedWeekdays.length} selected`}>
+      <SetupField
+        number="03"
+        title="Which days have room?"
+        detail={`${selectedWeekdays.length} selected`}
+      >
         <View style={styles.dayPicker}>
           {weekDates.map((date) => {
             const weekday = date.getDay();
@@ -518,21 +721,36 @@ function PlanSetup({
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
               >
-                <Text style={[type.labelSm, selected ? styles.selectedText : styles.secondaryText]}>{narrowWeekday(date)}</Text>
-                <Text style={[type.titleMd, selected ? styles.selectedText : styles.primaryText]}>{date.getDate()}</Text>
+                <Text style={[type.labelSm, selected ? styles.selectedText : styles.secondaryText]}>
+                  {narrowWeekday(date)}
+                </Text>
+                <Text style={[type.titleMd, selected ? styles.selectedText : styles.primaryText]}>
+                  {date.getDate()}
+                </Text>
               </Pressable>
             );
           })}
         </View>
-        <Text style={[type.bodySm, styles.secondaryText, styles.fieldNote]}>Choose at least two. Sessions follow these days in order.</Text>
+        <Text style={[type.bodySm, styles.secondaryText, styles.fieldNote]}>
+          Choose at least two. Sessions follow these days in order.
+        </Text>
       </SetupField>
 
       <SetupField number="04" title="How much time?">
         <View style={styles.segmentedRow}>
-          {durations.map((item) => <Segment key={item} label={String(item)} selected={durationMinutes === item} onPress={() => onDurationChange(item)} />)}
+          {durations.map((item) => (
+            <Segment
+              key={item}
+              label={String(item)}
+              selected={durationMinutes === item}
+              onPress={() => onDurationChange(item)}
+            />
+          ))}
         </View>
         <Text style={[type.bodySm, styles.secondaryText, styles.fieldNote]}>
-          {durationMinutes} minutes gives each day {durationMinutes <= 25 ? 'four' : durationMinutes >= 55 ? 'six' : 'five'} movements with room to settle in.
+          {durationMinutes} minutes gives each day{' '}
+          {durationMinutes <= 25 ? 'four' : durationMinutes >= 55 ? 'six' : 'five'} movements with
+          room to settle in.
         </Text>
       </SetupField>
 
@@ -546,7 +764,14 @@ function PlanSetup({
               accessibilityRole="button"
               accessibilityState={{ selected: weeklyFocus === item.value }}
             >
-              <Text style={[type.labelMd, weeklyFocus === item.value ? styles.selectedText : styles.primaryText]}>{item.label}</Text>
+              <Text
+                style={[
+                  type.labelMd,
+                  weeklyFocus === item.value ? styles.selectedText : styles.primaryText,
+                ]}
+              >
+                {item.label}
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -556,11 +781,17 @@ function PlanSetup({
         <View style={styles.setupSummary}>
           <View style={styles.headerCopy}>
             <SectionLabel>Your shape</SectionLabel>
-            <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>{categoryLabel(category)} / {levelLabel(level)} / {selectedWeekdays.length} days</Text>
-            <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>{durationMinutes} minutes with {focusLabel(weeklyFocus).toLowerCase()} as the lead.</Text>
+            <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>
+              {categoryLabel(category)} / {levelLabel(level)} / {selectedWeekdays.length} days
+            </Text>
+            <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>
+              {durationMinutes} minutes with {focusLabel(weeklyFocus).toLowerCase()} as the lead.
+            </Text>
           </View>
           <View style={styles.totalBlock}>
-            <Text style={[type.displaySm, styles.primaryText]}>{selectedWeekdays.length * durationMinutes}</Text>
+            <Text style={[type.displaySm, styles.primaryText]}>
+              {selectedWeekdays.length * durationMinutes}
+            </Text>
             <Text style={[type.labelSm, styles.secondaryText]}>min / week</Text>
           </View>
         </View>
@@ -598,8 +829,15 @@ function GeneratedPlan({
     <>
       <FlowHeader eyebrow="Your training brief" title="Your week, built." onBack={onBack} />
       <View style={styles.planMeta}>
-        {[categoryLabel(category), levelLabel(level), `${sessions.length} days`, `${durationMinutes} min`].map((item) => (
-          <View key={item} style={styles.metaPill}><Text style={[type.labelSm, styles.primaryText]}>{item}</Text></View>
+        {[
+          categoryLabel(category),
+          levelLabel(level),
+          `${sessions.length} days`,
+          `${durationMinutes} min`,
+        ].map((item) => (
+          <View key={item} style={styles.metaPill}>
+            <Text style={[type.labelSm, styles.primaryText]}>{item}</Text>
+          </View>
         ))}
       </View>
 
@@ -607,27 +845,44 @@ function GeneratedPlan({
         <View style={styles.sectionHeading}>
           <View style={styles.headerCopy}>
             <SectionLabel>The shape</SectionLabel>
-            <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>{planLeadTitle(weeklyFocus)}</Text>
+            <Text style={[type.headlineMd, styles.primaryText, styles.copyTop]}>
+              {planLeadTitle(weeklyFocus)}
+            </Text>
           </View>
           <TextButton label="Adjust" onPress={onAdjust} />
         </View>
-        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>{planLeadCopy(weeklyFocus, sessions)}</Text>
+        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
+          {planLeadCopy(weeklyFocus, sessions)}
+        </Text>
       </Card>
 
       <View style={styles.generatedWeek}>
         {sessions.map((session, index) => (
-          <Pressable key={session.id} onPress={() => onOpenWorkout(index)} accessibilityRole="button">
+          <Pressable
+            key={session.id}
+            onPress={() => onOpenWorkout(index)}
+            accessibilityRole="button"
+          >
             <Card variant={index === 0 ? 'featured' : 'default'} padding="sm">
               <View style={styles.generatedRow}>
                 <View style={styles.dateBlock}>
-                  <Text style={[type.labelSm, styles.secondaryText]}>{shortWeekday(dates[index])}</Text>
-                  <Text style={[type.headlineMd, styles.primaryText]}>{dates[index]?.getDate() ?? index + 1}</Text>
+                  <Text style={[type.labelSm, styles.secondaryText]}>
+                    {shortWeekday(dates[index])}
+                  </Text>
+                  <Text style={[type.headlineMd, styles.primaryText]}>
+                    {dates[index]?.getDate() ?? index + 1}
+                  </Text>
                 </View>
-                <ExerciseVisual visualId={session.exercises[0]?.visualId ?? 'home_pushup'} style={styles.planThumbnail} />
+                <ExerciseVisual
+                  visualId={session.exercises[0]?.visualId ?? 'home_pushup'}
+                  style={styles.planThumbnail}
+                />
                 <View style={styles.generatedCopy}>
                   <SectionLabel>{index === 0 ? 'Day 1' : `Day ${index + 1}`}</SectionLabel>
                   <Text style={[type.titleLg, styles.primaryText]}>{session.title}</Text>
-                  <Text style={[type.bodySm, styles.secondaryText]}>{session.durationMinutes} min / {session.exercises.length} movements</Text>
+                  <Text style={[type.bodySm, styles.secondaryText]}>
+                    {session.durationMinutes} min / {session.exercises.length} movements
+                  </Text>
                 </View>
                 <ForwardIcon color={palette.primary} />
               </View>
@@ -639,7 +894,9 @@ function GeneratedPlan({
       <Card variant="recessed" style={styles.sectionTop}>
         <SectionLabel>How the week grows</SectionLabel>
         <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>Earn the next step.</Text>
-        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>{sessions[0]?.progression}</Text>
+        <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
+          {sessions[0]?.progression}
+        </Text>
       </Card>
       <PrimaryButton label="Keep this plan" onPress={onKeep} />
       <TextButton label="Change the setup" onPress={onAdjust} centered />
@@ -647,10 +904,23 @@ function GeneratedPlan({
   );
 }
 
-function FlowHeader({ eyebrow, title, onBack }: { eyebrow: string; title: string; onBack: () => void }) {
+function FlowHeader({
+  eyebrow,
+  title,
+  onBack,
+}: {
+  eyebrow: string;
+  title: string;
+  onBack: () => void;
+}) {
   return (
     <View style={styles.flowHeader}>
-      <Pressable onPress={onBack} style={styles.backButton} accessibilityRole="button" accessibilityLabel="Back to Movement">
+      <Pressable
+        onPress={onBack}
+        style={styles.backButton}
+        accessibilityRole="button"
+        accessibilityLabel="Back to Movement"
+      >
         <Icon name="back" size={spacing.lg} color={palette.onSurface} />
       </Pressable>
       <View style={styles.headerCopy}>
@@ -661,12 +931,24 @@ function FlowHeader({ eyebrow, title, onBack }: { eyebrow: string; title: string
   );
 }
 
-function SetupField({ number, title, detail, children }: { number: string; title: string; detail?: string; children: React.ReactNode }) {
+function SetupField({
+  number,
+  title,
+  detail,
+  children,
+}: {
+  number: string;
+  title: string;
+  detail?: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.setupField}>
       <View style={styles.fieldHeader}>
         <View style={styles.fieldTitle}>
-          <View style={styles.numberBadge}><Text style={[type.labelSm, styles.accentText]}>{number}</Text></View>
+          <View style={styles.numberBadge}>
+            <Text style={[type.labelSm, styles.accentText]}>{number}</Text>
+          </View>
           <Text style={[type.titleLg, styles.primaryText]}>{title}</Text>
         </View>
         {detail ? <Text style={[type.labelSm, styles.secondaryText]}>{detail}</Text> : null}
@@ -676,27 +958,67 @@ function SetupField({ number, title, detail, children }: { number: string; title
   );
 }
 
-function LocationChoice({ label, detail, icon, selected, onPress }: { label: string; detail: string; icon: 'home' | 'health' | 'trend' | 'heart'; selected: boolean; onPress: () => void }) {
+function LocationChoice({
+  label,
+  detail,
+  icon,
+  selected,
+  onPress,
+}: {
+  label: string;
+  detail: string;
+  icon: 'home' | 'health' | 'trend' | 'heart';
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={[styles.locationChoice, selected && styles.selectedChoice]} accessibilityRole="button" accessibilityState={{ selected }}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.locationChoice, selected && styles.selectedChoice]}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
       <Icon name={icon} size={spacing.lg} color={selected ? palette.onPrimary : palette.primary} />
-      <Text style={[type.titleMd, selected ? styles.selectedText : styles.primaryText]}>{label}</Text>
-      <Text style={[type.bodySm, selected ? styles.selectedSubtext : styles.secondaryText]}>{detail}</Text>
+      <Text style={[type.titleMd, selected ? styles.selectedText : styles.primaryText]}>
+        {label}
+      </Text>
+      <Text style={[type.bodySm, selected ? styles.selectedSubtext : styles.secondaryText]}>
+        {detail}
+      </Text>
     </Pressable>
   );
 }
 
-function Segment({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+function Segment({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
   return (
-    <Pressable onPress={onPress} style={[styles.segment, selected && styles.selectedChoice]} accessibilityRole="button" accessibilityState={{ selected }}>
-      <Text style={[type.labelMd, selected ? styles.selectedText : styles.primaryText]}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      style={[styles.segment, selected && styles.selectedChoice]}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+    >
+      <Text style={[type.labelMd, selected ? styles.selectedText : styles.primaryText]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
 function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+      accessibilityRole="button"
+    >
       <Text style={[type.labelMd, styles.heroActionText]}>{label}</Text>
       <ForwardIcon color={palette.onPrimary} />
     </Pressable>
@@ -715,15 +1037,35 @@ function ForwardIcon({ color }: { color: string }) {
   return <Text style={[type.headlineMd, { color }]}>→</Text>;
 }
 
-function TextButton({ label, onPress, centered = false }: { label: string; onPress: () => void; centered?: boolean }) {
+function TextButton({
+  label,
+  onPress,
+  centered = false,
+}: {
+  label: string;
+  onPress: () => void;
+  centered?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={[styles.textButton, centered && styles.centeredButton]} accessibilityRole="button">
+    <Pressable
+      onPress={onPress}
+      style={[styles.textButton, centered && styles.centeredButton]}
+      accessibilityRole="button"
+    >
       <Text style={[type.labelMd, styles.accentText]}>{label}</Text>
     </Pressable>
   );
 }
 
-function ExerciseRow({ exercise, replacement, onReplace }: { exercise: PlannedExercise; replacement?: PlannedExerciseAlternative; onReplace: () => void }) {
+function ExerciseRow({
+  exercise,
+  replacement,
+  onReplace,
+}: {
+  exercise: PlannedExercise;
+  replacement?: PlannedExerciseAlternative;
+  onReplace: () => void;
+}) {
   const shown = replacement ?? exercise;
   return (
     <View style={styles.exerciseRow}>
@@ -732,13 +1074,18 @@ function ExerciseRow({ exercise, replacement, onReplace }: { exercise: PlannedEx
         <Text style={[type.titleMd, styles.primaryText]}>{shown.name}</Text>
         <Text style={[type.labelSm, styles.accentText, styles.copyTop]}>{shown.prescription}</Text>
         <View style={styles.instructionList}>
-          <Instruction number="1" label="Set up" copy={shown.instructions.setup} />
-          <Instruction number="2" label="Move" copy={shown.instructions.movement} />
-          <Instruction number="3" label="Breathe" copy={shown.instructions.breathing} />
-          <Instruction number="4" label="Finish" copy={shown.instructions.completion} />
+          <Instruction label="Set up" copy={shown.instructions.setup} />
+          <Instruction label="Move" copy={shown.instructions.movement} />
+          <Instruction label="Breathe" copy={shown.instructions.breathing} />
+          <Instruction label="Finish" copy={shown.instructions.completion} />
         </View>
       </View>
-      <Pressable onPress={onReplace} style={styles.swapButton} accessibilityRole="button" accessibilityLabel={`Swap ${shown.name}`}>
+      <Pressable
+        onPress={onReplace}
+        style={styles.swapButton}
+        accessibilityRole="button"
+        accessibilityLabel={`Swap ${shown.name}`}
+      >
         <Icon name="swap" size={spacing.md} color={palette.primary} />
         <Text style={[type.labelSm, styles.accentText]}>Swap</Text>
       </Pressable>
@@ -746,19 +1093,23 @@ function ExerciseRow({ exercise, replacement, onReplace }: { exercise: PlannedEx
   );
 }
 
-function Instruction({ number, label, copy }: { number: string; label: string; copy: string }) {
+function Instruction({ label, copy }: { label: string; copy: string }) {
   return (
     <View style={styles.instructionRow}>
-      <Text style={[type.labelSm, styles.instructionNumber]}>{number}</Text>
       <Text style={[type.bodySm, styles.secondaryText, styles.instructionCopy]}>
-        <Text style={[type.labelSm, styles.primaryText]}>{label}: </Text>{copy}
+        <Text style={[type.labelSm, styles.primaryText]}>{label}: </Text>
+        {copy}
       </Text>
     </View>
   );
 }
 
 function formatLongDate(date: Date) {
-  return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' }).format(date);
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
 }
 
 function formatNumber(value: number | null) {
@@ -771,7 +1122,10 @@ function formatSleep(value: number | null) {
 }
 
 function formatLabel(value: string) {
-  return value.split('_').map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 }
 
 function levelLabel(level: WorkoutPlan['level']) {
@@ -802,15 +1156,13 @@ function planLeadTitle(focus: WorkoutFocus) {
 function planLeadCopy(focus: WorkoutFocus, sessions: WorkoutSession[]) {
   const first = sessions[0]?.title ?? 'Your first session';
   const last = sessions.at(-1)?.title ?? 'a steady close';
-  if (focus === 'strength') return `${first} leads the week. The plan balances it before ${last.toLowerCase()}.`;
-  if (focus === 'mobility') return `${first} opens the week with control. Each later session keeps useful range in the plan.`;
-  if (focus === 'energy') return `${first} starts at a repeatable pace. Harder work is spaced so recovery can keep up.`;
+  if (focus === 'strength')
+    return `${first} leads the week. The plan balances it before ${last.toLowerCase()}.`;
+  if (focus === 'mobility')
+    return `${first} opens the week with control. Each later session keeps useful range in the plan.`;
+  if (focus === 'energy')
+    return `${first} starts at a repeatable pace. Harder work is spaced so recovery can keep up.`;
   return `${first} starts the rhythm. The remaining days stay achievable even when the week moves.`;
-}
-
-function dailyGuidance(session: WorkoutSession, hasHealthData: boolean) {
-  const context = hasHealthData ? 'Your latest body signals look settled' : 'Built from your chosen rhythm';
-  return `${session.exercises.length} movements. ${context}; keep two good reps in reserve.`;
 }
 
 function withoutAlternatives(exercise: PlannedExercise): PlannedExerciseAlternative {
@@ -818,25 +1170,34 @@ function withoutAlternatives(exercise: PlannedExercise): PlannedExerciseAlternat
   return details;
 }
 
-function hasCurrentWorkoutSessions(sessions: WorkoutSession[] | undefined): sessions is WorkoutSession[] {
-  return Boolean(sessions?.length && sessions.every((session) => session.exercises.every((exercise) =>
-    typeof exercise.visualId === 'string'
-    && hasExerciseInstructions(exercise)
-    && exercise.alternatives.every((alternative) =>
-      typeof alternative === 'object'
-      && typeof alternative.visualId === 'string'
-      && hasExerciseInstructions(alternative),
+function hasCurrentWorkoutSessions(
+  sessions: WorkoutSession[] | undefined,
+): sessions is WorkoutSession[] {
+  return Boolean(
+    sessions?.length &&
+    sessions.every((session) =>
+      session.exercises.every(
+        (exercise) =>
+          typeof exercise.visualId === 'string' &&
+          hasExerciseInstructions(exercise) &&
+          exercise.alternatives.every(
+            (alternative) =>
+              typeof alternative === 'object' &&
+              typeof alternative.visualId === 'string' &&
+              hasExerciseInstructions(alternative),
+          ),
+      ),
     ),
-  )));
+  );
 }
 
 function hasExerciseInstructions(exercise: PlannedExerciseAlternative) {
   return Boolean(
-    exercise.instructions
-    && typeof exercise.instructions.setup === 'string'
-    && typeof exercise.instructions.movement === 'string'
-    && typeof exercise.instructions.breathing === 'string'
-    && typeof exercise.instructions.completion === 'string',
+    exercise.instructions &&
+    typeof exercise.instructions.setup === 'string' &&
+    typeof exercise.instructions.movement === 'string' &&
+    typeof exercise.instructions.breathing === 'string' &&
+    typeof exercise.instructions.completion === 'string',
   );
 }
 
@@ -868,7 +1229,9 @@ function currentWeekDates() {
 
 function datesForSchedule(schedule: number[]) {
   const week = currentWeekDates();
-  const moveToNextWeek = schedule.every((weekday) => weekdayOrder(weekday) < weekdayOrder(new Date().getDay()));
+  const moveToNextWeek = schedule.every(
+    (weekday) => weekdayOrder(weekday) < weekdayOrder(new Date().getDay()),
+  );
   return schedule.map((weekday) => {
     const date = new Date(week.find((item) => item.getDay() === weekday) ?? week[0]);
     if (moveToNextWeek) date.setDate(date.getDate() + 7);
@@ -916,59 +1279,253 @@ const styles = StyleSheet.create({
   heroActionText: { color: palette.onPrimary },
   copyTop: { marginTop: spacing.xs },
   sectionTop: { marginTop: spacing.xl },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   headerCopy: { flex: 1 },
-  profileButton: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
-  profileDot: { position: 'absolute', right: spacing.xs, bottom: spacing.xs, width: spacing.lg, height: spacing.lg, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary },
-  heroImage: { width: '100%', aspectRatio: 1.7, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHighest },
+  profileButton: {
+    width: spacing['2xl'],
+    height: spacing['2xl'],
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  profileDot: {
+    position: 'absolute',
+    right: spacing.xs,
+    bottom: spacing.xs,
+    width: spacing.lg,
+    height: spacing.lg,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.primary,
+  },
+  heroImage: {
+    width: '100%',
+    aspectRatio: 1.7,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
   heroContent: { padding: spacing.md },
-  heroAction: { minHeight: spacing['2xl'], marginTop: spacing.md, borderRadius: radii.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: palette.primary },
-  metricSentence: { marginTop: spacing.lg, minHeight: spacing['3xl'], paddingHorizontal: spacing.md, borderRadius: radii.lg, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainerLow },
-  metricMarker: { width: spacing.xs, height: spacing.xs, borderRadius: radii.pill, backgroundColor: palette.primary },
-  sectionHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  heroAction: {
+    minHeight: spacing['2xl'],
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: palette.primary,
+  },
+  metricSentence: {
+    marginTop: spacing.lg,
+    minHeight: spacing['3xl'],
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  metricMarker: {
+    width: spacing.xs,
+    height: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: palette.primary,
+  },
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  briefActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   briefDays: { gap: spacing.sm, marginTop: spacing.md },
-  dayRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  restDay: {
+    minHeight: 116,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  restIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.pill,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
+  restRow: {
+    minHeight: 62,
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  restRowToday: { backgroundColor: palette.surfaceContainerHigh },
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
   dayLabelBlock: { flex: 1, gap: spacing.xs },
-  secondaryButton: { minHeight: spacing['2xl'], marginTop: spacing.md, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHighest },
+  secondaryButton: {
+    minHeight: spacing['2xl'],
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHighest,
+  },
   historyList: { gap: spacing.sm, marginTop: spacing.md },
   loading: { marginTop: spacing.lg },
-  sheetHeroImage: { width: '100%', aspectRatio: 1.8, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHighest },
+  sheetHeroImage: {
+    width: '100%',
+    aspectRatio: 1.8,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
   exerciseList: { gap: spacing.sm },
-  exerciseRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerHigh },
-  exerciseImage: { width: spacing['3xl'], height: spacing['3xl'], borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
+  exerciseRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  exerciseImage: {
+    width: spacing['3xl'],
+    height: spacing['3xl'],
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
   generatedCopy: { flex: 1, gap: spacing.xs },
   instructionList: { gap: spacing.xs, marginTop: spacing.xs },
   instructionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.xs },
-  instructionNumber: { width: spacing.lg, height: spacing.lg, textAlign: 'center', textAlignVertical: 'center', color: palette.onPrimary, backgroundColor: palette.primary, borderRadius: radii.pill, overflow: 'hidden' },
   instructionCopy: { flex: 1 },
-  swapButton: { minHeight: spacing['2xl'], paddingHorizontal: spacing.sm, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: palette.surfaceContainerHighest },
-  primaryButton: { minHeight: spacing['2xl'], marginTop: spacing.md, borderRadius: radii.md, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: palette.primary },
+  swapButton: {
+    minHeight: spacing['2xl'],
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
+  primaryButton: {
+    minHeight: spacing['2xl'],
+    marginTop: spacing.md,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: palette.primary,
+  },
   pressed: { opacity: 0.82 },
-  textButton: { minHeight: spacing['2xl'], justifyContent: 'center', paddingHorizontal: spacing.sm },
+  textButton: {
+    minHeight: spacing['2xl'],
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+  },
   centeredButton: { alignItems: 'center' },
   flowHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  backButton: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  backButton: {
+    width: spacing['2xl'],
+    height: spacing['2xl'],
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   flowIntro: { marginTop: spacing.md },
   setupField: { marginTop: spacing.xl, gap: spacing.md },
-  fieldHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  fieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
   fieldTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  numberBadge: { width: spacing.xl, height: spacing.xl, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  numberBadge: {
+    width: spacing.xl,
+    height: spacing.xl,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   locationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  locationChoice: { width: '48%', minHeight: spacing['3xl'] + spacing['3xl'], padding: spacing.sm, borderRadius: radii.lg, justifyContent: 'center', gap: spacing.sm, backgroundColor: palette.surfaceContainer },
+  locationChoice: {
+    width: '48%',
+    minHeight: spacing['3xl'] + spacing['3xl'],
+    padding: spacing.sm,
+    borderRadius: radii.lg,
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: palette.surfaceContainer,
+  },
   selectedChoice: { backgroundColor: palette.primary },
   segmentedRow: { flexDirection: 'row', gap: spacing.sm },
-  segment: { flex: 1, minHeight: spacing['2xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  segment: {
+    flex: 1,
+    minHeight: spacing['2xl'],
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   dayPicker: { flexDirection: 'row', gap: spacing.xs },
-  dayChoice: { flex: 1, minHeight: spacing['3xl'], borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, backgroundColor: palette.surfaceContainerHigh },
+  dayChoice: {
+    flex: 1,
+    minHeight: spacing['3xl'],
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   fieldNote: { marginTop: spacing.xs },
   focusGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  focusChoice: { width: '48%', minHeight: spacing['2xl'], paddingHorizontal: spacing.md, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  focusChoice: {
+    width: '48%',
+    minHeight: spacing['2xl'],
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   setupSummary: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   totalBlock: { alignItems: 'flex-end' },
   planMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
-  metaPill: { minHeight: spacing.xl, paddingHorizontal: spacing.md, borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.surfaceContainerHigh },
+  metaPill: {
+    minHeight: spacing.xl,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: palette.surfaceContainerHigh,
+  },
   generatedWeek: { gap: spacing.sm, marginTop: spacing.md },
   generatedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dateBlock: { width: spacing['2xl'], alignItems: 'center', gap: spacing.xs },
-  planThumbnail: { width: spacing['3xl'], height: spacing['3xl'], borderRadius: radii.md, backgroundColor: palette.surfaceContainerHighest },
+  planThumbnail: {
+    width: spacing['3xl'],
+    height: spacing['3xl'],
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
 });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { palette, radii, spacing, type } from '@luminary/design-system';
+import { MultiChoiceField } from '@/components/ui';
 import { moodCopy } from '@/lib/mood';
 import { writeJournalEntry } from '@/lib/ritual';
 import { useRitualStore } from '@/stores/useRitualStore';
@@ -20,10 +21,6 @@ export function JournalStep() {
   const [activeError, setActiveError] = useState<string | null>(null);
 
   const moodDisplay = mood ? moodCopy[mood.label].display : 'Today';
-
-  function toggleTag(tag: string) {
-    setJournalTags(journalTags.includes(tag) ? journalTags.filter((item) => item !== tag) : [...journalTags, tag]);
-  }
 
   async function handleCapture() {
     if (!journalText.trim()) {
@@ -54,15 +51,22 @@ export function JournalStep() {
         <Text style={[type.labelSm, styles.accent]}>Going to Journal</Text>
         <Text style={[type.headlineSm, styles.title]}>{moodDisplay}</Text>
         <Text style={[type.bodySm, styles.copy]}>
-          {mood?.source === 'luminary_local' || mood?.source === 'luminary_ai' ? 'Luminary suggested this from the wellbeing signals you allowed. Add what it meant—or move on.' : 'You chose this mood. Add what it meant—or move on without writing.'}
+          {mood?.source === 'luminary_local' || mood?.source === 'luminary_ai'
+            ? 'Luminary suggested this from the wellbeing signals you allowed. Add what it meant—or move on.'
+            : 'You chose this mood. Add what it meant—or move on without writing.'}
         </Text>
       </View>
 
       <View style={styles.composer}>
-        <Text style={[type.labelSm, styles.copy]}>What made today feel {moodDisplay.toLowerCase()}?</Text>
+        <Text style={[type.labelSm, styles.copy]}>
+          What made today feel {moodDisplay.toLowerCase()}?
+        </Text>
         <TextInput
           value={journalText}
-          onChangeText={(text) => { setJournalText(text); if (activeError) setActiveError(null); }}
+          onChangeText={(text) => {
+            setJournalText(text);
+            if (activeError) setActiveError(null);
+          }}
           placeholder="The day felt louder than it looked."
           placeholderTextColor={palette.onSurfaceVariant}
           multiline
@@ -70,25 +74,37 @@ export function JournalStep() {
           style={[type.headlineSm, styles.input]}
           accessibilityLabel="Journal entry"
         />
-        <View style={styles.tagRow}>
-          {TAG_CHIPS.map((tag) => {
-            const selected = journalTags.includes(tag);
-            return (
-              <Pressable key={tag} onPress={() => toggleTag(tag)} style={[styles.tag, selected && styles.tagSelected]} accessibilityRole="checkbox" accessibilityState={{ checked: selected }}>
-                <Text style={[type.labelSm, selected ? styles.accent : styles.title]}>{tag}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <MultiChoiceField
+          label="Tags"
+          value={journalTags}
+          suggestions={[...TAG_CHIPS]}
+          onChange={setJournalTags}
+          allowCustom
+          customPlaceholder="Add a tag"
+        />
       </View>
 
       {activeError ? <Text style={[type.bodySm, styles.error]}>{activeError}</Text> : null}
       <View style={styles.actionRow}>
-        <Pressable onPress={handleSkip} disabled={isSaving} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Pressable
+          onPress={handleSkip}
+          disabled={isSaving}
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          accessibilityRole="button"
+        >
           <Text style={[type.labelMd, styles.title]}>Skip Journal</Text>
         </Pressable>
-        <Pressable onPress={handleCapture} disabled={isSaving} style={({ pressed }) => [styles.primaryButton, (pressed || isSaving) && styles.disabled]} accessibilityRole="button">
-          {isSaving ? <ActivityIndicator color={palette.onPrimary} /> : <Text style={[type.labelMd, styles.primaryText]}>Add to Journal</Text>}
+        <Pressable
+          onPress={handleCapture}
+          disabled={isSaving}
+          style={({ pressed }) => [styles.primaryButton, (pressed || isSaving) && styles.disabled]}
+          accessibilityRole="button"
+        >
+          {isSaving ? (
+            <ActivityIndicator color={palette.onPrimary} />
+          ) : (
+            <Text style={[type.labelMd, styles.primaryText]}>Add to Journal</Text>
+          )}
         </Pressable>
       </View>
     </View>
@@ -97,15 +113,42 @@ export function JournalStep() {
 
 const styles = StyleSheet.create({
   container: { gap: spacing.sm },
-  moodLink: { gap: spacing.xs, padding: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
-  composer: { gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerLow },
-  input: { minHeight: 160, padding: spacing.md, borderRadius: radii.md, color: palette.onSurface, backgroundColor: palette.surfaceContainerLowest },
-  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  tag: { width: '31%', flexGrow: 1, minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radii.pill },
-  tagSelected: { backgroundColor: palette.primaryContainer },
+  moodLink: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  composer: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  input: {
+    minHeight: 160,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    color: palette.onSurface,
+    backgroundColor: palette.surfaceContainerLowest,
+  },
   actionRow: { flexDirection: 'row', gap: spacing.sm },
-  secondaryButton: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
-  primaryButton: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radii.md, backgroundColor: palette.primary },
+  secondaryButton: {
+    flex: 1,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  primaryButton: {
+    flex: 1,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    backgroundColor: palette.primary,
+  },
   title: { color: palette.onSurface },
   copy: { color: palette.onSurfaceVariant },
   accent: { color: palette.primary },

@@ -2,7 +2,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { buildGuidedWorkoutSteps, secondsRemaining, type GuidedWorkoutStep } from '@/lib/guidedWorkout';
+import {
+  buildGuidedWorkoutSteps,
+  secondsRemaining,
+  type GuidedWorkoutStep,
+} from '@/lib/guidedWorkout';
 import type { WorkoutCategory, WorkoutSession } from '@/lib/workoutPlanning';
 
 export type ActiveGuidedWorkout = {
@@ -12,6 +16,7 @@ export type ActiveGuidedWorkout = {
   category: WorkoutCategory;
   steps: GuidedWorkoutStep[];
   currentStepIndex: number;
+  currentSet: number;
   status: 'active' | 'finished';
   isPaused: boolean;
   remainingSeconds: number;
@@ -26,7 +31,11 @@ export type ActiveGuidedWorkout = {
 
 type GuidedWorkoutState = {
   active: ActiveGuidedWorkout | null;
-  startWorkout: (input: { planId?: string; session: WorkoutSession; category: WorkoutCategory }) => void;
+  startWorkout: (input: {
+    planId?: string;
+    session: WorkoutSession;
+    category: WorkoutCategory;
+  }) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
   nextStep: (skipped?: boolean) => void;
@@ -39,27 +48,64 @@ export const useGuidedWorkoutStore = create<GuidedWorkoutState>()(
   persist(
     (set) => ({
       active: null,
-      startWorkout: ({ planId, session, category }) => set({ active: createActiveWorkout(planId, session, category) }),
-      pauseWorkout: () => set((state) => {
-        if (!state.active || state.active.isPaused || state.active.status !== 'active') return state;
-        const activeSeconds = (state.active.activeSeconds ?? 0) + elapsedSince(state.active.activeSince ?? null);
-        return { active: { ...state.active, isPaused: true, remainingSeconds: secondsRemaining(state.active.stepEndsAt, state.active.remainingSeconds), stepEndsAt: null, activeSeconds, activeSince: null } };
-      }),
-      resumeWorkout: () => set((state) => {
-        if (!state.active || !state.active.isPaused || state.active.status !== 'active') return state;
-        const current = state.active.steps[state.active.currentStepIndex];
-        return { active: { ...state.active, isPaused: false, stepEndsAt: current?.mode === 'timer' ? Date.now() + state.active.remainingSeconds * 1000 : null, activeSince: Date.now() } };
-      }),
+      startWorkout: ({ planId, session, category }) =>
+        set({ active: createActiveWorkout(planId, session, category) }),
+      pauseWorkout: () =>
+        set((state) => {
+          if (!state.active || state.active.isPaused || state.active.status !== 'active')
+            return state;
+          const activeSeconds =
+            (state.active.activeSeconds ?? 0) + elapsedSince(state.active.activeSince ?? null);
+          return {
+            active: {
+              ...state.active,
+              isPaused: true,
+              remainingSeconds: secondsRemaining(
+                state.active.stepEndsAt,
+                state.active.remainingSeconds,
+              ),
+              stepEndsAt: null,
+              activeSeconds,
+              activeSince: null,
+            },
+          };
+        }),
+      resumeWorkout: () =>
+        set((state) => {
+          if (!state.active || !state.active.isPaused || state.active.status !== 'active')
+            return state;
+          const current = state.active.steps[state.active.currentStepIndex];
+          return {
+            active: {
+              ...state.active,
+              isPaused: false,
+              stepEndsAt:
+                current?.mode === 'timer'
+                  ? Date.now() + state.active.remainingSeconds * 1000
+                  : null,
+              activeSince: Date.now(),
+            },
+          };
+        }),
       nextStep: (skipped = false) => set((state) => moveStep(state, 1, skipped)),
       previousStep: () => set((state) => moveStep(state, -1, false)),
-      markLogged: () => set((state) => state.active ? { active: { ...state.active, loggedAt: new Date().toISOString() } } : state),
+      markLogged: () =>
+        set((state) =>
+          state.active
+            ? { active: { ...state.active, loggedAt: new Date().toISOString() } }
+            : state,
+        ),
       clearWorkout: () => set({ active: null }),
     }),
     { name: 'luminary.guided-workout.v1', storage: createJSONStorage(() => AsyncStorage) },
   ),
 );
 
-function createActiveWorkout(planId: string | undefined, session: WorkoutSession, category: WorkoutCategory): ActiveGuidedWorkout {
+function createActiveWorkout(
+  planId: string | undefined,
+  session: WorkoutSession,
+  category: WorkoutCategory,
+): ActiveGuidedWorkout {
   const steps = buildGuidedWorkoutSteps(session);
   const first = steps[0];
   const remainingSeconds = first?.durationSeconds ?? 0;
@@ -70,6 +116,7 @@ function createActiveWorkout(planId: string | undefined, session: WorkoutSession
     category,
     steps,
     currentStepIndex: 0,
+    currentSet: 1,
     status: 'active',
     isPaused: false,
     remainingSeconds,
@@ -81,16 +128,67 @@ function createActiveWorkout(planId: string | undefined, session: WorkoutSession
   };
 }
 
-function moveStep(state: GuidedWorkoutState, direction: 1 | -1, skipped: boolean): Partial<GuidedWorkoutState> {
+function moveStep(
+  state: GuidedWorkoutState,
+  direction: 1 | -1,
+  skipped: boolean,
+): Partial<GuidedWorkoutState> {
   const active = state.active;
   if (!active || active.status !== 'active') return state;
+  const currentStep = active.steps[active.currentStepIndex];
+  const totalSets = currentStep?.kind === 'exercise' ? Math.max(1, currentStep.totalSets ?? 1) : 1;
+  const currentSet = active.currentSet ?? 1;
+  if (!skipped && currentStep?.kind === 'exercise' && direction === 1 && currentSet < totalSets) {
+    const remainingSeconds = currentStep.durationSeconds ?? 0;
+    return {
+      active: {
+        ...active,
+        currentSet: currentSet + 1,
+        isPaused: false,
+        remainingSeconds,
+        stepEndsAt: currentStep.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,
+      },
+    };
+  }
+  if (currentStep?.kind === 'exercise' && direction === -1 && currentSet > 1) {
+    const remainingSeconds = currentStep.durationSeconds ?? 0;
+    return {
+      active: {
+        ...active,
+        currentSet: currentSet - 1,
+        isPaused: false,
+        remainingSeconds,
+        stepEndsAt: currentStep.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,
+      },
+    };
+  }
   const nextIndex = active.currentStepIndex + direction;
   const skippedStepIds = skipped
-    ? [...new Set([...active.skippedStepIds, active.steps[active.currentStepIndex]?.id].filter((id): id is string => !!id))]
+    ? [
+        ...new Set(
+          [...active.skippedStepIds, active.steps[active.currentStepIndex]?.id].filter(
+            (id): id is string => !!id,
+          ),
+        ),
+      ]
     : active.skippedStepIds;
   const activeSeconds = (active.activeSeconds ?? 0) + elapsedSince(active.activeSince ?? null);
   if (nextIndex >= active.steps.length) {
-    return { active: { ...active, status: 'finished', currentStepIndex: active.steps.length, isPaused: false, remainingSeconds: 0, stepEndsAt: null, activeSeconds, activeSince: null, finishedAt: new Date().toISOString(), skippedStepIds } };
+    return {
+      active: {
+        ...active,
+        status: 'finished',
+        currentStepIndex: active.steps.length,
+        currentSet: 1,
+        isPaused: false,
+        remainingSeconds: 0,
+        stepEndsAt: null,
+        activeSeconds,
+        activeSince: null,
+        finishedAt: new Date().toISOString(),
+        skippedStepIds,
+      },
+    };
   }
   const boundedIndex = Math.max(0, nextIndex);
   const next = active.steps[boundedIndex];
@@ -99,6 +197,8 @@ function moveStep(state: GuidedWorkoutState, direction: 1 | -1, skipped: boolean
     active: {
       ...active,
       currentStepIndex: boundedIndex,
+      currentSet:
+        direction === -1 && next?.kind === 'exercise' ? Math.max(1, next.totalSets ?? 1) : 1,
       isPaused: false,
       remainingSeconds,
       stepEndsAt: next?.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,

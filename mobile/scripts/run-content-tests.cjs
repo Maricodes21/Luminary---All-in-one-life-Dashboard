@@ -26,3 +26,4 @@ require(path.resolve(__dirname, '../lib/dailySignals.test.ts'));
 require(path.resolve(__dirname, '../lib/journal.test.ts'));
 require(path.resolve(__dirname, '../lib/journalIntelligence.test.ts'));
 require(path.resolve(__dirname, '../lib/meals/shoppingList.test.ts'));
+require(path.resolve(__dirname, '../lib/ai/localGateway.test.ts'));

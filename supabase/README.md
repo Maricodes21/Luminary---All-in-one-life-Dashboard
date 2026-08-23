@@ -32,21 +32,23 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=<from_supabase_status>
 
 Migrations live in `supabase/migrations/` and should remain append-only.
 
-| File                                            | Purpose                                                                                                           |
-| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `0001_initial_schema.sql`                       | Profiles, habits, habit completions, mood events, Spotify snapshots, journal entries, enums, and RLS audit block. |
-| `0002_tighten_habit_completions_rls.sql`        | Completion writes must reference a habit owned by `auth.uid()`.                                                   |
-| `0003_habit_pauses.sql`                         | Per-habit Tomorrow pause records.                                                                                 |
-| `0004_profiles_reminder_time.sql`               | Reminder hour/minute on profiles.                                                                                 |
-| `0005_auth_uid_defaults.sql`                    | User-scoped tables default `user_id` to `auth.uid()`.                                                             |
-| `0006_phase3_and_4_schema.sql`                  | Reflection and life-module expansion.                                                                             |
-| `0007_production_modules.sql`                   | Health metrics, workout plans, meal plans, expense prompts, transaction imports, and integration consents.        |
-| `0008_content_sources_profile_money.sql`        | Profile settings columns, budget profiles, content sources, food items, and exercise items.                       |
-| `20260713192430_personalized_meals.sql`         | Nutrition history, normalized food provenance, recipes, plan entries, feedback, AI telemetry, and Meals RLS.      |
-| `20260714153000_harden_authenticated_api.sql`   | Fixed function search paths and authenticated-only Meals API access.                                              |
-| `20260714154000_enforce_role_privileges.sql`    | Least-privilege grants for logs, plans, submissions, catalogs, and service-only caches.                           |
-| `20260714155000_optimize_meals_rls_indexes.sql` | Cached auth evaluation and covering indexes for Meals foreign keys.                                               |
-| `20260802100000_spotify_preview_oauth.sql`      | Short-lived, one-use Spotify OAuth handoff for free Expo Go previews.                                             |
+| File                                                     | Purpose                                                                                                           |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `0001_initial_schema.sql`                                | Profiles, habits, habit completions, mood events, Spotify snapshots, journal entries, enums, and RLS audit block. |
+| `0002_tighten_habit_completions_rls.sql`                 | Completion writes must reference a habit owned by `auth.uid()`.                                                   |
+| `0003_habit_pauses.sql`                                  | Per-habit Tomorrow pause records.                                                                                 |
+| `0004_profiles_reminder_time.sql`                        | Reminder hour/minute on profiles.                                                                                 |
+| `0005_auth_uid_defaults.sql`                             | User-scoped tables default `user_id` to `auth.uid()`.                                                             |
+| `0006_phase3_and_4_schema.sql`                           | Reflection and life-module expansion.                                                                             |
+| `0007_production_modules.sql`                            | Health metrics, workout plans, meal plans, expense prompts, transaction imports, and integration consents.        |
+| `0008_content_sources_profile_money.sql`                 | Profile settings columns, budget profiles, content sources, food items, and exercise items.                       |
+| `20260713192430_personalized_meals.sql`                  | Nutrition history, normalized food provenance, recipes, plan entries, feedback, AI telemetry, and Meals RLS.      |
+| `20260714153000_harden_authenticated_api.sql`            | Fixed function search paths and authenticated-only Meals API access.                                              |
+| `20260714154000_enforce_role_privileges.sql`             | Least-privilege grants for logs, plans, submissions, catalogs, and service-only caches.                           |
+| `20260714155000_optimize_meals_rls_indexes.sql`          | Cached auth evaluation and covering indexes for Meals foreign keys.                                               |
+| `20260802100000_spotify_preview_oauth.sql`               | Short-lived, one-use Spotify OAuth handoff for free Expo Go previews.                                             |
+| `20260823143000_persistent_personalization_core.sql`     | Living-profile foundation, context snapshots, daily check-ins, and retained AI reflections.                       |
+| `20260823151500_personalization_performance_indexes.sql` | Covers signal-feedback and superseded-context foreign keys.                                                       |
 
 Add a migration with:
 
