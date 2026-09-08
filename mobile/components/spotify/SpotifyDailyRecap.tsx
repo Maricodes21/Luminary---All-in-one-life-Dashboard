@@ -15,12 +15,15 @@ import { Card } from '@/components/ui/Card';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { moodCopy, type MoodLabel } from '@/lib/mood';
 import type { SpotifyRecap } from '@/lib/spotify';
+import type { ListeningTag } from '@/lib/spotifyRecap';
 
 type SpotifyDailyRecapProps = {
   recap: SpotifyRecap;
   compact?: boolean;
   confirmedMood?: MoodLabel | null;
   moodSkipped?: boolean;
+  listeningTag?: ListeningTag | null;
+  userMood?: string | null;
   onOpenSummary?: () => void;
 };
 
@@ -29,6 +32,8 @@ export function SpotifyDailyRecap({
   compact = false,
   confirmedMood = null,
   moodSkipped = false,
+  listeningTag = recap.listeningTag,
+  userMood = null,
   onOpenSummary,
 }: SpotifyDailyRecapProps) {
   if (compact) {
@@ -37,6 +42,8 @@ export function SpotifyDailyRecap({
         recap={recap}
         confirmedMood={confirmedMood}
         moodSkipped={moodSkipped}
+        listeningTag={listeningTag}
+        userMood={userMood}
         onOpenSummary={onOpenSummary}
       />
     );
@@ -51,6 +58,13 @@ export function SpotifyDailyRecap({
         </View>
         <Text style={[type.labelSm, styles.spotifyAttribution]}>● Spotify</Text>
       </View>
+      {listeningTag ? (
+        <Text style={[type.bodySm, styles.signalCopy]}>
+          {userMood
+            ? `${userMood} + ${listeningTag} today.`
+            : `Your music was ${listeningTag} today.`}
+        </Text>
+      ) : null}
       <EditorialRecap recap={recap} />
       <ListeningStats recap={recap} compact={false} />
     </Card>
@@ -61,21 +75,28 @@ function LuminaryHomeRecap({
   recap,
   confirmedMood,
   moodSkipped,
+  listeningTag,
+  userMood,
   onOpenSummary,
 }: {
   recap: SpotifyRecap;
   confirmedMood: MoodLabel | null;
   moodSkipped: boolean;
+  listeningTag: ListeningTag | null;
+  userMood: string | null;
   onOpenSummary?: () => void;
 }) {
   const tracks = recap.topTracks.slice(0, 4);
   const artists = recap.topArtists.slice(0, 4);
-  const moodLabel = moodSkipped
-    ? 'Mood left open'
-    : confirmedMood
-      ? moodCopy[confirmedMood].display
-      : 'Listening kept separate';
-  return (
+  const reportedMood = userMood ?? (confirmedMood ? moodCopy[confirmedMood].display : null);
+  const moodLabel = listeningTag
+    ? reportedMood
+      ? `${reportedMood} + ${listeningTag}`
+      : `Your music was ${listeningTag}`
+    : moodSkipped
+      ? 'Mood left open'
+      : reportedMood ?? 'Listening kept separate';
+  const card = (
     <Card variant="featured" padding="md" style={styles.homeCard}>
       <View style={styles.ambientGlow} pointerEvents="none" />
       <View style={styles.homeHeader}>
@@ -114,8 +135,9 @@ function LuminaryHomeRecap({
         </View>
 
         <View style={styles.moodPanel}>
-          <SectionLabel>Tonight’s read</SectionLabel>
+          <SectionLabel>Listening tag</SectionLabel>
           <Text style={[type.headlineSm, styles.moodTitle]}>{moodLabel}</Text>
+          <Text style={[type.bodySm, styles.moodCopy]}>Your music adds context. Your mood stays yours.</Text>
         </View>
       </View>
 
@@ -142,18 +164,23 @@ function LuminaryHomeRecap({
         <Metric value={recap.minutesListened} label="minutes" />
         <Metric value={recap.trackCount} label="tracks" />
         {onOpenSummary ? (
-          <Pressable
-            onPress={onOpenSummary}
-            style={({ pressed }) => [styles.summaryButton, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="See tonight’s completed recap"
-          >
-            <Text style={[type.labelSm, styles.summaryButtonText]}>See tonight’s recap →</Text>
-          </Pressable>
+          <View style={styles.summaryButton}>
+            <Text style={[type.labelSm, styles.summaryButtonText]}>See listening detail →</Text>
+          </View>
         ) : null}
       </View>
     </Card>
   );
+  return onOpenSummary ? (
+    <Pressable
+      onPress={onOpenSummary}
+      accessibilityRole="button"
+      accessibilityLabel="Open today’s music recap"
+      style={({ pressed }) => pressed && styles.pressed}
+    >
+      {card}
+    </Pressable>
+  ) : card;
 }
 
 function Metric({ value, label }: { value: number; label: string }) {
@@ -325,6 +352,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: { color: palette.onSurface, marginTop: spacing.xs },
+  signalCopy: { color: palette.onSurfaceVariant, marginTop: spacing.sm },
   spotifyAttribution: { color: palette.tertiary },
   homeCard: { backgroundColor: palette.surfaceContainerHigh, overflow: 'hidden' },
   ambientGlow: {

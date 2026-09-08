@@ -11,11 +11,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { SpotifyDailyRecap } from '@/components/spotify/SpotifyDailyRecap';
 import { JournalStep } from '@/components/ritual/JournalStep';
 import { HabitCheckin } from '@/components/ritual/HabitCheckin';
 import { useSpotifyRecap } from '@/hooks/useSpotifyRecap';
@@ -29,13 +29,8 @@ import { generateDailySignals, type DailySignal } from '@/lib/dailySignals';
 import { localDateKey } from '@/lib/meals/dates';
 import { activeHabitsForDate, nextLocalDate } from '@/lib/habits';
 import { moodCopy, type MoodLabel, type MoodSource } from '@/lib/mood';
-import { estimateMoodLocally, type MoodEstimate } from '@/lib/moodEstimation';
-import { requestCompactMoodEstimate } from '@/lib/ai/localGateway';
-import {
-  listeningReactionOptions,
-  moodHintForListeningReaction,
-  type PersonalizationContext,
-} from '@/lib/personalization';
+import { isSpotifyRecapEligible } from '@/lib/spotifyRecap';
+import { useDailySignalsStore } from '@/stores/useDailySignalsStore';
 import { writeDailyRitualSession, writeMoodEvent, writeSpotifySnapshot } from '@/lib/ritual';
 
 export default function RitualScreen() {
@@ -52,8 +47,6 @@ export default function RitualScreen() {
   const completeSession = useRitualStore((state) => state.completeSession);
   const habitsCompleted = useRitualStore((state) => state.habitsCompleted);
   const totalHabits = useRitualStore((state) => state.totalHabits);
-  const listeningReaction = useRitualStore((state) => state.listeningReaction);
-  const setListeningReaction = useRitualStore((state) => state.setListeningReaction);
   const mealsUser = useMealsStore(activeMealsUser);
   const allHabits = useProductionStore((state) => state.habits);
   const expenses = useProductionStore((state) => state.expenses);
@@ -61,7 +54,6 @@ export default function RitualScreen() {
   const journalEntries = useProductionStore((state) => state.journalEntries);
   const workoutPlans = useProductionStore((state) => state.workoutPlans);
   const workoutLogs = useProductionStore((state) => state.workoutLogs);
-  const profileSettings = useProductionStore((state) => state.profileSettings);
   const endHabit = useProductionStore((state) => state.endHabit);
   const interactions = useSignalStore((state) => state.interactions);
   const recordSignal = useSignalStore((state) => state.record);
@@ -70,8 +62,9 @@ export default function RitualScreen() {
   const { recap, isLoading, error, retry } = useSpotifyRecap();
 
   const [now, setNow] = useState(() => new Date());
-  const [compactMoodEstimate, setCompactMoodEstimate] = useState<MoodEstimate | null>(null);
-  const [estimatingMood, setEstimatingMood] = useState(false);
+  const correctedListeningTag = useDailySignalsStore(
+    (state) => state.musicTagCorrections[today],
+  );
   const habits = useMemo(() => activeHabitsForDate(allHabits, today), [allHabits, today]);
   const todayMeals = useMemo(
     () => mealsUser?.meals.filter((meal) => meal.localDate === today) ?? [],
@@ -146,73 +139,6 @@ export default function RitualScreen() {
   const contextualSignals = selectedSignals.filter((signal) =>
     ['meals', 'health', 'money'].includes(signal.source),
   );
-  const personalizationContext = useMemo<PersonalizationContext>(
-    () => ({
-      localDate: today,
-      localHour: now.getHours(),
-      ...(listeningReaction ? { listeningReaction } : {}),
-      confirmedMoodHistory: [],
-      journal: {
-        tags: journalEntries.flatMap((entry) => entry.tags).slice(0, 8),
-        entryCount: journalEntries.length,
-        ...(profileSettings.aiJournalText
-          ? {
-              recentText: journalEntries
-                .filter((entry) => !entry.deletedAt)
-                .slice(0, 3)
-                .map((entry) => entry.body.slice(0, 1200)),
-            }
-          : {}),
-      },
-      commitments: {
-        completed: habits.filter((habit) => habit.completedOn.includes(today)).length,
-        scheduled: habits.length,
-      },
-      movement: { workoutCompleted, sessionTitle: localWorkout?.title },
-      meals: { loggedMealCount: todayMeals.length },
-      ritual: { recentCompletionRate: session.status === 'completed' ? 1 : 0 },
-    }),
-    [
-      habits,
-      journalEntries,
-      listeningReaction,
-      localWorkout?.title,
-      now,
-      profileSettings.aiJournalText,
-      session.status,
-      today,
-      todayMeals.length,
-      workoutCompleted,
-    ],
-  );
-  const moodEstimate = useMemo(
-    () =>
-      estimateMoodLocally({
-        ...personalizationContext,
-        listeningReaction: moodHintForListeningReaction(listeningReaction),
-      }),
-    [listeningReaction, personalizationContext],
-  );
-
-  useEffect(() => {
-    if (stage !== 'mood' || !profileSettings.aiPersonalization) {
-      setCompactMoodEstimate(null);
-      return;
-    }
-    let cancelled = false;
-    setEstimatingMood(true);
-    void requestCompactMoodEstimate(personalizationContext)
-      .then((estimate) => {
-        if (!cancelled) setCompactMoodEstimate(estimate);
-      })
-      .finally(() => {
-        if (!cancelled) setEstimatingMood(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [personalizationContext, profileSettings.aiPersonalization, stage]);
-
   useEffect(() => {
     setNow(new Date());
   }, [stage]);
@@ -227,6 +153,10 @@ export default function RitualScreen() {
   useEffect(() => {
     if (hydrated) ensureSession(today);
   }, [ensureSession, hydrated, today]);
+
+  useEffect(() => {
+    if (hydrated && stage === 'music') setStage('mood');
+  }, [hydrated, setStage, stage]);
 
   useEffect(() => {
     if (!hydrated || session.localDate !== today || session.status === 'not_started') return;
@@ -245,7 +175,7 @@ export default function RitualScreen() {
       habitsCompleted: habitsCompleted.length,
       totalHabits,
       movementMinutes: localWorkout?.durationMinutes ?? remoteWorkout?.duration_minutes ?? 0,
-      musicMinutes: recap?.minutesListened ?? 0,
+      musicMinutes: isSpotifyRecapEligible(recap) ? recap.minutesListened : 0,
       tomorrowCue:
         habits.find((habit) => !habit.completedOn.includes(today))?.name ??
         'Begin with one small promise',
@@ -268,9 +198,10 @@ export default function RitualScreen() {
   function goBack() {
     const previous: Partial<Record<RitualStage, RitualStage>> = {
       music: 'entry',
-      mood: 'music',
-      journal: session.mood ? 'mood' : 'mood',
-      habits: session.moodSkipped ? 'mood' : 'journal',
+      mood: 'entry',
+      reflection: 'mood',
+      journal: 'reflection',
+      habits: 'reflection',
       tomorrow: 'habits',
       context: 'tomorrow',
     };
@@ -298,27 +229,27 @@ export default function RitualScreen() {
             }
           />
         ) : null}
-        {stage === 'music' ? (
-          <MusicStep
+        {stage === 'mood' ? (
+          <MoodStep
+            onBack={goBack}
+            onSkip={() => {
+              markMoodSkipped();
+              setStage('reflection');
+            }}
+          />
+        ) : null}
+        {stage === 'reflection' ? (
+          <ReflectionStep
             recap={recap}
             loading={isLoading}
             error={error}
             retry={retry}
-            reaction={listeningReaction}
-            onReaction={setListeningReaction}
+            mood={session.mood}
+            listeningTag={correctedListeningTag ?? recap?.listeningTag ?? null}
             onBack={goBack}
-            onContinue={() => setStage('mood')}
-          />
-        ) : null}
-        {stage === 'mood' ? (
-          <MoodStep
-            estimate={compactMoodEstimate ?? moodEstimate}
-            estimating={estimatingMood}
-            onBack={goBack}
-            onSkip={() => {
-              markMoodSkipped();
-              setStage('habits');
-            }}
+            onWrite={() => setStage('journal')}
+            onSkip={() => setStage('habits')}
+            onOpenMusic={() => router.push('/music')}
           />
         ) : null}
         {stage === 'journal' ? (
@@ -384,7 +315,7 @@ function EntryStep({
       <RitualHeading
         eyebrow="Tonight · about 75 seconds"
         title="A quick look back."
-        description="Music, how the day felt, your commitments and tomorrow."
+        description="How the day felt, one optional reflection, your commitments and tomorrow."
         onBack={onBack}
       />
       <Card variant="recessed" style={styles.previewCard}>
@@ -393,8 +324,8 @@ function EntryStep({
           <Text style={[type.labelSm, styles.timeLabel]}>seconds, roughly</Text>
         </View>
         <View style={styles.previewList}>
-          <PreviewLine number="01" label="Listening recap" />
-          <PreviewLine number="02" label="Mood + commitments" />
+          <PreviewLine number="01" label="Your mood" />
+          <PreviewLine number="02" label="Reflection + listening" />
           <PreviewLine number="03" label="Plan tomorrow" />
         </View>
       </Card>
@@ -403,7 +334,7 @@ function EntryStep({
           ? `${signalCount} optional check-in${signalCount === 1 ? '' : 's'} will appear at the end. Every one can be skipped.`
           : 'There are no extra check-ins tonight.'}
       </Text>
-      <PrimaryButton label="Begin with your music" onPress={onBegin} />
+      <PrimaryButton label="Begin with how today felt" onPress={onBegin} />
     </View>
   );
 }
@@ -417,109 +348,13 @@ function PreviewLine({ number, label }: { number: string; label: string }) {
   );
 }
 
-function MusicStep({
-  recap,
-  loading,
-  error,
-  retry,
-  reaction,
-  onReaction,
-  onBack,
-  onContinue,
-}: {
-  recap: ReturnType<typeof useSpotifyRecap>['recap'];
-  loading: boolean;
-  error: string | null;
-  retry: () => void;
-  reaction: ReturnType<typeof useRitualStore.getState>['listeningReaction'];
-  onReaction: ReturnType<typeof useRitualStore.getState>['setListeningReaction'];
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  async function continueFromMusic() {
-    if (recap) await writeSpotifySnapshot({ recap });
-    onContinue();
-  }
-  return (
-    <View style={styles.stage}>
-      <RitualHeading
-        eyebrow="First · listening"
-        title="What stayed in rotation?"
-        description="Spotify shows what you played. It does not decide how you felt."
-        onBack={onBack}
-      />
-      {loading ? (
-        <View style={styles.loading}>
-          <ActivityIndicator color={palette.primary} />
-          <Text style={[type.bodySm, styles.copy]}>Gathering today’s listening…</Text>
-        </View>
-      ) : null}
-      {!loading && recap ? <SpotifyDailyRecap recap={recap} /> : null}
-      {!loading && !recap ? (
-        <Card variant="recessed" style={styles.emptyCard}>
-          <Icon name="sparkles" size={32} color={palette.primary} />
-          <Text style={[type.headlineSm, styles.title]}>No listening recap today.</Text>
-          <Text style={[type.bodySm, styles.copy]}>
-            That is fine. Your ritual continues without guessing what the silence means.
-          </Text>
-          {error ? <SecondaryButton label="Try Spotify again" onPress={retry} /> : null}
-        </Card>
-      ) : null}
-      {!loading ? (
-        <Card variant="recessed" style={styles.reactionCard}>
-          <SectionLabel>Your read</SectionLabel>
-          <Text style={[type.titleLg, styles.title]}>How did the listening feel to you?</Text>
-          <View style={styles.reactionGrid}>
-            {listeningReactionOptions.map((option) => (
-              <Pressable
-                key={option.value}
-                onPress={() => onReaction(reaction === option.value ? null : option.value)}
-                style={[
-                  styles.reactionChip,
-                  reaction === option.value && styles.reactionChipSelected,
-                ]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: reaction === option.value }}
-              >
-                <Text
-                  style={[
-                    type.labelSm,
-                    reaction === option.value ? styles.primaryText : styles.title,
-                  ]}
-                >
-                  {option.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={[type.bodySm, styles.copy]}>
-            This is your response, not an analysis of Spotify data. You can leave it open.
-          </Text>
-        </Card>
-      ) : null}
-      <PrimaryButton
-        label="Continue to how today felt"
-        onPress={() => {
-          void continueFromMusic();
-        }}
-        disabled={loading}
-      />
-    </View>
-  );
-}
-
 function MoodStep({
-  estimate,
-  estimating,
   onBack,
   onSkip,
 }: {
-  estimate: MoodEstimate | null;
-  estimating: boolean;
   onBack: () => void;
   onSkip: () => void;
 }) {
-  const [choosing, setChoosing] = useState(!estimate);
   const [selected, setSelected] = useState<MoodLabel | null>(null);
   const [saving, setSaving] = useState(false);
   const setMood = useRitualStore((state) => state.setMood);
@@ -528,7 +363,7 @@ function MoodStep({
 
   async function saveMood(
     label: MoodLabel,
-    source: Extract<MoodSource, 'manual' | 'luminary_local' | 'luminary_ai'>,
+    source: Extract<MoodSource, 'manual'>,
     confidence: number,
   ) {
     setSaving(true);
@@ -536,81 +371,138 @@ function MoodStep({
       const id = await writeMoodEvent({ label, source, confidence });
       setMood({ label, source, confidence });
       setMoodEventId(id);
-      setStage('journal');
+      setStage('reflection');
     } finally {
       setSaving(false);
     }
   }
 
-  if (choosing || !estimate)
-    return (
-      <View style={styles.stage}>
-        <RitualHeading
-          eyebrow="Your read comes first"
-          title="How did today actually feel?"
-          description="Choose the closest word, or skip this part."
-          onBack={onBack}
-        />
-        <View style={styles.moodGrid}>
-          {MANUAL_MOODS.map((label) => (
-            <Pressable
-              key={label}
-              onPress={() => setSelected(label)}
-              style={[styles.moodChip, selected === label && styles.moodChipSelected]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: selected === label }}
-            >
-              <Text style={[type.labelMd, selected === label ? styles.accentText : styles.title]}>
-                {moodCopy[label].display}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <PrimaryButton
-          label={saving ? 'Saving…' : 'Use this mood'}
-          onPress={() => selected && void saveMood(selected, 'manual', 1)}
-          disabled={!selected || saving}
-        />
-        <TextButton label="Skip mood tonight" onPress={onSkip} />
+  return (
+    <View style={styles.stage}>
+      <RitualHeading
+        eyebrow="Your read comes first"
+        title="How did today actually feel?"
+        description="Choose the closest word, or leave this part open."
+        onBack={onBack}
+      />
+      <View style={styles.moodGrid}>
+        {MANUAL_MOODS.map((label) => (
+          <Pressable
+            key={label}
+            onPress={() => setSelected(label)}
+            style={[styles.moodChip, selected === label && styles.moodChipSelected]}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: selected === label }}
+          >
+            <Text style={[type.labelMd, selected === label ? styles.accentText : styles.title]}>
+              {moodCopy[label].display}
+            </Text>
+          </Pressable>
+        ))}
       </View>
-    );
+      <PrimaryButton
+        label={saving ? 'Saving…' : 'Use this mood'}
+        onPress={() => selected && void saveMood(selected, 'manual', 1)}
+        disabled={!selected || saving}
+      />
+      <TextButton label="Skip mood tonight" onPress={onSkip} />
+    </View>
+  );
+}
+
+function ReflectionStep({
+  recap,
+  loading,
+  error,
+  retry,
+  mood,
+  listeningTag,
+  onBack,
+  onWrite,
+  onSkip,
+  onOpenMusic,
+}: {
+  recap: ReturnType<typeof useSpotifyRecap>['recap'];
+  loading: boolean;
+  error: string | null;
+  retry: () => void;
+  mood: MoodLabel | null;
+  listeningTag: NonNullable<ReturnType<typeof useSpotifyRecap>['recap']>['listeningTag'] | null;
+  onBack: () => void;
+  onWrite: () => void;
+  onSkip: () => void;
+  onOpenMusic: () => void;
+}) {
+  const eligible = isSpotifyRecapEligible(recap);
+  const moodLabel = mood ? moodCopy[mood].display : null;
+
+  function continueWithoutWriting() {
+    if (eligible) void writeSpotifySnapshot({ recap });
+    onSkip();
+  }
 
   return (
     <View style={styles.stage}>
       <RitualHeading
-        eyebrow="Next · your day"
-        title={`Did today feel ${moodCopy[estimate.label].display.toLowerCase()}?`}
+        eyebrow="Optional · reflection"
+        title="Would you like to write about it?"
         description={
-          estimating
-            ? 'Compact AI is checking your permitted Luminary context.'
-            : 'A suggestion from the context you allowed.'
+          moodLabel
+            ? `${moodLabel} is your answer. A few lines can stay with it in Journal.`
+            : 'You can leave the feeling open and still capture a few lines.'
         }
         onBack={onBack}
       />
-      <Card variant="featured" style={styles.moodCard}>
-        <SectionLabel>Luminary’s estimate</SectionLabel>
-        <Text style={[type.displayMd, styles.musicMood]}>{moodCopy[estimate.label].display}</Text>
-        <Text style={[type.bodyMd, styles.copy]}>{estimate.explanation}</Text>
-        <View style={styles.evidenceStrip}>
-          <Text style={[type.labelSm, styles.evidenceLabel]}>Why this came up</Text>
-          <Text style={[type.bodySm, styles.evidenceCopy]}>
-            {estimate.contributingFamilies.map(humanFamily).join(' · ')}
-          </Text>
+
+      {loading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={palette.primary} />
+          <Text style={[type.bodySm, styles.copy]}>Gathering today’s listening…</Text>
         </View>
-      </Card>
-      <PrimaryButton
-        label={saving ? 'Saving…' : 'That’s about right.'}
-        onPress={() =>
-          void saveMood(
-            estimate.label,
-            estimate.consentState === 'ai_consented' ? 'luminary_ai' : 'luminary_local',
-            estimate.confidence,
-          )
-        }
-        disabled={saving}
-      />
-      <SecondaryButton label="Not quite right." onPress={() => setChoosing(true)} />
-      <TextButton label="Skip mood tonight" onPress={onSkip} />
+      ) : null}
+
+      {eligible ? (
+        <Pressable
+          onPress={onOpenMusic}
+          style={({ pressed }) => [styles.ritualMusicCard, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Open today’s Spotify recap"
+        >
+          <View style={styles.ritualArtworkStack}>
+            {recap.topTracks.slice(0, 3).map((track, index) => (
+              <View key={track.id} style={[styles.ritualArtworkFrame, { marginLeft: index ? -spacing.sm : 0 }]}>
+                {track.albumImageUrl ? (
+                  <Image source={{ uri: track.albumImageUrl }} style={styles.ritualArtwork} contentFit="cover" />
+                ) : (
+                  <View style={[styles.ritualArtwork, styles.artworkFallback]} />
+                )}
+              </View>
+            ))}
+          </View>
+          <View style={styles.ritualMusicCopy}>
+            <SectionLabel>Spotify recap</SectionLabel>
+            <Text style={[type.titleMd, styles.title]}>
+              {moodLabel && listeningTag
+                ? `${moodLabel} + ${listeningTag}`
+                : listeningTag
+                  ? `Your music was ${listeningTag}`
+                  : 'Your listening summary is ready'}
+            </Text>
+            <Text style={[type.bodySm, styles.copy]}>
+              {recap.minutesListened} minutes · {recap.trackCount} plays
+            </Text>
+          </View>
+          <Icon name="headphones" size={spacing.lg} color={palette.primary} />
+        </Pressable>
+      ) : !loading && error ? (
+        <Card variant="recessed" style={styles.emptyCard}>
+          <Text style={[type.bodySm, styles.copy]}>Spotify could not refresh this recap.</Text>
+          <SecondaryButton label="Try Spotify again" onPress={retry} />
+        </Card>
+      ) : null}
+
+      <PrimaryButton label="Write about it" onPress={onWrite} />
+      <TextButton label="Skip" onPress={continueWithoutWriting} />
     </View>
   );
 }
@@ -840,21 +732,6 @@ function signalIcon(source: DailySignal['source']): IconName {
   return 'health';
 }
 
-function humanFamily(value: MoodEstimate['contributingFamilies'][number]) {
-  return (
-    {
-      confirmed_mood: 'moods you confirmed',
-      listening_reaction: 'your listening response',
-      journal: 'journal tags',
-      commitments: 'commitments',
-      movement: 'movement',
-      meals: 'meal timing',
-      ritual: 'ritual rhythm',
-      time: 'time of day',
-    } as const
-  )[value];
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
   scroll: { padding: spacing.md },
@@ -930,6 +807,28 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainerLow,
   },
   moodChipSelected: { backgroundColor: palette.primaryContainer },
+  ritualMusicCard: {
+    minHeight: spacing['3xl'] + spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  ritualArtworkStack: { flexDirection: 'row', alignItems: 'center' },
+  ritualArtworkFrame: {
+    padding: spacing.xs,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
+  ritualArtwork: {
+    width: spacing['2xl'],
+    height: spacing['2xl'],
+    borderRadius: radii.sm,
+  },
+  artworkFallback: { backgroundColor: palette.surfaceContainerHighest },
+  ritualMusicCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   tomorrowList: { gap: spacing.sm },
   tomorrowRow: {
     minHeight: 76,

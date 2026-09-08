@@ -13,19 +13,19 @@ test('home Spotify recap matches the Luminary editorial card and keeps four trac
 
   assert.match(source, /LuminaryHomeRecap/);
   assert.match(source, /Listening today/);
-  assert.match(source, /Tonight’s read/);
+  assert.match(source, /Listening tag/);
   assert.match(source, /topTracks\.slice\(0, 4\)/);
   assert.match(source, /topArtists\.slice\(0, 4\)/);
   assert.match(source, /tracks\.map\(\(track\) => track\.name\)\.join\(' · '\)/);
   assert.match(source, /artists\.map\(\(artist\) => artist\.name\)\.join\(' · '\)/);
-  assert.match(source, /See tonight’s recap/);
+  assert.match(source, /See listening detail/);
   assert.doesNotMatch(source, /compactTrackGrid|compactArtistRow|compactCenteredText/);
 });
 
-test('home swaps the ritual invitation for music only after explicit completion', () => {
+test('home keeps the ritual invitation and independently surfaces eligible music', () => {
   const source = fs.readFileSync(path.join(mobileRoot, 'app/(tabs)/index.tsx'), 'utf8');
   assert.match(source, /isRitualCompletedForDate\(ritualSession, today\)/);
-  assert.match(source, /ritualComplete \? \(/);
+  assert.match(source, /!ritualComplete \? \(/);
   assert.match(source, /<SpotifyHomeCard/);
   assert.match(source, /<TonightCard/);
   assert.match(source, /Good day,/);
@@ -35,9 +35,9 @@ test('home swaps the ritual invitation for music only after explicit completion'
   assert.match(source, /activeHabitsForDate\(allHabits, today\)/);
   assert.match(source, /chunk\(habits, 5\)/);
   assert.match(source, /completedHome = homeHabits\.filter/);
-  assert.match(source, /confirmedMood=\{ritualSession\.mood\}/);
-  assert.match(source, /moodSkipped=\{ritualSession\.moodSkipped\}/);
-  assert.match(source, /onOpenSummary=\{\(\) => router\.push\('\/ritual\/summary'\)\}/);
+  assert.match(source, /isSpotifyRecapEligible\(recap\)/);
+  assert.match(source, /confirmedMood=\{ritualSession\.localDate === today/);
+  assert.match(source, /onOpenSummary=\{\(\) => router\.push\('\/music'\)\}/);
   assert.doesNotMatch(source, /ritualDoneToday = habits/);
 });
 
@@ -60,18 +60,19 @@ test('home routes Spotify auth and recap failures into a recoverable music card'
   assert.match(source, /onPress=\{connected \? onRefresh : onConnect\}/);
 });
 
-test('nightly ritual explains music, clarifies decisions, and persists explicit completion', () => {
+test('nightly ritual asks mood first, offers Journal, and keeps music as separate context', () => {
   const source = fs.readFileSync(path.join(mobileRoot, 'app/ritual/index.tsx'), 'utf8');
   const summary = fs.readFileSync(path.join(mobileRoot, 'app/ritual/summary.tsx'), 'utf8');
+  const music = fs.readFileSync(path.join(mobileRoot, 'app/music.tsx'), 'utf8');
 
-  assert.match(source, /Why this came up/);
-  assert.match(source, /That’s about right\./);
-  assert.match(source, /Not quite right\./);
+  assert.match(source, /Begin with how today felt/);
+  assert.match(source, /Would you like to write about it\?/);
   assert.match(source, /Skip mood tonight/);
   assert.match(source, /setStage\('journal'\)/);
   assert.match(source, /completeSession\(summary\(\)\)/);
-  assert.match(source, /<SpotifyDailyRecap/);
-  assert.match(source, /styles\.evidenceStrip/);
+  assert.match(source, /Spotify recap/);
+  assert.match(source, /isSpotifyRecapEligible/);
+  assert.match(music, /Not quite right\./);
   assert.doesNotMatch(source, /<RecapCard/);
   assert.match(source, /writeDailyRitualSession/);
   assert.doesNotMatch(summary, /reset\(\)/);

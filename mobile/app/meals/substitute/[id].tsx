@@ -12,7 +12,7 @@ import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
 export default function SubstituteMealScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string | string[] }>();
+  const params = useLocalSearchParams<{ id: string | string[]; focus?: 'quicker' | 'protein' | 'available' }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const user = useMealsStore(activeMealsUser);
   const updatePlanEntry = useMealsStore((state) => state.updatePlanEntry);
@@ -21,7 +21,9 @@ export default function SubstituteMealScreen() {
   const plan = plans.find((item) => (Array.isArray(item.entries) ? item.entries : []).some((entry) => entry.id === id));
   const entries = plan && Array.isArray(plan.entries) ? plan.entries : [];
   const entry = entries.find((item) => item.id === id);
-  const substitutions = entry && user?.profile ? catalogSubstitutions(recipeCatalog, entry, safeProfile(user.profile)).slice(0, 12) : [];
+  const substitutions = entry && user?.profile
+    ? sortForAdjustment(catalogSubstitutions(recipeCatalog, entry, safeProfile(user.profile)), params.focus).slice(0, 12)
+    : [];
 
   const choose = (recipe: (typeof recipeCatalog)[number]) => {
     if (!plan || !entry) return;
@@ -45,11 +47,26 @@ export default function SubstituteMealScreen() {
 
   return (
     <MealScreen title="Substitute meal" subtitle={entry ? `Replace ${entry.name}` : 'Planner entry unavailable'}>
-      {entry ? <View style={styles.note}><Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>These options use the same meal time and your current diet, allergy, ingredient, and preparation limits.</Text></View> : null}
-      <View style={styles.list}>{substitutions.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} recipeId={recipe.id} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${(recipe.dietaryTags ?? []).join(', ')}`} onPress={() => choose(recipe)} />)}</View>
+      {entry ? <View style={styles.note}><Text style={[type.bodyMd, { color: palette.onSurfaceVariant }]}>{adjustmentCopy(params.focus)}</Text></View> : null}
+      <View style={styles.list}>{substitutions.map((recipe) => <DynamicMealCard key={recipe.id} title={recipe.name} imageUri={recipeImageUri(recipe)} nutrition={recipe.nutrition} detail={`${recipe.prepMinutes + recipe.cookMinutes} min / ${(recipe.dietaryTags ?? []).join(', ')}`} onPress={() => choose(recipe)} />)}</View>
       {!entry || !substitutions.length ? <View style={styles.empty}><Text style={[type.titleMd, { color: palette.onSurface }]}>No safe substitute found</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>Your plan is unchanged. Adjust preferences or return to the week.</Text><Pressable onPress={() => router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } })} style={styles.back}><Text style={[type.labelMd, { color: palette.onPrimary }]}>Back to plan</Text></Pressable></View> : null}
     </MealScreen>
   );
+}
+
+function sortForAdjustment<T extends (typeof recipeCatalog)[number]>(recipes: T[], focus?: 'quicker' | 'protein' | 'available') {
+  const ranked = [...recipes];
+  if (focus === 'quicker') return ranked.sort((a, b) => (a.prepMinutes + a.cookMinutes) - (b.prepMinutes + b.cookMinutes));
+  if (focus === 'protein') return ranked.sort((a, b) => (b.nutrition.proteinG ?? 0) - (a.nutrition.proteinG ?? 0));
+  if (focus === 'available') return ranked.sort((a, b) => a.ingredients.length - b.ingredients.length);
+  return ranked;
+}
+
+function adjustmentCopy(focus?: 'quicker' | 'protein' | 'available') {
+  if (focus === 'quicker') return 'Shorter total prep and cooking time comes first. Your current diet, allergies, and meal time still apply.';
+  if (focus === 'protein') return 'Higher-protein options come first. Your current diet, allergies, and meal time still apply.';
+  if (focus === 'available') return 'Recipes with fewer ingredients come first. Your current diet, allergies, and meal time still apply.';
+  return 'These options use the same meal time and your current diet, allergy, ingredient, and preparation limits.';
 }
 
 function safeProfile(profile: NutritionProfile): NutritionProfile {
@@ -65,5 +82,5 @@ const styles = StyleSheet.create({
   note: { backgroundColor: palette.surfaceContainerLow, borderRadius: radii.sm, padding: spacing.md },
   list: { gap: spacing.sm },
   empty: { alignItems: 'center', gap: spacing.sm, padding: spacing.lg },
-  back: { minHeight: 46, justifyContent: 'center', backgroundColor: palette.primary, borderRadius: radii.sm, paddingHorizontal: spacing.lg },
+  back: { minHeight: spacing['2xl'], justifyContent: 'center', backgroundColor: palette.primary, borderRadius: radii.sm, paddingHorizontal: spacing.lg },
 });

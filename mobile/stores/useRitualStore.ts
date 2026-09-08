@@ -78,7 +78,7 @@ export const useRitualStore = create<RitualState>()(
             ? get().session
             : createDailyRitualSession(localDate);
         if (current.status === 'completed') return;
-        const currentStage = current.status === 'in_progress' ? current.currentStage : 'music';
+        const currentStage = current.status === 'in_progress' ? current.currentStage : 'mood';
         set({
           session: {
             ...current,

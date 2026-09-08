@@ -7,6 +7,7 @@ export type DailyRitualStage =
   | 'entry'
   | 'music'
   | 'mood'
+  | 'reflection'
   | 'journal'
   | 'habits'
   | 'context'

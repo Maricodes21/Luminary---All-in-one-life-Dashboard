@@ -27,14 +27,26 @@ import {
   type WorkoutFocus,
   type WorkoutSession,
 } from '@/lib/workoutPlanning';
-import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
+import {
+  useProductionStore,
+  type DailyWorkoutAdjustment,
+  type WorkoutPlan,
+} from '@/stores/useProductionStore';
 import { useGuidedWorkoutStore } from '@/stores/useGuidedWorkoutStore';
+import { localDateKey } from '@/lib/meals/dates';
 
 type HealthView = 'today' | 'setup' | 'plan';
 type OutsideMode = Extract<WorkoutPlan['category'], 'cardio' | 'cycling'>;
 
 const levels: WorkoutPlan['level'][] = ['beginner', 'steady', 'advanced'];
 const durations = [25, 40, 55];
+const adjustmentDurations = [15, 25, 40];
+const adjustmentReasons: { value: DailyWorkoutAdjustment['reason']; label: string }[] = [
+  { value: 'time', label: 'Less time' },
+  { value: 'energy', label: 'Different energy' },
+  { value: 'recovery', label: 'Need recovery' },
+  { value: 'equipment', label: 'Equipment changed' },
+];
 const focuses: { value: WorkoutFocus; label: string }[] = [
   { value: 'strength', label: 'Build strength' },
   { value: 'mobility', label: 'Move better' },
@@ -50,9 +62,16 @@ export default function HealthScreen() {
   const workoutLogs = useProductionStore((state) => state.workoutLogs);
   const createWorkoutPlan = useProductionStore((state) => state.createWorkoutPlan);
   const completeWorkout = useProductionStore((state) => state.completeWorkout);
+  const adjustWorkoutDay = useProductionStore((state) => state.adjustWorkoutDay);
+  const adjustWorkoutPlan = useProductionStore((state) => state.adjustWorkoutPlan);
+  const moveWorkoutDay = useProductionStore((state) => state.moveWorkoutDay);
   const startGuidedWorkout = useGuidedWorkoutStore((state) => state.startWorkout);
   const activeGuidedWorkout = useGuidedWorkoutStore((state) => state.active);
   const latestPlan = workoutPlans[0];
+  const todayKey = localDateKey(new Date());
+  const savedTodayAdjustment = useProductionStore(
+    (state) => state.workoutAdjustments?.[todayKey],
+  );
 
   const [view, setView] = useState<HealthView>('today');
   const [category, setCategory] = useState<WorkoutPlan['category']>('calisthenics');
@@ -63,6 +82,10 @@ export default function HealthScreen() {
   const [weeklyFocus, setWeeklyFocus] = useState<WorkoutFocus>('strength');
   const [connectOpen, setConnectOpen] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  const [adjustReason, setAdjustReason] = useState<DailyWorkoutAdjustment['reason']>('time');
+  const [adjustDuration, setAdjustDuration] = useState(25);
+  const [adjustIntensity, setAdjustIntensity] = useState<DailyWorkoutAdjustment['intensity']>('lighter');
   const [selectedSessionIndex, setSelectedSessionIndex] = useState(0);
   const [healthPermissionMessage, setHealthPermissionMessage] = useState<string | null>(null);
   const [replacements, setReplacements] = useState<Record<string, PlannedExerciseAlternative>>({});
@@ -97,8 +120,16 @@ export default function HealthScreen() {
   const currentSessionIndex = findCurrentOrNextSession(schedule, new Date().getDay());
   const todaySessionIndex = schedule.indexOf(new Date().getDay());
   const featuredSession = planSessions[currentSessionIndex] ?? planSessions[0];
-  const todaySession = todaySessionIndex >= 0 ? planSessions[todaySessionIndex] : undefined;
-  const shownSession = planSessions[selectedSessionIndex] ?? featuredSession;
+  const scheduledTodaySession = todaySessionIndex >= 0 ? planSessions[todaySessionIndex] : undefined;
+  const todaySession =
+    scheduledTodaySession && savedTodayAdjustment?.sessionId === scheduledTodaySession.id
+      ? { ...scheduledTodaySession, durationMinutes: savedTodayAdjustment.durationMinutes }
+      : scheduledTodaySession;
+  const selectedSession = planSessions[selectedSessionIndex] ?? featuredSession;
+  const shownSession =
+    savedTodayAdjustment?.sessionId === selectedSession.id
+      ? { ...selectedSession, durationMinutes: savedTodayAdjustment.durationMinutes }
+      : selectedSession;
   const planCategory = latestPlan?.category ?? category;
   const planDuration = latestPlan?.durationMinutes ?? durationMinutes;
   const planLevel = latestPlan?.level ?? level;
@@ -151,7 +182,7 @@ export default function HealthScreen() {
   };
 
   const openWorkout = (index: number) => {
-    const requested = planSessions[index];
+    const requested = index === todaySessionIndex ? todaySession : planSessions[index];
     if (
       requested &&
       activeGuidedWorkout?.status === 'active' &&
@@ -162,6 +193,34 @@ export default function HealthScreen() {
     }
     setSelectedSessionIndex(index);
     setWorkoutOpen(true);
+  };
+
+  const openTodayAdjustment = () => {
+    const session = todaySession ?? featuredSession;
+    setAdjustDuration(savedTodayAdjustment?.durationMinutes ?? session.durationMinutes);
+    setAdjustReason(savedTodayAdjustment?.reason ?? 'time');
+    setAdjustIntensity(savedTodayAdjustment?.intensity ?? latestPlan?.intensity ?? 'lighter');
+    setAdjustOpen(true);
+  };
+
+  const saveTodayAdjustment = (scope: 'day' | 'plan') => {
+    if (!latestPlan || !todaySession) return;
+    if (scope === 'day') {
+      adjustWorkoutDay(todayKey, {
+        planId: latestPlan.id,
+        sessionId: todaySession.id,
+        durationMinutes: adjustDuration,
+        intensity: adjustIntensity,
+        reason: adjustReason,
+      });
+    } else {
+      adjustWorkoutPlan(latestPlan.id, {
+        durationMinutes: adjustDuration,
+        intensity: adjustIntensity,
+        adjustmentReason: adjustReason,
+      });
+    }
+    setAdjustOpen(false);
   };
 
   const toggleWeekday = (weekday: number) => {
@@ -265,6 +324,7 @@ export default function HealthScreen() {
             onOpenWorkout={openWorkout}
             onOpenPlan={() => setView('plan')}
             onOpenSetup={openSetup}
+            onAdjustToday={openTodayAdjustment}
             onConnect={() => setConnectOpen(true)}
           />
         ) : view === 'setup' ? (
@@ -298,10 +358,59 @@ export default function HealthScreen() {
             onBack={() => setView('today')}
             onAdjust={openSetup}
             onOpenWorkout={openWorkout}
+            onMoveLater={(index) => latestPlan && moveWorkoutDay(latestPlan.id, index, index + 1)}
             onKeep={() => setView('today')}
           />
         )}
       </ScrollView>
+
+      <ActionSheet
+        visible={adjustOpen}
+        onClose={() => setAdjustOpen(false)}
+        eyebrow="Adjust today"
+        title="What changed?"
+      >
+        <ChoiceGroup
+          label="Reason"
+          value={adjustReason}
+          options={adjustmentReasons}
+          onChange={setAdjustReason}
+        />
+        <View style={styles.adjustSection}>
+          <SectionLabel>Time available</SectionLabel>
+          <View style={styles.segmentedRow}>
+            {adjustmentDurations.map((item) => (
+              <Segment
+                key={item}
+                label={`${item} min`}
+                selected={adjustDuration === item}
+                onPress={() => setAdjustDuration(item)}
+              />
+            ))}
+          </View>
+        </View>
+        <ChoiceGroup
+          label="Effort"
+          value={adjustIntensity}
+          options={[
+            { value: 'lighter', label: 'Lighter' },
+            { value: 'standard', label: 'As planned' },
+            { value: 'harder', label: 'Push more' },
+          ]}
+          onChange={setAdjustIntensity}
+        />
+        <Card variant="recessed">
+          <SectionLabel>Today’s shape</SectionLabel>
+          <Text style={[type.titleLg, styles.primaryText, styles.copyTop]}>
+            {adjustDuration} minutes · {formatLabel(adjustIntensity)}
+          </Text>
+          <Text style={[type.bodySm, styles.secondaryText, styles.copyTop]}>
+            The workout focus, movement visuals, cues and exercise controls stay with the session.
+          </Text>
+        </Card>
+        <PrimaryButton label="Apply to today" onPress={() => saveTodayAdjustment('day')} />
+        <SecondaryButton label="Use for this plan" onPress={() => saveTodayAdjustment('plan')} />
+      </ActionSheet>
 
       <ActionSheet
         visible={connectOpen}
@@ -386,6 +495,7 @@ function TodayBrief({
   onOpenWorkout,
   onOpenPlan,
   onOpenSetup,
+  onAdjustToday,
   onConnect,
 }: {
   latestPlan?: WorkoutPlan;
@@ -411,6 +521,7 @@ function TodayBrief({
   onOpenWorkout: (index: number) => void;
   onOpenPlan: () => void;
   onOpenSetup: () => void;
+  onAdjustToday: () => void;
   onConnect: () => void;
 }) {
   const todaySessionIndex = schedule.indexOf(new Date().getDay());
@@ -486,6 +597,18 @@ function TodayBrief({
           </Card>
         </Pressable>
       )}
+
+      {latestPlan && todaySession ? (
+        <Pressable
+          onPress={onAdjustToday}
+          style={({ pressed }) => [styles.todayAdjustButton, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Adjust today’s workout"
+        >
+          <Icon name="swap" size={spacing.md} color={palette.primary} />
+          <Text style={[type.labelMd, styles.accentText]}>Adjust today</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.metricSentence}>
         <Text style={[type.displayMd, styles.primaryText]}>{sessions.length}</Text>
@@ -811,6 +934,7 @@ function GeneratedPlan({
   onBack,
   onAdjust,
   onOpenWorkout,
+  onMoveLater,
   onKeep,
 }: {
   sessions: WorkoutSession[];
@@ -822,6 +946,7 @@ function GeneratedPlan({
   onBack: () => void;
   onAdjust: () => void;
   onOpenWorkout: (index: number) => void;
+  onMoveLater: (index: number) => void;
   onKeep: () => void;
 }) {
   const dates = datesForSchedule(schedule);
@@ -858,12 +983,9 @@ function GeneratedPlan({
 
       <View style={styles.generatedWeek}>
         {sessions.map((session, index) => (
-          <Pressable
-            key={session.id}
-            onPress={() => onOpenWorkout(index)}
-            accessibilityRole="button"
-          >
-            <Card variant={index === 0 ? 'featured' : 'default'} padding="sm">
+          <View key={session.id} style={styles.generatedDay}>
+            <Pressable onPress={() => onOpenWorkout(index)} accessibilityRole="button">
+              <Card variant={index === 0 ? 'featured' : 'default'} padding="sm">
               <View style={styles.generatedRow}>
                 <View style={styles.dateBlock}>
                   <Text style={[type.labelSm, styles.secondaryText]}>
@@ -886,8 +1008,12 @@ function GeneratedPlan({
                 </View>
                 <ForwardIcon color={palette.primary} />
               </View>
-            </Card>
-          </Pressable>
+              </Card>
+            </Pressable>
+            {index < sessions.length - 1 ? (
+              <TextButton label="Move later" onPress={() => onMoveLater(index)} centered />
+            ) : null}
+          </View>
         ))}
       </View>
 
@@ -1279,6 +1405,17 @@ const styles = StyleSheet.create({
   heroActionText: { color: palette.onPrimary },
   copyTop: { marginTop: spacing.xs },
   sectionTop: { marginTop: spacing.xl },
+  todayAdjustButton: {
+    minHeight: spacing['2xl'],
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerLow,
+  },
+  adjustSection: { gap: spacing.sm },
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1520,6 +1657,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainerHigh,
   },
   generatedWeek: { gap: spacing.sm, marginTop: spacing.md },
+  generatedDay: { gap: spacing.xs },
   generatedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   dateBlock: { width: spacing['2xl'], alignItems: 'center', gap: spacing.xs },
   planThumbnail: {

@@ -59,9 +59,7 @@ export function useSpotifyRecap(): UseSpotifyRecapResult {
     return () => {
       cancelled = true;
     };
-  // fetchKey is the retry trigger; recap drives the cached-hit exit
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchKey]);
+  }, [fetchKey, recap, setRecap]);
 
   const retry = () => {
     clearRecap();

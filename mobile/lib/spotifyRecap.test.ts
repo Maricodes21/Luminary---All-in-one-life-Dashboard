@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildDailySpotifyRecap,
+  isSpotifyRecapEligible,
   mergeSpotifyArtistDetails,
   shouldFetchOlderSpotifyPage,
   type SpotifyPlay,
@@ -148,4 +149,23 @@ test('artist detail enrichment replaces fallbacks without dropping daily counts'
   assert.equal(enriched.topArtists[0]?.playCount, 1);
   assert.equal(enriched.topArtists[0]?.imageUrl, 'https://images.example/artist-a.jpg');
   assert.equal(enriched.topArtists[0]?.spotifyUrl, 'https://open.spotify.com/artist/enriched-a');
+});
+
+test('home eligibility waits for a meaningful listening sample and detail data stays available', () => {
+  const plays = Array.from({ length: 10 }, (_, index) =>
+    play({
+      trackId: `track-${index % 4}`,
+      name: index % 4 === 0 ? 'Quiet mind' : `Track ${index % 4}`,
+      playedAt: `2026-07-17T${String(9 + index).padStart(2, '0')}:00:00`,
+    }),
+  );
+  const recap = buildDailySpotifyRecap(plays, '2026-07-17');
+
+  assert.ok(recap);
+  assert.equal(recap.minutesListened, 30);
+  assert.equal(isSpotifyRecapEligible(recap), true);
+  assert.equal(recap.topTracks.length, 4);
+  assert.equal(recap.allTracks.length, 4);
+  assert.equal(recap.listeningTag, 'thoughtful');
+  assert.deepEqual(recap.listeningWindows, ['Morning', 'Afternoon', 'Evening']);
 });

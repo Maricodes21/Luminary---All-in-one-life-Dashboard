@@ -112,7 +112,17 @@ export type WorkoutPlan = {
   weeklyFocus?: WorkoutFocus;
   days: string[];
   sessions?: WorkoutSession[];
+  intensity?: 'lighter' | 'standard' | 'harder';
+  adjustmentReason?: 'time' | 'energy' | 'recovery' | 'equipment';
   createdAt: string;
+};
+
+export type DailyWorkoutAdjustment = {
+  planId: string;
+  sessionId: string;
+  durationMinutes: number;
+  intensity: NonNullable<WorkoutPlan['intensity']>;
+  reason: NonNullable<WorkoutPlan['adjustmentReason']>;
 };
 
 export type WorkoutPlanSetup = Pick<WorkoutPlan, 'category' | 'level'> & {
@@ -188,6 +198,7 @@ type ProductionState = {
   mealPlan: MealPlanDay[];
   workoutPlans: WorkoutPlan[];
   workoutLogs: LocalWorkoutLog[];
+  workoutAdjustments: Record<string, DailyWorkoutAdjustment>;
   expenses: Expense[];
   budgets: Budget[];
   monthlyIncome: number;
@@ -214,6 +225,12 @@ type ProductionState = {
   deleteMealPlanDay: (id: string) => void;
   clearMealPlan: () => void;
   createWorkoutPlan: (setup: WorkoutPlanSetup) => void;
+  adjustWorkoutDay: (localDate: string, adjustment: DailyWorkoutAdjustment) => void;
+  adjustWorkoutPlan: (
+    id: string,
+    updates: Pick<WorkoutPlan, 'durationMinutes' | 'intensity' | 'adjustmentReason'>,
+  ) => void;
+  moveWorkoutDay: (id: string, fromIndex: number, toIndex: number) => void;
   completeWorkout: (workout: Omit<LocalWorkoutLog, 'id' | 'workoutDate'> & { workoutDate?: string }) => void;
   addExpense: (expense: Omit<Expense, 'id' | 'transactionDate' | 'source'> & Partial<Pick<Expense, 'transactionDate' | 'source'>>) => void;
   addBudget: (category: ExpenseCategory, limit: number) => void;
@@ -233,6 +250,15 @@ const id = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString
 
 function enqueue(entity: SyncEntity, action: SyncAction, payload: unknown): SyncQueueItem {
   return { id: id('sync'), entity, action, payload, createdAt: now() };
+}
+
+function moveArrayItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex < 0 || fromIndex >= items.length) return items;
+  const next = [...items];
+  const [item] = next.splice(fromIndex, 1);
+  if (item === undefined) return items;
+  next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, item);
+  return next;
 }
 
 export const useProductionStore = create<ProductionState>()(
@@ -268,6 +294,7 @@ export const useProductionStore = create<ProductionState>()(
       mealPlan: [],
       workoutPlans: [],
       workoutLogs: [],
+      workoutAdjustments: {},
       expenses: [],
       monthlyIncome: 30000,
       monthlyBudget: 23000,
@@ -451,6 +478,48 @@ export const useProductionStore = create<ProductionState>()(
             syncQueue: [...state.syncQueue, enqueue('workout_plan', 'create', plan)],
           };
         }),
+      adjustWorkoutDay: (localDate, adjustment) =>
+        set((state) => ({
+          workoutAdjustments: { ...state.workoutAdjustments, [localDate]: adjustment },
+          syncQueue: [
+            ...state.syncQueue,
+            enqueue('workout_plan', 'update', { localDate, ...adjustment, scope: 'day' }),
+          ],
+        })),
+      adjustWorkoutPlan: (planId, updates) =>
+        set((state) => ({
+          workoutPlans: state.workoutPlans.map((plan) =>
+            plan.id === planId
+              ? {
+                  ...plan,
+                  ...updates,
+                  sessions: plan.sessions?.map((session) => ({
+                    ...session,
+                    durationMinutes: updates.durationMinutes ?? session.durationMinutes,
+                  })),
+                }
+              : plan,
+          ),
+          syncQueue: [
+            ...state.syncQueue,
+            enqueue('workout_plan', 'update', { id: planId, ...updates, scope: 'plan' }),
+          ],
+        })),
+      moveWorkoutDay: (planId, fromIndex, toIndex) =>
+        set((state) => ({
+          workoutPlans: state.workoutPlans.map((plan) => {
+            if (plan.id !== planId || fromIndex === toIndex) return plan;
+            const days = moveArrayItem(plan.days, fromIndex, toIndex);
+            const sessions = plan.sessions
+              ? moveArrayItem(plan.sessions, fromIndex, toIndex)
+              : plan.sessions;
+            return { ...plan, days, sessions };
+          }),
+          syncQueue: [
+            ...state.syncQueue,
+            enqueue('workout_plan', 'update', { id: planId, fromIndex, toIndex, scope: 'order' }),
+          ],
+        })),
       completeWorkout: (workout) =>
         set((state) => {
           const item = {
@@ -566,6 +635,7 @@ export const useProductionStore = create<ProductionState>()(
         mealPlan: state.mealPlan,
         workoutPlans: state.workoutPlans,
         workoutLogs: state.workoutLogs,
+        workoutAdjustments: state.workoutAdjustments,
         expenses: state.expenses,
         budgets: state.budgets,
         monthlyIncome: state.monthlyIncome,

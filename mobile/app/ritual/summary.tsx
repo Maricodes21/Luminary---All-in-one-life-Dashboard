@@ -27,6 +27,8 @@ import { usePersonalizationStore } from '@/stores/usePersonalizationStore';
 import { scheduleEveningReminder } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 import { writeDailyRitualSession } from '@/lib/ritual';
+import { isSpotifyRecapEligible } from '@/lib/spotifyRecap';
+import { useDailySignalsStore } from '@/stores/useDailySignalsStore';
 
 export default function RitualSummary() {
   const insets = useSafeAreaInsets();
@@ -52,6 +54,11 @@ export default function RitualSummary() {
   const [generating, setGenerating] = useState(false);
   const [reflectionError, setReflectionError] = useState<string | null>(null);
   const moodDisplay = mood ? moodCopy[mood.label].display : 'Day held gently';
+  const correctedListeningTag = useDailySignalsStore(
+    (state) => state.musicTagCorrections[session.localDate],
+  );
+  const listeningTag = correctedListeningTag ?? recap?.listeningTag ?? null;
+  const musicEligible = isSpotifyRecapEligible(recap);
 
   async function handleClose() {
     try {
@@ -188,9 +195,15 @@ export default function RitualSummary() {
         <View style={styles.heroCopy}>
           <Text style={[type.labelSm, styles.accent]}>Tonight · saved</Text>
           <Text style={[type.displaySm, styles.title]}>
-            {mood ? `${moodDisplay}, then steadier.` : `${moodDisplay}.`}
+            {mood && listeningTag
+              ? `${moodDisplay} + ${listeningTag}.`
+              : mood
+                ? `${moodDisplay}.`
+                : listeningTag
+                  ? `Your music was ${listeningTag}.`
+                  : `${moodDisplay}.`}
           </Text>
-          {recap?.topArtists.length ? (
+          {musicEligible && recap.topArtists.length ? (
             <Text style={[type.labelSm, styles.copy]} numberOfLines={1}>
               {recap.topArtists
                 .slice(0, 3)
@@ -204,10 +217,9 @@ export default function RitualSummary() {
       <View style={styles.metrics}>
         <Metric value={`${habitsCompleted.length}/${totalHabits}`} label="Commitments" />
         <Metric value={`${session.summary?.movementMinutes ?? 0}m`} label="Movement" />
-        <Metric
-          value={`${session.summary?.musicMinutes ?? recap?.minutesListened ?? 0}m`}
-          label="Music"
-        />
+        {musicEligible ? (
+          <Metric value={`${session.summary?.musicMinutes ?? recap.minutesListened}m`} label="Music" />
+        ) : null}
       </View>
 
       <Pressable

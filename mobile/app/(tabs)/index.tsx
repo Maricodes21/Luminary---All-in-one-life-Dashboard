@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 import { useRitualStore } from '@/stores/useRitualStore';
+import { useDailySignalsStore } from '@/stores/useDailySignalsStore';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
@@ -24,6 +25,7 @@ import { getHabitIconName } from '@/lib/habitIcons';
 import { activeHabitsForDate } from '@/lib/habits';
 import { getRecipeVisualSource } from '@/lib/meals/recipeVisuals';
 import type { MoodLabel } from '@/lib/mood';
+import { isSpotifyRecapEligible } from '@/lib/spotifyRecap';
 import {
   formatHomeDate,
   expectedMealForTime,
@@ -34,9 +36,9 @@ import {
 
 const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
 
-function useHomeSpotifyRecap() {
+function useHomeSpotifyRecap(date: string) {
   return useQuery<SpotifyRecap | null>({
-    queryKey: ['spotify-recap', 'home'],
+    queryKey: ['spotify-recap', date],
     queryFn: () => fetchRecap(SPOTIFY_CLIENT_ID),
     staleTime: 1000 * 60 * 60,
     retry: 1,
@@ -54,6 +56,7 @@ export default function HomeScreen() {
   const allHabits = useProductionStore((state) => state.habits);
   const workoutPlans = useProductionStore((state) => state.workoutPlans);
   const workoutLogs = useProductionStore((state) => state.workoutLogs);
+  const todayWorkoutAdjustment = useProductionStore((state) => state.workoutAdjustments?.[today]);
   const localExpenses = useProductionStore((state) => state.expenses);
   const localJournalEntries = useProductionStore((state) => state.journalEntries);
   const toggleHabitCompletion = useProductionStore((state) => state.toggleHabitCompletion);
@@ -70,7 +73,10 @@ export default function HomeScreen() {
     error: recapError,
     refetch: refetchRecap,
     isFetching: recapFetching,
-  } = useHomeSpotifyRecap();
+  } = useHomeSpotifyRecap(today);
+  const correctedListeningTag = useDailySignalsStore(
+    (state) => state.musicTagCorrections[today],
+  );
   const spotify = useSpotifyAuth();
 
   const todayMeals = useMemo(
@@ -81,7 +87,12 @@ export default function HomeScreen() {
   const remoteWorkoutDone = workouts.some((workout) => workout.workout_date === today);
   const workoutCompleted = localWorkoutDone || remoteWorkoutDone;
   const latestPlan = workoutPlans[0];
-  const todaysWorkout = workoutSessionForDate(latestPlan, todayDate);
+  const todaysWorkout = useMemo(() => {
+    const plannedWorkout = workoutSessionForDate(latestPlan, todayDate);
+    return plannedWorkout && todayWorkoutAdjustment?.sessionId === plannedWorkout.id
+      ? { ...plannedWorkout, durationMinutes: todayWorkoutAdjustment.durationMinutes }
+      : plannedWorkout;
+  }, [latestPlan, todayDate, todayWorkoutAdjustment]);
   const purchaseCount =
     localExpenses.filter((expense) => expense.transactionDate === today).length +
     transactions.filter((transaction) => transaction.transaction_date === today).length;
@@ -191,25 +202,26 @@ export default function HomeScreen() {
         <Text style={[type.displaySm, styles.homeTitle]}>Your day, connected.</Text>
       </View>
 
-      {ritualComplete ? (
-        <SpotifyHomeCard
-          recap={recap}
-          confirmedMood={ritualSession.mood}
-          moodSkipped={ritualSession.moodSkipped}
-          connected={spotify.isConnected}
-          loading={recapFetching}
-          error={spotify.error ?? recapError?.message ?? null}
-          onConnect={spotify.connect}
-          onRefresh={() => refetchRecap()}
-          onOpenSummary={() => router.push('/ritual/summary')}
-        />
-      ) : (
+      {!ritualComplete ? (
         <TonightCard
           inProgress={ritualInProgress}
           optionalCount={ritualSignals.length}
           onPress={openRitual}
         />
-      )}
+      ) : null}
+
+      <SpotifyHomeCard
+        recap={recap}
+        confirmedMood={ritualSession.localDate === today ? ritualSession.mood : null}
+        moodSkipped={ritualSession.localDate === today && ritualSession.moodSkipped}
+        listeningTag={correctedListeningTag ?? recap?.listeningTag ?? null}
+        connected={spotify.isConnected}
+        loading={recapFetching}
+        error={spotify.error ?? recapError?.message ?? null}
+        onConnect={spotify.connect}
+        onRefresh={() => refetchRecap()}
+        onOpenSummary={() => router.push('/music')}
+      />
 
       <View style={styles.cockpitRow}>
         <CommitmentsPager
@@ -537,6 +549,7 @@ function SpotifyHomeCard({
   recap,
   confirmedMood,
   moodSkipped,
+  listeningTag,
   connected,
   loading,
   error,
@@ -547,6 +560,7 @@ function SpotifyHomeCard({
   recap: SpotifyRecap | null | undefined;
   confirmedMood: MoodLabel | null;
   moodSkipped: boolean;
+  listeningTag: SpotifyRecap['listeningTag'] | null;
   connected: boolean;
   loading: boolean;
   error: string | null;
@@ -554,7 +568,7 @@ function SpotifyHomeCard({
   onRefresh: () => void;
   onOpenSummary: () => void;
 }) {
-  if (recap) {
+  if (isSpotifyRecapEligible(recap)) {
     return (
       <View style={styles.musicCard}>
         <SpotifyDailyRecap
@@ -562,11 +576,13 @@ function SpotifyHomeCard({
           compact
           confirmedMood={confirmedMood}
           moodSkipped={moodSkipped}
+          listeningTag={listeningTag}
           onOpenSummary={onOpenSummary}
         />
       </View>
     );
   }
+  if (recap) return null;
   return (
     <Card variant="recessed" style={styles.musicCard}>
       <View style={styles.musicEmptyState}>

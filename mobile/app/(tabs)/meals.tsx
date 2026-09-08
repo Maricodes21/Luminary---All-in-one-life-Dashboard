@@ -184,6 +184,13 @@ export default function MealsScreen() {
                 params: { planId: plan.id, localDate: selectedDate },
               })
             }
+            onAdjustDay={() =>
+              plan &&
+              router.push({
+                pathname: '/meals/adjust',
+                params: { planId: plan.id, localDate: selectedDate },
+              })
+            }
             onClearDay={() => plan && confirmClearDay(plan, selectedDate, deletePlanDay)}
             onDeletePlan={() => plan && confirmDeletePlan(plan, deletePlan)}
           />
@@ -534,6 +541,7 @@ function PlanMode({
   onCreatePlan,
   onEditEntry,
   onEditDay,
+  onAdjustDay,
   onClearDay,
   onDeletePlan,
 }: {
@@ -545,6 +553,7 @@ function PlanMode({
   onCreatePlan: () => void;
   onEditEntry: (entry: MealPlanEntry) => void;
   onEditDay: () => void;
+  onAdjustDay: () => void;
   onClearDay: () => void;
   onDeletePlan: () => void;
 }) {
@@ -617,6 +626,22 @@ function PlanMode({
               );
             })}
           </ScrollView>
+          {entries.length ? (
+            <Pressable
+              onPress={onAdjustDay}
+              style={({ pressed }) => [styles.adjustDayCard, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Adjust this day without rebuilding the week"
+            >
+              <View style={styles.adjustDayIcon}>
+                <Icon name="swap" size={spacing.lg} color={palette.primary} />
+              </View>
+              <View style={styles.adjustDayCopy}>
+                <Text style={[type.labelSm, { color: palette.primary }]}>Plans changed?</Text>
+                <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Adjust this day without rebuilding the week.</Text>
+              </View>
+            </Pressable>
+          ) : null}
           <View style={styles.timeline}>
             {entries.map((entry) => (
               <DynamicMealCard
@@ -744,6 +769,7 @@ function currentTimezone() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.surface },
+  pressed: { opacity: 0.74 },
   content: { paddingHorizontal: spacing.md, gap: spacing.md },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
@@ -848,6 +874,24 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
   },
   dateButtonActive: { backgroundColor: palette.primary },
+  adjustDayCard: {
+    minHeight: spacing['3xl'] + spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHigh,
+  },
+  adjustDayIcon: {
+    width: spacing.xl + spacing.sm,
+    height: spacing.xl + spacing.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.md,
+    backgroundColor: palette.surfaceContainerHighest,
+  },
+  adjustDayCopy: { flex: 1, minWidth: 0, gap: spacing.xs },
   timeline: { gap: spacing.sm },
   planEmpty: {
     minHeight: 300,
