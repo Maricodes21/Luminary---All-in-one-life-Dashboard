@@ -329,6 +329,8 @@ export default function HealthScreen() {
             onOpenWorkout={openWorkout}
             onOpenPlan={() => setView('plan')}
             onOpenSetup={openSetup}
+            onBuildCustom={() => router.push({ pathname: '/health/library', params: { mode: 'build' } })}
+            onOpenLibrary={() => router.push('/health/library')}
             onAdjustToday={openTodayAdjustment}
             onConnect={() => setConnectOpen(true)}
           />
@@ -509,6 +511,8 @@ function TodayBrief({
   onOpenWorkout,
   onOpenPlan,
   onOpenSetup,
+  onBuildCustom,
+  onOpenLibrary,
   onAdjustToday,
   onConnect,
 }: {
@@ -535,6 +539,8 @@ function TodayBrief({
   onOpenWorkout: (index: number) => void;
   onOpenPlan: () => void;
   onOpenSetup: () => void;
+  onBuildCustom: () => void;
+  onOpenLibrary: () => void;
   onAdjustToday: () => void;
   onConnect: () => void;
 }) {
@@ -623,6 +629,26 @@ function TodayBrief({
           <Text style={[type.labelMd, styles.accentText]}>Adjust today</Text>
         </Pressable>
       ) : null}
+
+      <View style={styles.sectionTop}>
+        <SectionLabel>Shape your movement</SectionLabel>
+        <View style={styles.planChoiceRow}>
+          <Pressable onPress={onOpenSetup} style={styles.planChoice} accessibilityRole="button">
+            <Icon name="sparkles" size={20} color={palette.primary} />
+            <Text style={[type.titleMd, styles.primaryText]}>Generate a week</Text>
+            <Text style={[type.bodySm, styles.secondaryText]}>Luminary builds it from your goals, time, level, and equipment.</Text>
+          </Pressable>
+          <Pressable onPress={onBuildCustom} style={styles.planChoice} accessibilityRole="button">
+            <Icon name="plus" size={20} color={palette.primary} />
+            <Text style={[type.titleMd, styles.primaryText]}>Build your own week</Text>
+            <Text style={[type.bodySm, styles.secondaryText]}>Choose sessions from the movement library and place them into a week.</Text>
+          </Pressable>
+        </View>
+        <Pressable onPress={onOpenLibrary} style={styles.libraryButton} accessibilityRole="button">
+          <View><Text style={[type.titleMd, styles.primaryText]}>Browse movement library</Text><Text style={[type.bodySm, styles.secondaryText]}>Workouts · warm-ups and stretches · yoga</Text></View>
+          <ForwardIcon color={palette.primary} />
+        </Pressable>
+      </View>
 
       <View style={styles.metricSentence}>
         <Text style={[type.displayMd, styles.primaryText]}>{sessions.length}</Text>
@@ -1559,6 +1585,9 @@ const styles = StyleSheet.create({
   warmupSection: { gap: spacing.sm },
   warmupRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   warmupVisual: { width: 72, height: 72, borderRadius: radii.md },
+  planChoiceRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  planChoice: { flex: 1, minHeight: 150, gap: spacing.sm, padding: spacing.md, borderRadius: radii.lg, backgroundColor: palette.surfaceContainerLow },
+  libraryButton: { minHeight: 68, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerHigh },
   warmupNumber: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primaryContainer },
   ellipsisButton: { minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center' },
   moveDayOption: { minHeight: 60, justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },

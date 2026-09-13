@@ -149,6 +149,13 @@ export default function ManualMealScreen() {
       }
     >
       {!existing ? (
+        <Pressable onPress={() => router.push('/meals/describe')} style={styles.partsButton} accessibilityRole="button" accessibilityLabel="Describe a meal">
+          <View style={styles.partsIcon}><Icon name="sparkles" size={20} color={palette.primary} /></View>
+          <View style={styles.partsCopy}><Text style={[type.titleMd, { color: palette.onSurface }]}>Describe meal</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Type it naturally, then review the foods, amounts, and nutrition before saving.</Text></View>
+          <Icon name="back" size={18} color={palette.primary} />
+        </Pressable>
+      ) : null}
+      {!existing ? (
         <Pressable onPress={() => router.push('/meals/manual-parts')} style={styles.partsButton} accessibilityRole="button" accessibilityLabel="Build meal from ingredients">
           <View style={styles.partsIcon}><Icon name="meals" size={20} color={palette.primary} /></View>
           <View style={styles.partsCopy}><Text style={[type.titleMd, { color: palette.onSurface }]}>Build from ingredients</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Add rice, chicken, broccoli, and each measured part. Luminary calculates the combined total.</Text></View>

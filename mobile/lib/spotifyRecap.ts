@@ -56,6 +56,8 @@ export type SpotifyRecap = {
   allTracks: SpotifyTrackSummary[];
   allArtists: SpotifyArtistSummary[];
   listeningTag: ListeningTag;
+  soundtrackDescription?: string;
+  soundtrackConfidence?: number;
   listeningWindows: string[];
   firstPlayedAt: string;
   lastPlayedAt: string;
@@ -67,6 +69,7 @@ export type SpotifyArtistDetails = {
   id: string;
   imageUrl?: string;
   spotifyUrl?: string;
+  genres?: string[];
 };
 
 type RankedTrack = SpotifyTrackSummary & { lastPlayedAt: number };
@@ -141,6 +144,8 @@ export function buildDailySpotifyRecap(plays: SpotifyPlay[], date: string): Spot
     allTracks,
     allArtists,
     listeningTag: inferListeningTag(dailyPlays, allTracks),
+    soundtrackDescription: describeSoundtrack(dailyPlays, [], allTracks).description,
+    soundtrackConfidence: describeSoundtrack(dailyPlays, [], allTracks).confidence,
     listeningWindows: listeningWindows(dailyPlays),
     firstPlayedAt: [...dailyPlays].sort(byPlayedAt)[0]?.playedAt ?? '',
     lastPlayedAt: [...dailyPlays].sort(byPlayedAt).at(-1)?.playedAt ?? '',
@@ -165,11 +170,37 @@ export function mergeSpotifyArtistDetails(
   details: SpotifyArtistDetails[],
 ): SpotifyRecap {
   const detailsById = new Map(details.map((detail) => [detail.id, detail]));
+  const soundtrack = describeSoundtrack([], details.flatMap((detail) => detail.genres ?? []), recap.allTracks);
   return {
     ...recap,
     topArtists: enrichArtists(recap.topArtists, detailsById),
     allArtists: enrichArtists(recap.allArtists, detailsById),
+    listeningTag: soundtrack.tag ?? recap.listeningTag,
+    soundtrackDescription: soundtrack.description,
+    soundtrackConfidence: soundtrack.confidence,
   };
+}
+
+function describeSoundtrack(plays: SpotifyPlay[], genres: string[], tracks: SpotifyTrackSummary[]) {
+  const text = `${genres.join(' ')} ${plays.map((play) => `${play.name} ${play.artist.name}`).join(' ')}`.toLocaleLowerCase('en');
+  const scores: Partial<Record<ListeningTag, number>> = {};
+  const add = (tag: ListeningTag, pattern: RegExp, weight: number) => { const matches = text.match(pattern)?.length ?? 0; scores[tag] = (scores[tag] ?? 0) + matches * weight; };
+  add('romantic', /\b(r&b|soul|love|lover|romantic|slow jam|neo soul)\b/g, 2);
+  add('energized', /\b(dance|edm|house|techno|rock|metal|afrobeats|amapiano|workout)\b/g, 1.7);
+  add('mellow', /\b(acoustic|ambient|chill|downtempo|soft|jazz|lo-fi|lofi)\b/g, 1.7);
+  add('thoughtful', /\b(indie|alternative|folk|singer-songwriter|conscious|poetry|quiet)\b/g, 1.4);
+  add('playful', /\b(pop|funk|disco|dancehall|groove|party)\b/g, 1.2);
+  add('nostalgic', /\b(classic|old school|old-school|throwback|90s|80s|70s)\b/g, 1.8);
+  const leadingRepeat = tracks[0]?.playCount ?? 1;
+  if (leadingRepeat >= 4) scores.focused = (scores.focused ?? 0) + 1.5;
+  const ranked = Object.entries(scores).sort((a, b) => b[1] - a[1]) as Array<[ListeningTag, number]>;
+  const first = ranked[0];
+  const second = ranked[1];
+  const confidence = Math.min(0.92, (first?.[1] ?? 0) / 6 + Math.min(0.25, (genres.length + plays.length) / 40));
+  if (!first || confidence < 0.42) return { tag: undefined, description: 'Your soundtrack moved across a few different sounds.', confidence };
+  const labels: Record<ListeningTag, string> = { thoughtful: 'reflective', romantic: 'romantic', mellow: 'soft', energized: 'high-energy', focused: 'focused', playful: 'playful', nostalgic: 'nostalgic', restless: 'restless', mixed: 'mixed' };
+  const blend = second && second[1] >= first[1] * 0.7 ? ` and ${labels[second[0]]}` : '';
+  return { tag: first[0], description: `Your soundtrack leaned ${labels[first[0]]}${blend} today.`, confidence };
 }
 
 export function isSpotifyRecapEligible(recap: SpotifyRecap | null | undefined): recap is SpotifyRecap {

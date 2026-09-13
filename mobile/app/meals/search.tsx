@@ -34,13 +34,13 @@ export default function FoodSearchScreen() {
       if (trimmed.length < 2) return;
       const requestId = ++requestSequence.current;
       setLoading(true);
-      const found = await searchFoods(trimmed, locale);
+      const found = await searchFoods(trimmed, locale, user?.meals ?? []);
       if (requestId !== requestSequence.current) return;
       setResults(found);
       setSearched(true);
       setLoading(false);
     },
-    [locale],
+    [locale, user?.meals],
   );
 
   useEffect(() => {

@@ -62,7 +62,9 @@ export function SpotifyDailyRecap({
         <Text style={[type.bodySm, styles.signalCopy]}>
           {userMood
             ? `${userMood} + ${listeningTag} today.`
-            : `Your music was ${listeningTag} today.`}
+            : listeningTag === recap.listeningTag && recap.soundtrackDescription
+              ? recap.soundtrackDescription
+              : `Your music was ${listeningTag} today.`}
         </Text>
       ) : null}
       <EditorialRecap recap={recap} />
@@ -96,6 +98,9 @@ function LuminaryHomeRecap({
     : moodSkipped
       ? 'Mood left open'
       : reportedMood ?? 'Listening kept separate';
+  const soundtrackCopy = listeningTag === recap.listeningTag && recap.soundtrackDescription
+    ? recap.soundtrackDescription
+    : moodLabel;
   const card = (
     <Card variant="featured" padding="md" style={styles.homeCard}>
       <View style={styles.ambientGlow} pointerEvents="none" />
@@ -136,7 +141,7 @@ function LuminaryHomeRecap({
 
         <View style={styles.moodPanel}>
           <SectionLabel>Listening tag</SectionLabel>
-          <Text style={[type.headlineSm, styles.moodTitle]}>{moodLabel}</Text>
+          <Text style={[type.headlineSm, styles.moodTitle]}>{soundtrackCopy}</Text>
           <Text style={[type.bodySm, styles.moodCopy]}>Your music adds context. Your mood stays yours.</Text>
         </View>
       </View>

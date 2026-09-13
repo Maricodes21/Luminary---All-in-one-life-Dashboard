@@ -204,6 +204,7 @@ async function fetchArtistDetails(accessToken: string, artistId: string): Promis
     id: parsed.data.id,
     imageUrl: parsed.data.images[0]?.url,
     spotifyUrl: parsed.data.external_urls.spotify,
+    genres: parsed.data.genres,
   };
 }
 
@@ -254,4 +255,5 @@ const artistSchema = z.object({
   id: z.string(),
   images: z.array(z.object({ url: z.string() })),
   external_urls: z.object({ spotify: z.string().optional() }),
+  genres: z.array(z.string()).optional().default([]),
 });

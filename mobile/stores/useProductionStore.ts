@@ -225,6 +225,7 @@ type ProductionState = {
   deleteMealPlanDay: (id: string) => void;
   clearMealPlan: () => void;
   createWorkoutPlan: (setup: WorkoutPlanSetup) => void;
+  createCustomWorkoutPlan: (input: { category: WorkoutPlan['category']; sessions: WorkoutSession[]; scheduledWeekdays: number[] }) => void;
   adjustWorkoutDay: (localDate: string, adjustment: DailyWorkoutAdjustment) => void;
   adjustWorkoutPlan: (
     id: string,
@@ -477,6 +478,13 @@ export const useProductionStore = create<ProductionState>()(
             workoutPlans: [plan, ...state.workoutPlans],
             syncQueue: [...state.syncQueue, enqueue('workout_plan', 'create', plan)],
           };
+        }),
+      createCustomWorkoutPlan: ({ category, sessions, scheduledWeekdays }) =>
+        set((state) => {
+          const selected = sessions.slice(0, scheduledWeekdays.length);
+          if (!selected.length) return state;
+          const plan: WorkoutPlan = { id: id('workout'), weekOf: today(), category, level: 'steady', durationMinutes: Math.round(selected.reduce((sum, session) => sum + session.durationMinutes, 0) / selected.length), scheduledWeekdays: scheduledWeekdays.slice(0, selected.length), weeklyFocus: 'momentum', days: selected.map((session) => session.title), sessions: selected, createdAt: now() };
+          return { workoutPlans: [plan, ...state.workoutPlans], syncQueue: [...state.syncQueue, enqueue('workout_plan', 'create', plan)] };
         }),
       adjustWorkoutDay: (localDate, adjustment) =>
         set((state) => ({
