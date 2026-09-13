@@ -1322,7 +1322,9 @@ function hasCurrentWorkoutSessions(
   return Boolean(
     sessions?.length &&
     sessions.every((session) =>
-      session.exercises.every(
+      Boolean(session.warmups?.length) && session.warmups!.every((warmup) =>
+        typeof warmup.title === 'string' && typeof warmup.setup === 'string' && typeof warmup.movement === 'string'
+      ) && session.exercises.every(
         (exercise) =>
           typeof exercise.visualId === 'string' &&
           hasExerciseInstructions(exercise) &&

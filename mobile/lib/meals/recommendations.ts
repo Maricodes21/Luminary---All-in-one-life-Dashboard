@@ -86,6 +86,7 @@ export function buildCatalogPlan({ recipes, profile, target, weekOf, options, hi
   for (let dayIndex = 0; dayIndex < Math.max(1, Math.min(7, options.days)); dayIndex += 1) {
     const localDate = addDays(weekOf, dayIndex);
     let caloriesUsed = 0;
+    let proteinUsed = 0;
     for (const [mealIndex, mealType] of mealTypes.entries()) {
       const desiredMethod = preferredMethods.length
         ? preferredMethods[(dayIndex + methodOffset) % preferredMethods.length]
@@ -106,12 +107,12 @@ export function buildCatalogPlan({ recipes, profile, target, weekOf, options, hi
         .sort((left, right) => {
           return planCandidateScore(left, {
             used, methodUse, familyUse, familyLastDay, historyByRecipe, dayIndex, mealCount: mealTypes.length,
-            calorieTarget: target.calories, highProtein: !!options.highProtein, preferredMethods,
+            calorieTarget: target.calories, proteinTarget: target.proteinG, caloriesUsed, proteinUsed, remainingSlots: mealTypes.length - mealIndex, highProtein: !!options.highProtein, preferredMethods,
             avoidPreferredMethod: balance === 'spread' && !shouldFeatureMethod,
             seed: `${weekOf}:${localDate}:${mealType}`,
           }) - planCandidateScore(right, {
             used, methodUse, familyUse, familyLastDay, historyByRecipe, dayIndex, mealCount: mealTypes.length,
-            calorieTarget: target.calories, highProtein: !!options.highProtein, preferredMethods,
+            calorieTarget: target.calories, proteinTarget: target.proteinG, caloriesUsed, proteinUsed, remainingSlots: mealTypes.length - mealIndex, highProtein: !!options.highProtein, preferredMethods,
             avoidPreferredMethod: balance === 'spread' && !shouldFeatureMethod,
             seed: `${weekOf}:${localDate}:${mealType}`,
           });
@@ -120,6 +121,7 @@ export function buildCatalogPlan({ recipes, profile, target, weekOf, options, hi
       if (!recipe) continue;
       entries.push(recipeToPlanEntry(recipe, localDate));
       caloriesUsed += recipe.nutrition.calories;
+      proteinUsed += recipe.nutrition.proteinG;
       used.set(recipe.id, (used.get(recipe.id) ?? 0) + 1);
       for (const method of recipe.preparationMethods) methodUse.set(method, (methodUse.get(method) ?? 0) + 1);
       const family = recipeFamily(recipe);
@@ -166,6 +168,10 @@ type CandidateScoreContext = {
   dayIndex: number;
   mealCount: number;
   calorieTarget: number;
+  proteinTarget: number;
+  caloriesUsed: number;
+  proteinUsed: number;
+  remainingSlots: number;
   highProtein: boolean;
   preferredMethods: PreparationMethod[];
   avoidPreferredMethod: boolean;
@@ -181,9 +187,12 @@ function planCandidateScore(recipe: CatalogRecipe, context: CandidateScoreContex
   const familyPenalty = (context.familyUse.get(family) ?? 0) * 65 + (lastFamilyDay != null && context.dayIndex - lastFamilyDay <= 1 ? 500 : 0);
   const methodVarietyPenalty = Math.min(...recipe.preparationMethods.map((method) => context.methodUse.get(method) ?? 0)) * 18;
   const unwantedMethodPenalty = context.avoidPreferredMethod && recipe.preparationMethods.some((method) => context.preferredMethods.includes(method)) ? 650 : 0;
-  const caloriePenalty = Math.abs(context.calorieTarget / context.mealCount - recipe.nutrition.calories) / 5;
+  const desiredCalories = Math.max(0, context.calorieTarget - context.caloriesUsed) / Math.max(1, context.remainingSlots);
+  const desiredProtein = Math.max(0, context.proteinTarget - context.proteinUsed) / Math.max(1, context.remainingSlots);
+  const caloriePenalty = Math.abs(desiredCalories - recipe.nutrition.calories) / 3;
+  const proteinPenalty = Math.abs(desiredProtein - recipe.nutrition.proteinG) * 14;
   const proteinBoost = context.highProtein ? recipe.nutrition.proteinG * -18 : 0;
-  return currentWeekPenalty + historyPenalty + familyPenalty + methodVarietyPenalty + unwantedMethodPenalty + caloriePenalty + proteinBoost + stablePlanIndex(`${context.seed}:${recipe.id}`) / 100_000;
+  return currentWeekPenalty + historyPenalty + familyPenalty + methodVarietyPenalty + unwantedMethodPenalty + caloriePenalty + proteinPenalty + proteinBoost + stablePlanIndex(`${context.seed}:${recipe.id}`) / 100_000;
 }
 
 function summarizeHistory(history: readonly MealPlanHistoryEntry[], weekOf: string) {

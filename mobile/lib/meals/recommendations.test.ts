@@ -50,12 +50,15 @@ test('overnight recommendation is snack-only and never exceeds remaining calorie
   assert.ok((result.primary?.nutrition.calories ?? Infinity) <= 300);
 });
 
-test('weekly catalog plan stays within daily targets and uses valid recipe IDs', () => {
+test('weekly catalog plan stays close to daily calorie and protein targets', () => {
   const plan = buildCatalogPlan({ recipes: recipeCatalog, profile, target, weekOf: '2026-07-13', options: { days: 7, mealTypes: ['breakfast', 'lunch', 'dinner'], includeSnack: true } });
   assert.equal(new Set(plan.entries.map((entry) => entry.localDate)).size, 7);
   for (const date of new Set(plan.entries.map((entry) => entry.localDate))) {
     const calories = plan.entries.filter((entry) => entry.localDate === date).reduce((sum, entry) => sum + (entry.nutrition?.calories ?? 0), 0);
+    const protein = plan.entries.filter((entry) => entry.localDate === date).reduce((sum, entry) => sum + (entry.nutrition?.proteinG ?? 0), 0);
     assert.ok(calories <= target.calories, `${date} exceeds target with ${calories}`);
+    assert.ok(calories >= target.calories * 0.85, `${date} underfills calories with ${calories}`);
+    assert.ok(protein >= target.proteinG * 0.85, `${date} underfills protein with ${protein}`);
   }
   assert.ok(plan.entries.every((entry) => recipeCatalog.some((recipe) => recipe.id === entry.recipeId)));
 });

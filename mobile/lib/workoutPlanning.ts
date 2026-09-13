@@ -28,10 +28,13 @@ export type WorkoutSession = {
   focus: string;
   durationMinutes: number;
   warmup: string;
+  warmups?: WarmupExercise[];
   exercises: PlannedExercise[];
   cooldown: string;
   progression: string;
 };
+
+export type WarmupExercise = { id: string; title: string; setup: string; movement: string; durationSeconds: number; visualId: string };
 
 export type WorkoutPlanInput = {
   category: WorkoutCategory;
@@ -2167,6 +2170,7 @@ export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
       focus: template.focus.map(titleCase).join(' + '),
       durationMinutes: input.durationMinutes,
       warmup: warmupFor(input.category, input.durationMinutes),
+      warmups: generatedWarmups(input.category, template.focus, selected, `${seed}:${index}`),
       exercises: selected.map((item, exerciseIndex) =>
         plannedExercise(
           item,
@@ -2181,6 +2185,22 @@ export function buildWorkoutPlan(input: WorkoutPlanInput): WorkoutSession[] {
       cooldown: cooldownFor(input.category),
       progression: progression.guidance,
     };
+  });
+}
+
+function generatedWarmups(category: WorkoutCategory, focus: string[], selected: Movement[], seed: string): WarmupExercise[] {
+  const pools: Record<WorkoutCategory, Array<[string, string, string]>> = {
+    gym: [['Bodyweight good morning', 'Stand tall with hands across your chest.', 'Push the hips back, keep the spine long, then stand smoothly.'], ['Alternating reverse lunge', 'Stand with feet under your hips.', 'Step back softly, lower with control, and alternate sides.'], ['Scapular wall slide', 'Place your back and forearms against a wall.', 'Slide the arms upward without shrugging, then return slowly.'], ['Glute bridge', 'Lie down with feet planted near your hips.', 'Press through the feet and lift the hips without arching your back.']],
+    calisthenics: [['Wrist rock', 'Start on hands and knees with fingers forward.', 'Shift gently forward and back while keeping palms grounded.'], ['Scapular push-up', 'Hold a high plank with elbows straight.', 'Let shoulder blades come together, then push the floor away.'], ['Deep squat reach', 'Stand just wider than hip width.', 'Sit into a comfortable squat and reach upward as you stand.'], ['Dead bug reach', 'Lie on your back with knees above hips.', 'Extend opposite arm and leg while keeping your back grounded.']],
+    yoga: [['Cat-cow flow', 'Start on hands and knees.', 'Alternate a gentle spinal arch and round with each breath.'], ['Low lunge reach', 'Step one foot forward from hands and knees.', 'Sink forward gently and reach the same-side arm overhead.'], ['Downward dog pedal', 'Lift the hips into an inverted V.', 'Bend one knee at a time while lengthening the opposite heel.'], ['Standing side bend', 'Stand tall with hands overhead.', 'Reach gently from side to side without twisting.']],
+    cardio: [['March with arm drive', 'Stand tall with relaxed shoulders.', 'March briskly and swing opposite arm with each knee.'], ['Leg swing', 'Stand beside support.', 'Swing one leg forward and back through a comfortable range.'], ['Ankle pogo', 'Stand with knees soft and feet parallel.', 'Make small springy hops from the ankles and land quietly.'], ['Walking lunge', 'Stand tall with room ahead.', 'Step into a shallow lunge and continue alternating sides.']],
+    cycling: [['Easy cadence spin', 'Sit tall on the bike with light resistance.', 'Pedal smoothly and let the legs accelerate gradually.'], ['Standing hip circle', 'Stand beside the bike with feet apart.', 'Circle each hip slowly through a comfortable range.'], ['Alternating knee lift', 'Stand tall and brace lightly.', 'Lift one knee toward the chest, lower, and alternate.'], ['Calf raise', 'Stand with fingertips on the bike for balance.', 'Rise onto the balls of the feet and lower with control.']],
+  };
+  const pool = pools[category];
+  const offset = stableIndex(`${seed}:${focus.join(':')}`, pool.length);
+  return Array.from({ length: 3 }, (_, index) => {
+    const [title, setup, movement] = pool[(offset + index) % pool.length];
+    return { id: `${seed}:warmup:${index}`, title, setup, movement, durationSeconds: 45, visualId: selected[index % Math.max(1, selected.length)]?.visualId ?? 'home_pushup' };
   });
 }
 

@@ -190,6 +190,9 @@ test('workout plans generate distinct exercises for each day focus', () => {
   assert.ok(hingeDay?.exercises.some((exercise) => /deadlift|hinge|thrust|core|bug|press/i.test(exercise.name)));
   assert.ok(pushDay?.exercises.some((exercise) => /press/i.test(exercise.name)));
   assert.ok(sessions.every((session) => session.progression.length > 30));
+  assert.ok(sessions.every((session) => session.warmups?.length === 3));
+  assert.ok(sessions.every((session) => session.warmups?.every((warmup) => warmup.setup.length > 20 && warmup.movement.length > 30)));
+  assert.ok(new Set(sessions.map((session) => session.warmups?.map((warmup) => warmup.title).join('|'))).size > 1);
   assert.ok(sessions.every((session) => session.exercises.every((exercise) =>
     exercise.instructions.setup.length > 30
     && exercise.instructions.movement.length > 30

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
-  Alert,
   Animated,
   Pressable,
   ScrollView,
@@ -95,16 +94,8 @@ export default function GuidedWorkoutScreen() {
       router.replace('/(tabs)/health');
       return;
     }
-    Alert.alert('Pause this workout?', 'Your place will be saved so you can come back.', [
-      { text: 'Keep moving', style: 'cancel' },
-      {
-        text: 'Pause and leave',
-        onPress: () => {
-          pauseWorkout();
-          router.replace('/(tabs)/health');
-        },
-      },
-    ]);
+    pauseWorkout();
+    router.replace('/(tabs)/health');
   };
 
   if (!active) {

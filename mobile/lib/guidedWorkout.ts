@@ -27,7 +27,7 @@ export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutS
     prescription: formatDuration(secondsPerWarmup),
     mode: 'timer',
     durationSeconds: secondsPerWarmup,
-    visualId: session.exercises[Math.min(index, session.exercises.length - 1)]?.visualId,
+    visualId: warmup.visualId ?? session.exercises[Math.min(index, session.exercises.length - 1)]?.visualId,
   }));
 
   const exerciseBudget = Math.max(60, session.durationMinutes * 60 - warmupSeconds - 120);
@@ -80,6 +80,12 @@ export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutS
 }
 
 export function warmupExercisesForSession(session: WorkoutSession) {
+  if (session.warmups?.length) return session.warmups.map((warmup) => ({
+    title: warmup.title,
+    cue: `${warmup.setup} ${warmup.movement}`,
+    durationSeconds: warmup.durationSeconds,
+    visualId: warmup.visualId,
+  }));
   const duration = minutesFrom(session.warmup);
   const source = session.warmup
     .replace(/^\d+(?:[\u2013-]\d+)?\s*min(?:utes?)?\s*(?:of\s*)?/i, '')
@@ -95,6 +101,7 @@ export function warmupExercisesForSession(session: WorkoutSession) {
     title: movement.charAt(0).toUpperCase() + movement.slice(1),
     cue: `Move gently and use a comfortable range. This prepares you for ${session.title.toLowerCase()}.`,
     durationSeconds: Math.max(30, Math.floor((duration * 60) / movements.length)),
+    visualId: undefined as string | undefined,
   }));
 }
 
