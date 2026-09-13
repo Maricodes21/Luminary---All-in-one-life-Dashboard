@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { isRunningInExpoGo } from 'expo';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 import { z } from 'zod';
 import { saveTokens, loadTokens, clearTokens } from '@/lib/spotify';
 import {
@@ -60,8 +61,10 @@ export function useSpotifyAuth() {
 
   const clientId = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID ?? '';
   const nativeRedirectUri =
-    process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI ??
-    AuthSession.makeRedirectUri({ scheme: 'luminary', path: 'spotify-callback' });
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? `${window.location.origin}/spotify-callback`
+      : process.env.EXPO_PUBLIC_SPOTIFY_REDIRECT_URI ??
+        AuthSession.makeRedirectUri({ scheme: 'luminary', path: 'spotify-callback' });
   const previewConfig = createSpotifyPreviewConfig(
     process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
     process.env.EXPO_PUBLIC_SPOTIFY_PREVIEW_REDIRECT_URI,
