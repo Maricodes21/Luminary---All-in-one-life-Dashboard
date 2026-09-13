@@ -148,6 +148,13 @@ export default function ManualMealScreen() {
         </Pressable>
       }
     >
+      {!existing ? (
+        <Pressable onPress={() => router.push('/meals/manual-parts')} style={styles.partsButton} accessibilityRole="button" accessibilityLabel="Build meal from ingredients">
+          <View style={styles.partsIcon}><Icon name="meals" size={20} color={palette.primary} /></View>
+          <View style={styles.partsCopy}><Text style={[type.titleMd, { color: palette.onSurface }]}>Build from ingredients</Text><Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Add rice, chicken, broccoli, and each measured part. Luminary calculates the combined total.</Text></View>
+          <Icon name="back" size={18} color={palette.primary} />
+        </Pressable>
+      ) : null}
       {params.source === 'grounded_web' ? (
         <View style={styles.sourceBanner}>
           <Text style={[type.labelMd, { color: palette.onSurface }]}>
@@ -399,4 +406,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.sm,
     backgroundColor: palette.surfaceContainerHigh,
   },
+  partsButton: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radii.md, backgroundColor: palette.primaryContainer },
+  partsIcon: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radii.sm, backgroundColor: palette.surfaceContainerHigh },
+  partsCopy: { flex: 1, gap: spacing.xs },
 });

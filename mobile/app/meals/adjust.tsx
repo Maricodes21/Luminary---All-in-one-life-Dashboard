@@ -46,17 +46,8 @@ export default function AdjustMealPlanScreen() {
     });
     const reason = adjustmentReason(focus);
     recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'changed', reason, localDate });
-    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically. ${reason}`, [
-      {
-        text: 'Undo',
-        onPress: () => {
-          entries.forEach((entry) => updatePlanEntry(plan.id, entry.id, entry));
-          recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'undone', reason, localDate });
-          router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
-        },
-      },
-      { text: 'Keep changes', onPress: () => router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } }) },
-    ]);
+    router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan', selectedDate: localDate } });
+    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically. ${reason}`);
   }
 
   function moveTomorrow() {
@@ -66,7 +57,7 @@ export default function AdjustMealPlanScreen() {
     const nextDate = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
     entries.forEach((entry) => updatePlanEntry(plan.id, entry.id, { localDate: nextDate }));
     Alert.alert('Meals moved', `This day's meals are now planned for ${next.toLocaleDateString(undefined, { weekday: 'long' })}.`);
-    router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
+    router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan', selectedDate: nextDate } });
   }
 
   return (

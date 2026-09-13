@@ -24,7 +24,7 @@ import { useJournalEntries } from '@/hooks/useJournalEntries';
 import { fetchRecap, type SpotifyRecap } from '@/lib/spotify';
 import { localDateKey } from '@/lib/meals/dates';
 import { getHabitIconName } from '@/lib/habitIcons';
-import { activeHabitsForDate } from '@/lib/habits';
+import { scheduledHabitsForDate } from '@/lib/habits';
 import { getRecipeVisualSource } from '@/lib/meals/recipeVisuals';
 import type { MoodLabel } from '@/lib/mood';
 import { isSpotifyRecapEligible } from '@/lib/spotifyRecap';
@@ -105,7 +105,7 @@ export default function HomeScreen() {
     ).length +
     remoteJournalEntries.filter((entry) => localDateKey(new Date(entry.written_at)) === today)
       .length;
-  const homeHabits = useMemo(() => activeHabitsForDate(allHabits, today), [allHabits, today]);
+  const homeHabits = useMemo(() => scheduledHabitsForDate(allHabits, today), [allHabits, today]);
   const completedHome = homeHabits.filter((habit) => habit.completedOn.includes(today)).length;
   const ritualComplete = ritualHydrated && isRitualCompletedForDate(ritualSession, today);
   const ritualInProgress =
@@ -499,7 +499,7 @@ function FocusCard({
       ) : null}
       {media ? <View style={styles.focusScrim} /> : null}
       <View style={styles.focusContent}>
-        <SectionLabel>Next up · {signal.kind}</SectionLabel>
+        <SectionLabel style={styles.focusLabel}>Next up · {signal.kind}</SectionLabel>
         <Text style={[type.headlineSm, styles.focusTitle]}>{signal.title}</Text>
         <Text style={[type.bodySm, styles.focusCopy]}>{signal.detail}</Text>
         <Text style={[type.labelSm, styles.focusAction]}>{signal.action} →</Text>
@@ -752,8 +752,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   focusMedia: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
-  focusScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 19, 17, 0.68)' },
+  focusScrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8, 12, 10, 0.82)' },
   focusContent: { flex: 1, padding: spacing.md, gap: spacing.sm },
+  focusLabel: { color: palette.surfaceContainerHighest },
   focusTitle: { color: palette.surface, marginTop: spacing.md },
   focusCopy: { color: palette.surfaceContainerHighest, flex: 1 },
   focusAction: { color: palette.primaryFixed },

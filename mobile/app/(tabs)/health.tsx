@@ -455,7 +455,7 @@ export default function HealthScreen() {
           {warmupExercisesForSession(shownSession).map((warmup) => (
             <Card key={warmup.title} variant="recessed" padding="sm">
               <View style={styles.warmupRow}>
-                <View style={styles.warmupNumber}><Icon name="health" size={18} color={palette.primary} /></View>
+                <ExerciseVisual visualId={warmup.visualId ?? 'home_pushup'} style={styles.warmupVisual} />
                 <View style={styles.generatedCopy}>
                   <Text style={[type.titleMd, styles.primaryText]}>{warmup.title}</Text>
                   <Text style={[type.bodySm, styles.secondaryText]}>{warmup.cue}</Text>
@@ -1558,6 +1558,7 @@ const styles = StyleSheet.create({
   exerciseList: { gap: spacing.sm },
   warmupSection: { gap: spacing.sm },
   warmupRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  warmupVisual: { width: 72, height: 72, borderRadius: radii.md },
   warmupNumber: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primaryContainer },
   ellipsisButton: { minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center' },
   moveDayOption: { minHeight: 60, justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },

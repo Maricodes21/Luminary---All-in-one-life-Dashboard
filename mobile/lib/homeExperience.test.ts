@@ -32,7 +32,7 @@ test('home keeps the ritual invitation and independently surfaces eligible music
   assert.match(source, /Open profile and settings/);
   assert.match(source, /<CommitmentsPager/);
   assert.match(source, /Today at a glance/);
-  assert.match(source, /activeHabitsForDate\(allHabits, today\)/);
+  assert.match(source, /scheduledHabitsForDate\(allHabits, today\)/);
   assert.match(source, /chunk\(habits, 4\)/);
   assert.match(source, /completedHome = homeHabits\.filter/);
   assert.match(source, /isSpotifyRecapEligible\(recap\)/);

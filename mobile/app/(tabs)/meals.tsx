@@ -26,7 +26,7 @@ import { useDecisionStore } from '@/stores/useDecisionStore';
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const params = useLocalSearchParams<{ mode?: string; selectedDate?: string }>();
   const [mode, setMode] = useState<MealsMode>(params.mode === 'plan' ? 'plan' : 'today');
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [staleDismissed, setStaleDismissed] = useState(false);
@@ -74,8 +74,9 @@ export default function MealsScreen() {
 
   useEffect(() => {
     if (mode !== 'plan') return;
-    setSelectedDate(dates.includes(today) ? today : '');
-  }, [dates, mode, today]);
+    const requested = params.selectedDate;
+    setSelectedDate(requested && dates.includes(requested) ? requested : dates.includes(today) ? today : '');
+  }, [dates, mode, params.selectedDate, today]);
 
   const confirmMealDelete = (meal: MealLogRecord) => {
     Alert.alert('Delete meal?', `${meal.name} will be removed from today.`, [
@@ -112,7 +113,7 @@ export default function MealsScreen() {
               </Pressable>
             ) : null}
             <Pressable
-              onPress={() => router.push('/meals/search')}
+              onPress={() => router.push('/meals/manual')}
               style={styles.primaryIconButton}
               accessibilityRole="button"
               accessibilityLabel="Log a meal"
@@ -328,11 +329,12 @@ function TodayMode({
 
       <View style={styles.section}>
         <Text style={[type.headlineMd, { color: palette.onSurface }]}>Log a meal</Text>
+        <Text style={[type.bodySm, { color: palette.onSurfaceVariant }]}>Enter what you ate. Search, camera, and barcode are available when they save time.</Text>
         <View style={styles.actionsRow}>
+          <MealAction icon="edit" label="Enter meal" onPress={onOpenManual} />
           <MealAction icon="search" label="Search" onPress={onOpenSearch} />
           <MealAction icon="camera" label="Camera" onPress={onOpenCamera} />
           <MealAction icon="barcode" label="Barcode" onPress={onOpenBarcode} />
-          <MealAction icon="edit" label="Manual entry" onPress={onOpenManual} />
         </View>
       </View>
 
@@ -393,6 +395,7 @@ function SmartSuggestion({
   const decisionContext = buildDailyDecisionContext(now);
   const today = decisionContext.localDate;
   const currentMealType = mealWindowFor(now);
+  const currentWindowAlreadyLogged = meals.some((meal) => meal.mealType === currentMealType);
   const plannedNow = user?.plans
     .flatMap((plan) => plan.entries)
     .find(
@@ -448,6 +451,7 @@ function SmartSuggestion({
     setSuggestionCursor(0);
     setDismissedIds([]);
   }, [candidateKey]);
+  if (currentWindowAlreadyLogged) return null;
   if (plannedNow && plannedRecipe) {
     return (
       <View style={styles.suggestionBlock}>

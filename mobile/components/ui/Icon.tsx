@@ -42,7 +42,8 @@ export type IconName =
   | 'edit'
   | 'undo'
   | 'heart'
-  | 'headphones';
+  | 'headphones'
+  | 'download';
 
 export type IconProps = {
   name: IconName;
@@ -114,6 +115,16 @@ const paths: Record<IconName, () => React.ReactNode> = {
       stroke="currentColor"
       strokeWidth={1.6}
       fill="currentColor"
+      strokeLinejoin="round"
+    />
+  ),
+  download: () => (
+    <Path
+      d="M12 3v12M7 10l5 5 5-5M5 20h14"
+      stroke="currentColor"
+      strokeWidth={2}
+      fill="none"
+      strokeLinecap="round"
       strokeLinejoin="round"
     />
   ),

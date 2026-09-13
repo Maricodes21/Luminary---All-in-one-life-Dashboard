@@ -74,7 +74,7 @@ export function InstallLuminaryCard() {
   return (
     <View style={styles.card} accessibilityRole="summary">
       <View style={styles.iconBox}>
-        <Icon name="sparkles" size={20} color={palette.onPrimary} />
+        <Icon name="download" size={20} color={palette.onPrimary} />
       </View>
       <View style={styles.copy}>
         <Text style={[type.titleMd, styles.title]}>Keep Luminary close</Text>
