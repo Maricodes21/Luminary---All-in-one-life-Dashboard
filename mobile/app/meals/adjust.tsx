@@ -3,6 +3,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 import { MealScreen } from '@/components/meals/MealScreen';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { recipeCatalog } from '@/lib/meals/catalog';
+import { catalogSubstitutions } from '@/lib/meals/recommendations';
+import { recipeImageUri } from '@/lib/meals/recipeImages';
+import type { NutritionProfile } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 
 type Adjustment = 'quicker' | 'protein' | 'available';
@@ -16,9 +20,30 @@ export default function AdjustMealPlanScreen() {
   const entries = plan?.entries.filter((entry) => entry.localDate === localDate) ?? [];
 
   function choose(focus: Adjustment) {
-    const entry = entries[0];
-    if (!entry) return;
-    router.push({ pathname: '/meals/substitute', params: { id: entry.id, focus } });
+    if (!plan || !user?.profile || !entries.length) return;
+    const profile = safeProfile(user.profile);
+    const used = new Set(entries.map((entry) => entry.recipeId).filter(Boolean));
+    let changed = 0;
+    entries.forEach((entry) => {
+      const choices = rank(
+        catalogSubstitutions(recipeCatalog, entry, profile),
+        focus,
+      );
+      const recipe = choices.find((candidate) => !used.has(candidate.id)) ?? choices[0];
+      if (!recipe) return;
+      used.add(recipe.id);
+      updatePlanEntry(plan.id, entry.id, {
+        name: recipe.name,
+        recipeId: recipe.id,
+        providerId: recipe.providerId,
+        nutrition: recipe.nutrition,
+        imageUri: recipeImageUri(recipe),
+        recipeSnapshot: recipe,
+      });
+      changed += 1;
+    });
+    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically.`);
+    router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
   }
 
   function moveTomorrow() {
@@ -42,6 +67,21 @@ export default function AdjustMealPlanScreen() {
       </View>
     </MealScreen>
   );
+}
+
+function rank<T extends (typeof recipeCatalog)[number]>(recipes: T[], focus: Adjustment) {
+  if (focus === 'quicker') return [...recipes].sort((a, b) => a.prepMinutes + a.cookMinutes - b.prepMinutes - b.cookMinutes);
+  if (focus === 'protein') return [...recipes].sort((a, b) => b.nutrition.proteinG - a.nutrition.proteinG);
+  return [...recipes].sort((a, b) => a.ingredients.length - b.ingredients.length);
+}
+
+function safeProfile(profile: NutritionProfile): NutritionProfile {
+  return {
+    ...profile,
+    dietaryPreferences: Array.isArray(profile.dietaryPreferences) ? profile.dietaryPreferences : [],
+    foodAllergies: Array.isArray(profile.foodAllergies) ? profile.foodAllergies : [],
+    dislikedIngredients: Array.isArray(profile.dislikedIngredients) ? profile.dislikedIngredients : [],
+  };
 }
 
 function AdjustmentCard({ icon, title, detail, onPress }: { icon: IconName; title: string; detail: string; onPress: () => void }) {

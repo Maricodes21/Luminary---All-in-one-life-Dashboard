@@ -17,6 +17,7 @@ export type ActiveGuidedWorkout = {
   steps: GuidedWorkoutStep[];
   currentStepIndex: number;
   currentSet: number;
+  pendingNextSet?: number;
   status: 'active' | 'finished';
   isPaused: boolean;
   remainingSeconds: number;
@@ -39,6 +40,7 @@ type GuidedWorkoutState = {
   pauseWorkout: () => void;
   resumeWorkout: () => void;
   nextStep: (skipped?: boolean) => void;
+  finishWorkout: () => void;
   previousStep: () => void;
   markLogged: () => void;
   clearWorkout: () => void;
@@ -88,6 +90,7 @@ export const useGuidedWorkoutStore = create<GuidedWorkoutState>()(
           };
         }),
       nextStep: (skipped = false) => set((state) => moveStep(state, 1, skipped)),
+      finishWorkout: () => set((state) => finishActiveWorkout(state)),
       previousStep: () => set((state) => moveStep(state, -1, false)),
       markLogged: () =>
         set((state) =>
@@ -139,6 +142,20 @@ function moveStep(
   const totalSets = currentStep?.kind === 'exercise' ? Math.max(1, currentStep.totalSets ?? 1) : 1;
   const currentSet = active.currentSet ?? 1;
   if (!skipped && currentStep?.kind === 'exercise' && direction === 1 && currentSet < totalSets) {
+    const rest = active.steps[active.currentStepIndex + 1];
+    if (rest?.kind === 'rest') {
+      const remainingSeconds = rest.durationSeconds ?? 30;
+      return {
+        active: {
+          ...active,
+          currentStepIndex: active.currentStepIndex + 1,
+          pendingNextSet: currentSet + 1,
+          isPaused: false,
+          remainingSeconds,
+          stepEndsAt: Date.now() + remainingSeconds * 1000,
+        },
+      };
+    }
     const remainingSeconds = currentStep.durationSeconds ?? 0;
     return {
       active: {
@@ -147,6 +164,21 @@ function moveStep(
         isPaused: false,
         remainingSeconds,
         stepEndsAt: currentStep.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,
+      },
+    };
+  }
+  if (currentStep?.kind === 'rest' && direction === 1 && active.pendingNextSet) {
+    const exercise = active.steps[active.currentStepIndex - 1];
+    const remainingSeconds = exercise?.durationSeconds ?? 0;
+    return {
+      active: {
+        ...active,
+        currentStepIndex: active.currentStepIndex - 1,
+        currentSet: active.pendingNextSet,
+        pendingNextSet: undefined,
+        isPaused: false,
+        remainingSeconds,
+        stepEndsAt: exercise?.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,
       },
     };
   }
@@ -199,6 +231,7 @@ function moveStep(
       currentStepIndex: boundedIndex,
       currentSet:
         direction === -1 && next?.kind === 'exercise' ? Math.max(1, next.totalSets ?? 1) : 1,
+      pendingNextSet: undefined,
       isPaused: false,
       remainingSeconds,
       stepEndsAt: next?.mode === 'timer' ? Date.now() + remainingSeconds * 1000 : null,
@@ -211,4 +244,24 @@ function moveStep(
 
 function elapsedSince(value: number | null) {
   return value == null ? 0 : Math.max(0, Math.floor((Date.now() - value) / 1000));
+}
+
+function finishActiveWorkout(state: GuidedWorkoutState): Partial<GuidedWorkoutState> {
+  if (!state.active || state.active.status !== 'active') return state;
+  const activeSeconds = (state.active.activeSeconds ?? 0) + elapsedSince(state.active.activeSince ?? null);
+  return {
+    active: {
+      ...state.active,
+      status: 'finished',
+      currentStepIndex: state.active.steps.length,
+      currentSet: 1,
+      pendingNextSet: undefined,
+      isPaused: false,
+      remainingSeconds: 0,
+      stepEndsAt: null,
+      activeSeconds,
+      activeSince: null,
+      finishedAt: new Date().toISOString(),
+    },
+  };
 }

@@ -61,14 +61,16 @@ export default function MealsScreen() {
   const target = user?.targets[today] ?? null;
   const remaining = target ? calculateRemaining(target, totals) : null;
   const plan = user?.plans[0] ?? null;
-  const dates = useMemo(() => weekDates(plan?.weekOf ?? today), [plan?.weekOf, today]);
+  const planDates = useMemo(() => (plan ? weekDates(plan.weekOf) : []), [plan]);
+  const planIsCurrent = !!plan && planDates.includes(today);
+  const dates = useMemo(() => (planIsCurrent ? planDates : []), [planDates, planIsCurrent]);
   const profileStale = user?.profile
     ? Date.now() - new Date(user.profile.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000
     : false;
 
   useEffect(() => {
-    if (mode !== 'plan' || !dates.length) return;
-    setSelectedDate(dates.includes(today) ? today : dates[0]);
+    if (mode !== 'plan') return;
+    setSelectedDate(dates.includes(today) ? today : '');
   }, [dates, mode, today]);
 
   const confirmMealDelete = (meal: MealLogRecord) => {
@@ -163,7 +165,8 @@ export default function MealsScreen() {
           />
         ) : (
           <PlanMode
-            plan={plan}
+            plan={planIsCurrent ? plan : null}
+            hasExpiredPlan={!!plan && !planIsCurrent}
             selectedDate={selectedDate}
             dates={dates}
             onSelectDate={setSelectedDate}
@@ -475,9 +478,10 @@ function SmartSuggestion({
   );
   const primary = available.length ? available[suggestionCursor % available.length] : null;
   if (!primary) return null;
+  const includeSnack = shouldIncludeSnack(now, currentMealType, meals, remainingCalories);
   const suggested = [
     primary,
-    ...(recommendation.snack &&
+    ...(includeSnack && recommendation.snack &&
     recommendation.snack.id !== primary.id &&
     !dismissedIds.includes(recommendation.snack.id)
       ? [recommendation.snack]
@@ -534,6 +538,7 @@ function SmartSuggestion({
 
 function PlanMode({
   plan,
+  hasExpiredPlan,
   selectedDate,
   dates,
   onSelectDate,
@@ -546,6 +551,7 @@ function PlanMode({
   onDeletePlan,
 }: {
   plan: MealPlan | null;
+  hasExpiredPlan: boolean;
   selectedDate: string;
   dates: string[];
   onSelectDate: (date: string) => void;
@@ -564,7 +570,7 @@ function PlanMode({
         <View style={{ flex: 1 }}>
           <SectionLabel>Weekly planner</SectionLabel>
           <Text style={[type.headlineMd, { color: palette.onSurface, marginTop: 2 }]}>
-            {plan?.title ?? 'Build a week around you'}
+            {plan?.title ?? (hasExpiredPlan ? 'This week needs a fresh plan' : 'Build a week around you')}
           </Text>
         </View>
         {plan ? (
@@ -667,14 +673,15 @@ function PlanMode({
         <View style={styles.planEmpty}>
           <Icon name="calendar" size={28} color={palette.primary} />
           <Text style={[type.titleLg, { color: palette.onSurface }]}>
-            A flexible plan, not a rigid template
+            {hasExpiredPlan ? 'Your previous plan has ended' : 'A flexible plan, not a rigid template'}
           </Text>
           <Text style={[type.bodyMd, { color: palette.onSurfaceVariant, textAlign: 'center' }]}>
-            Meals are selected from validated recipes around your target, timing, and preferences.
-            Every card opens a complete prep guide.
+            {hasExpiredPlan
+              ? 'There is no current day in the saved plan. Generate a new week based on your latest preferences.'
+              : 'Meals are selected from validated recipes around your target, timing, and preferences. Every card opens a complete prep guide.'}
           </Text>
           <Pressable onPress={onCreatePlan} style={styles.primaryButton}>
-            <Text style={[type.labelMd, { color: palette.onPrimary }]}>Create my week</Text>
+            <Text style={[type.labelMd, { color: palette.onPrimary }]}>{hasExpiredPlan ? 'Generate this week' : 'Create my week'}</Text>
           </Pressable>
         </View>
       )}
@@ -744,6 +751,18 @@ function weekDates(weekOf: string) {
     date.setDate(start.getDate() + index);
     return localDateKey(date);
   });
+}
+
+export function shouldIncludeSnack(
+  now: Date,
+  mealType: MealPlanEntry['mealType'],
+  meals: MealLogRecord[],
+  remainingCalories: number | null,
+) {
+  const hour = now.getHours();
+  const betweenMeals = (hour >= 10 && hour < 12) || (hour >= 15 && hour < 18) || hour >= 21;
+  const mealAlreadyLogged = meals.some((meal) => meal.mealType === mealType);
+  return betweenMeals && (mealAlreadyLogged || (remainingCalories != null && remainingCalories < 500));
 }
 
 function formatShortDate(value: string) {

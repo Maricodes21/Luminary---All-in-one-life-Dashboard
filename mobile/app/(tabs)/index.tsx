@@ -363,7 +363,7 @@ function CommitmentsPager({
   onOpen: () => void;
   onOpenHabit: (id: string) => void;
 }) {
-  const pages = chunk(habits, 5);
+  const pages = chunk(habits, 4);
   const [currentPage, setCurrentPage] = useState(0);
   return (
     <View style={styles.commitmentBlock}>
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   primaryButtonText: { color: palette.onPrimary },
   cockpitRow: { gap: spacing.sm },
   commitmentBlock: {
-    minHeight: 332,
+    minHeight: 292,
     borderRadius: radii.lg,
     paddingVertical: spacing.md,
     backgroundColor: palette.surfaceContainerLow,
@@ -703,7 +703,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: palette.onSurface },
   progressText: { color: palette.primary, textAlign: 'right' },
   progressLabel: { color: palette.onSurfaceVariant },
-  commitmentPage: { minHeight: 232, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
+  commitmentPage: { minHeight: 208, paddingHorizontal: spacing.sm, paddingTop: spacing.sm },
   habitRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   habitControl: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   habitToggle: {

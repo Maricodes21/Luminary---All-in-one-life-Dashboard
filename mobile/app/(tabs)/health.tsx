@@ -33,6 +33,7 @@ import {
   type WorkoutPlan,
 } from '@/stores/useProductionStore';
 import { useGuidedWorkoutStore } from '@/stores/useGuidedWorkoutStore';
+import { formatClock, warmupExercisesForSession } from '@/lib/guidedWorkout';
 import { localDateKey } from '@/lib/meals/dates';
 
 type HealthView = 'today' | 'setup' | 'plan';
@@ -358,7 +359,7 @@ export default function HealthScreen() {
             onBack={() => setView('today')}
             onAdjust={openSetup}
             onOpenWorkout={openWorkout}
-            onMoveLater={(index) => latestPlan && moveWorkoutDay(latestPlan.id, index, index + 1)}
+            onMoveLater={(fromIndex, toIndex) => latestPlan && moveWorkoutDay(latestPlan.id, fromIndex, toIndex)}
             onKeep={() => setView('today')}
           />
         )}
@@ -445,12 +446,21 @@ export default function HealthScreen() {
           visualId={shownSession.exercises[0]?.visualId ?? 'home_pushup'}
           style={styles.sheetHeroImage}
         />
-        <Card variant="recessed">
-          <SectionLabel>Warm up</SectionLabel>
-          <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
-            {shownSession.warmup}
-          </Text>
-        </Card>
+        <View style={styles.warmupSection}>
+          <SectionLabel>Warm-up exercises</SectionLabel>
+          {warmupExercisesForSession(shownSession).map((warmup) => (
+            <Card key={warmup.title} variant="recessed" padding="sm">
+              <View style={styles.warmupRow}>
+                <View style={styles.warmupNumber}><Icon name="health" size={18} color={palette.primary} /></View>
+                <View style={styles.generatedCopy}>
+                  <Text style={[type.titleMd, styles.primaryText]}>{warmup.title}</Text>
+                  <Text style={[type.bodySm, styles.secondaryText]}>{warmup.cue}</Text>
+                </View>
+                <Text style={[type.labelSm, styles.accentText]}>{formatClock(warmup.durationSeconds)}</Text>
+              </View>
+            </Card>
+          ))}
+        </View>
         <View style={styles.exerciseList}>
           {shownSession.exercises.map((exercise) => (
             <ExerciseRow
@@ -946,10 +956,11 @@ function GeneratedPlan({
   onBack: () => void;
   onAdjust: () => void;
   onOpenWorkout: (index: number) => void;
-  onMoveLater: (index: number) => void;
+  onMoveLater: (fromIndex: number, toIndex: number) => void;
   onKeep: () => void;
 }) {
   const dates = datesForSchedule(schedule);
+  const [moveIndex, setMoveIndex] = useState<number | null>(null);
   return (
     <>
       <FlowHeader eyebrow="Your training brief" title="Your week, built." onBack={onBack} />
@@ -974,7 +985,7 @@ function GeneratedPlan({
               {planLeadTitle(weeklyFocus)}
             </Text>
           </View>
-          <TextButton label="Adjust" onPress={onAdjust} />
+          <TextButton label="Adjust setup" onPress={onAdjust} />
         </View>
         <Text style={[type.bodyMd, styles.secondaryText, styles.copyTop]}>
           {planLeadCopy(weeklyFocus, sessions)}
@@ -1010,9 +1021,9 @@ function GeneratedPlan({
               </View>
               </Card>
             </Pressable>
-            {index < sessions.length - 1 ? (
-              <TextButton label="Move later" onPress={() => onMoveLater(index)} centered />
-            ) : null}
+            <Pressable onPress={() => setMoveIndex(index)} style={styles.ellipsisButton} accessibilityRole="button" accessibilityLabel={`Move ${session.title} to another training day`}>
+              <Text style={[type.headlineMd, styles.accentText]}>•••</Text>
+            </Pressable>
           </View>
         ))}
       </View>
@@ -1025,7 +1036,14 @@ function GeneratedPlan({
         </Text>
       </Card>
       <PrimaryButton label="Keep this plan" onPress={onKeep} />
-      <TextButton label="Change the setup" onPress={onAdjust} centered />
+      <ActionSheet visible={moveIndex !== null} onClose={() => setMoveIndex(null)} eyebrow="Move workout" title="Choose another training day">
+        {dates.map((date, targetIndex) => (
+          <Pressable key={date.toISOString()} disabled={targetIndex === moveIndex} onPress={() => { if (moveIndex !== null) onMoveLater(moveIndex, targetIndex); setMoveIndex(null); }} style={[styles.moveDayOption, targetIndex === moveIndex && styles.disabledOption]} accessibilityRole="button">
+            <Text style={[type.titleMd, styles.primaryText]}>{formatLongDate(date)}</Text>
+            <Text style={[type.labelSm, styles.secondaryText]}>{targetIndex === moveIndex ? 'Current day' : 'Move here'}</Text>
+          </Pressable>
+        ))}
+      </ActionSheet>
     </>
   );
 }
@@ -1202,8 +1220,6 @@ function ExerciseRow({
         <View style={styles.instructionList}>
           <Instruction label="Set up" copy={shown.instructions.setup} />
           <Instruction label="Move" copy={shown.instructions.movement} />
-          <Instruction label="Breathe" copy={shown.instructions.breathing} />
-          <Instruction label="Finish" copy={shown.instructions.completion} />
         </View>
       </View>
       <Pressable
@@ -1534,6 +1550,12 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surfaceContainerHighest,
   },
   exerciseList: { gap: spacing.sm },
+  warmupSection: { gap: spacing.sm },
+  warmupRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  warmupNumber: { width: spacing['2xl'], height: spacing['2xl'], borderRadius: radii.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primaryContainer },
+  ellipsisButton: { minHeight: spacing['2xl'], alignItems: 'center', justifyContent: 'center' },
+  moveDayOption: { minHeight: 60, justifyContent: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radii.md, backgroundColor: palette.surfaceContainerLow },
+  disabledOption: { opacity: 0.45 },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -29,6 +29,7 @@ export default function GuidedWorkoutScreen() {
   const pauseWorkout = useGuidedWorkoutStore((state) => state.pauseWorkout);
   const resumeWorkout = useGuidedWorkoutStore((state) => state.resumeWorkout);
   const nextStep = useGuidedWorkoutStore((state) => state.nextStep);
+  const finishWorkout = useGuidedWorkoutStore((state) => state.finishWorkout);
   const previousStep = useGuidedWorkoutStore((state) => state.previousStep);
   const markLogged = useGuidedWorkoutStore((state) => state.markLogged);
   const clearWorkout = useGuidedWorkoutStore((state) => state.clearWorkout);
@@ -91,7 +92,7 @@ export default function GuidedWorkoutScreen() {
 
   const leaveWorkout = () => {
     if (!active || active.status === 'finished') {
-      router.back();
+      router.replace('/(tabs)/health');
       return;
     }
     Alert.alert('Pause this workout?', 'Your place will be saved so you can come back.', [
@@ -100,7 +101,7 @@ export default function GuidedWorkoutScreen() {
         text: 'Pause and leave',
         onPress: () => {
           pauseWorkout();
-          router.back();
+          router.replace('/(tabs)/health');
         },
       },
     ]);
@@ -154,6 +155,9 @@ export default function GuidedWorkoutScreen() {
 
   if (!step) return null;
   const currentSet = active.currentSet ?? 1;
+  const isLastExercise = step.kind === 'exercise' &&
+    !active.steps.slice(active.currentStepIndex + 1).some((candidate) => candidate.kind === 'exercise');
+  const isLastSet = currentSet === (step.totalSets ?? 1);
   const timedProgress = step.durationSeconds ? remaining / step.durationSeconds : 0;
 
   return (
@@ -187,7 +191,11 @@ export default function GuidedWorkoutScreen() {
           animate={!reduceMotion && !active.isPaused && step.kind !== 'rest'}
         />
         <View style={styles.stepHeading}>
-          <SectionLabel>{stepLabel(step.kind, currentSet, step.totalSets)}</SectionLabel>
+          {step.kind === 'exercise' ? (
+            <View style={styles.setBadge}>
+              <Text style={[type.titleLg, styles.accentText]}>{stepLabel(step.kind, currentSet, step.totalSets)}</Text>
+            </View>
+          ) : <SectionLabel>{stepLabel(step.kind, currentSet, step.totalSets)}</SectionLabel>}
           <Text style={[type.displaySm, styles.primaryText, styles.center]}>{step.title}</Text>
           <Text style={[type.bodyMd, styles.secondaryText, styles.center]}>{step.cue}</Text>
         </View>
@@ -198,7 +206,7 @@ export default function GuidedWorkoutScreen() {
           <View style={styles.manualCount}>
             <Text style={[type.displayMd, styles.primaryText]}>{step.prescription}</Text>
             <Text style={[type.bodySm, styles.secondaryText]}>
-              Complete this set, then tap Set done.
+              Complete set {currentSet} of {step.totalSets ?? 1}, then finish the set.
             </Text>
           </View>
         )}
@@ -246,12 +254,15 @@ export default function GuidedWorkoutScreen() {
           <Pressable
             onPress={() => {
               void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              nextStep();
+              if (isLastExercise && isLastSet) finishWorkout();
+              else nextStep();
             }}
             style={styles.mainControl}
             accessibilityRole="button"
           >
-            <Text style={[type.labelMd, styles.mainControlText]}>Set done</Text>
+            <Text style={[type.labelMd, styles.mainControlText]}>
+              {isLastExercise && isLastSet ? 'Finish workout' : 'Finish set'}
+            </Text>
           </Pressable>
         )}
         <Pressable
@@ -361,7 +372,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 function stepLabel(kind: string, set?: number, total?: number) {
   if (kind === 'exercise' && set && total) return `Set ${set} of ${total}`;
   if (kind === 'rest') return 'Recovery';
-  if (kind === 'warmup') return 'Get ready';
+  if (kind === 'warmup') return 'Warm-up';
   return 'Finish well';
 }
 
@@ -396,6 +407,7 @@ const styles = StyleSheet.create({
   },
   visual: { width: '100%', height: '100%' },
   stepHeading: { alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md },
+  setBadge: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.lg, borderRadius: radii.pill, backgroundColor: palette.primaryContainer },
   primaryText: { color: palette.onSurface },
   secondaryText: { color: palette.onSurfaceVariant },
   accentText: { color: palette.primary },

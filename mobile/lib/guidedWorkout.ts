@@ -17,16 +17,18 @@ export type GuidedWorkoutStep = {
 export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutStep[] {
   const steps: GuidedWorkoutStep[] = [];
   const warmupSeconds = minutesFrom(session.warmup) * 60;
-  steps.push({
-    id: `${session.id}:warmup`,
+  const warmups = warmupExercisesForSession(session);
+  const secondsPerWarmup = Math.max(30, Math.floor(warmupSeconds / warmups.length));
+  warmups.forEach((warmup, index) => steps.push({
+    id: `${session.id}:warmup:${index}`,
     kind: 'warmup',
-    title: 'Warm up',
-    cue: session.warmup,
-    prescription: formatDuration(warmupSeconds),
+    title: warmup.title,
+    cue: warmup.cue,
+    prescription: formatDuration(secondsPerWarmup),
     mode: 'timer',
-    durationSeconds: warmupSeconds,
-    visualId: session.exercises[0]?.visualId,
-  });
+    durationSeconds: secondsPerWarmup,
+    visualId: session.exercises[Math.min(index, session.exercises.length - 1)]?.visualId,
+  }));
 
   const exerciseBudget = Math.max(60, session.durationMinutes * 60 - warmupSeconds - 120);
   const fallbackSeconds = Math.max(
@@ -47,9 +49,8 @@ export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutS
       exerciseIndex,
       totalSets: parsed.sets,
     });
-    const isLastExercise = exerciseIndex === session.exercises.length - 1;
-    if (!isLastExercise) {
-      const nextExercise = session.exercises[exerciseIndex + 1];
+    if (parsed.sets > 1 || exerciseIndex < session.exercises.length - 1) {
+      const nextExercise = session.exercises[exerciseIndex + 1] ?? exercise;
       const durationSeconds = 30;
       steps.push({
         id: `${session.id}:${exercise.id}:rest`,
@@ -76,6 +77,25 @@ export function buildGuidedWorkoutSteps(session: WorkoutSession): GuidedWorkoutS
     visualId: session.exercises.at(-1)?.visualId,
   });
   return steps;
+}
+
+export function warmupExercisesForSession(session: WorkoutSession) {
+  const duration = minutesFrom(session.warmup);
+  const source = session.warmup
+    .replace(/^\d+(?:[\u2013-]\d+)?\s*min(?:utes?)?\s*(?:of\s*)?/i, '')
+    .replace(/\.$/, '');
+  const parts = source
+    .split(/,|\band\b/i)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 4);
+  const fallback = ['Easy movement', 'Joint preparation', 'Practice reps'];
+  const movements = parts.length ? parts : fallback;
+  return movements.map((movement) => ({
+    title: movement.charAt(0).toUpperCase() + movement.slice(1),
+    cue: `Move gently and use a comfortable range. This prepares you for ${session.title.toLowerCase()}.`,
+    durationSeconds: Math.max(30, Math.floor((duration * 60) / movements.length)),
+  }));
 }
 
 export function exerciseProgress(steps: GuidedWorkoutStep[], stepIndex: number) {
