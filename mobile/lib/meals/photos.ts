@@ -13,3 +13,8 @@ export async function retainMealPhoto(userId: string, temporaryUri: string) {
 export async function clearMealPhotoCache() {
   if (ROOT.exists) ROOT.delete();
 }
+
+export async function discardTemporaryMealPhoto(temporaryUri: string) {
+  const temporaryPhoto = new File(temporaryUri);
+  if (temporaryPhoto.exists) temporaryPhoto.delete();
+}

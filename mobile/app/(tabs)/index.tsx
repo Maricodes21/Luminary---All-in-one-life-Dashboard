@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { SpotifyDailyRecap } from '@/components/spotify/SpotifyDailyRecap';
+import { InstallLuminaryCard } from '@/components/web/InstallLuminaryCard';
 import { ExerciseVisual } from '@/components/health/ExerciseVisual';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStore';
@@ -201,6 +202,8 @@ export default function HomeScreen() {
       <View style={styles.homeIntro}>
         <Text style={[type.displaySm, styles.homeTitle]}>Your day, connected.</Text>
       </View>
+
+      <InstallLuminaryCard />
 
       {!ritualComplete ? (
         <TonightCard

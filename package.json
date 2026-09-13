@@ -13,6 +13,8 @@
     "mobile:preview:iphone:lan": "npm run preview:iphone:lan --workspace=mobile",
     "mobile:ios": "npm run ios --workspace=mobile",
     "mobile:android": "npm run android --workspace=mobile",
+    "web": "npm run web --workspace=mobile",
+    "web:export": "npm run web:export --workspace=mobile",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "supabase:start": "supabase start",

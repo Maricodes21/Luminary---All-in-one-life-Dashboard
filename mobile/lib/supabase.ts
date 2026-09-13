@@ -1,8 +1,7 @@
 /**
  * Supabase client. Uses AsyncStorage for session persistence on RN.
  *
- * Tokens for Spotify go through `expo-secure-store` (see lib/spotify.ts) — those
- * are sensitive and should not live in AsyncStorage.
+ * Spotify credentials use the platform-specific storage in lib/spotifyTokenStorage.
  */
 import 'react-native-url-polyfill/auto';
 import AsyncStorage from '@react-native-async-storage/async-storage';

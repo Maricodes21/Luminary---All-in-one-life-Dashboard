@@ -40,6 +40,7 @@ import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { usePersonalizationStore } from '@/stores/usePersonalizationStore';
 import { loadPersistedReflections } from '@/lib/personalizationPersistence';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { PwaBootstrap } from '@/components/web/PwaBootstrap';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -212,6 +213,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: palette.surface }}>
+      <PwaBootstrap />
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="light" />

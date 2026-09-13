@@ -7,15 +7,19 @@
  *   - hooks/useSpotifyAuth.ts: the PKCE auth flow as a React hook
  *     (wraps expo-auth-session; must live in a component tree).
  *
- * Token storage: expo-secure-store ONLY. AsyncStorage is for Supabase sessions;
- * Spotify tokens are credentials and must not live in plaintext storage.
+ * Token storage: native builds use expo-secure-store. Web keeps tokens only for
+ * the current browser session because browsers do not expose equivalent secure storage.
  *
  * Scopes required:
  *   user-read-recently-played   → /v1/me/player/recently-played
  */
 
-import * as SecureStore from 'expo-secure-store';
 import { z } from 'zod';
+import {
+  deleteSpotifyTokenValue,
+  getSpotifyTokenValue,
+  setSpotifyTokenValue,
+} from '@/lib/spotifyTokenStorage';
 import {
   buildDailySpotifyRecap,
   getLocalDateKey,
@@ -49,11 +53,11 @@ export type SpotifyTokens = {
 // ─── Token storage ────────────────────────────────────────────────────────────
 
 export async function saveTokens(tokens: SpotifyTokens): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(tokens));
+  await setSpotifyTokenValue(TOKEN_KEY, JSON.stringify(tokens));
 }
 
 export async function loadTokens(): Promise<SpotifyTokens | null> {
-  const raw = await SecureStore.getItemAsync(TOKEN_KEY);
+  const raw = await getSpotifyTokenValue(TOKEN_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as SpotifyTokens;
@@ -63,7 +67,7 @@ export async function loadTokens(): Promise<SpotifyTokens | null> {
 }
 
 export async function clearTokens(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  await deleteSpotifyTokenValue(TOKEN_KEY);
 }
 
 // ─── Token refresh ────────────────────────────────────────────────────────────

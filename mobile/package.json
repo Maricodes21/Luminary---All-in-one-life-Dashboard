@@ -11,6 +11,7 @@
     "android": "expo run:android",
     "android:open": "adb shell am start -W -p app.luminary.mobile -a android.intent.action.VIEW -d \"expo-dev-launcher://expo-development-client/?url=http%3A%2F%2F10.0.2.2%3A8081\"",
     "web": "expo start --web",
+    "web:export": "expo export --platform web && node scripts/finalize-web-export.cjs",
     "type-check": "tsc --noEmit",
     "lint": "expo lint",
     "test:content": "node --test scripts/run-content-tests.cjs",

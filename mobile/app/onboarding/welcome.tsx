@@ -9,6 +9,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, spacing, radii, type as t } from '@luminary/design-system';
 import { OnboardingProgress } from './_layout';
+import { InstallLuminaryCard } from '@/components/web/InstallLuminaryCard';
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -38,6 +39,7 @@ export default function WelcomeScreen() {
       </Animated.View>
 
       <View style={styles.actions}>
+        <InstallLuminaryCard />
         <Pressable
           onPress={() => router.push('/onboarding/account')}
           accessibilityRole="button"
@@ -70,6 +72,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     paddingHorizontal: spacing.lg,
+    gap: spacing.md,
   },
   primaryBtn: {
     backgroundColor: palette.primary,

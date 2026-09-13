@@ -1,14 +1,13 @@
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { File } from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, radii, spacing, type } from '@luminary/design-system';
 
 import { Icon } from '@/components/ui/Icon';
 import { analyzeMealPhoto, lookupBarcode } from '@/lib/meals/search';
-import { retainMealPhoto } from '@/lib/meals/photos';
+import { discardTemporaryMealPhoto, retainMealPhoto } from '@/lib/meals/photos';
 import type { FoodSearchResult } from '@/lib/meals/types';
 import { useCameraReviewStore } from '@/stores/useCameraReviewStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -116,8 +115,7 @@ export default function MealCameraScreen() {
     } finally {
       if (temporaryUri) {
         try {
-          const temporaryPhoto = new File(temporaryUri);
-          if (temporaryPhoto.exists) temporaryPhoto.delete();
+          await discardTemporaryMealPhoto(temporaryUri);
         } catch (error) {
           console.warn(
             '[meals] Temporary analysis photo cleanup failed',
