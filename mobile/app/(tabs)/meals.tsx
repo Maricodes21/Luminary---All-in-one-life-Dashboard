@@ -65,7 +65,9 @@ export default function MealsScreen() {
   const plan = user?.plans[0] ?? null;
   const planDates = useMemo(() => (plan ? weekDates(plan.weekOf) : []), [plan]);
   const planIsCurrent = !!plan && planContainsDate(plan.weekOf, today);
-  const dates = useMemo(() => (planIsCurrent ? planDates : []), [planDates, planIsCurrent]);
+  const planIsAligned = !plan || !target || planMeetsDailyTargets(plan, target.calories, target.proteinG);
+  const planIsUsable = planIsCurrent && planIsAligned;
+  const dates = useMemo(() => (planIsUsable ? planDates : []), [planDates, planIsUsable]);
   const profileStale = user?.profile
     ? Date.now() - new Date(user.profile.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000
     : false;
@@ -167,8 +169,8 @@ export default function MealsScreen() {
           />
         ) : (
           <PlanMode
-            plan={planIsCurrent ? plan : null}
-            hasExpiredPlan={!!plan && !planIsCurrent}
+            plan={planIsUsable ? plan : null}
+            hasExpiredPlan={!!plan && !planIsUsable}
             selectedDate={selectedDate}
             dates={dates}
             onSelectDate={setSelectedDate}
@@ -757,6 +759,15 @@ function weekDates(weekOf: string) {
     const date = new Date(start);
     date.setDate(start.getDate() + index);
     return localDateKey(date);
+  });
+}
+
+function planMeetsDailyTargets(plan: MealPlan, calories: number, proteinG: number) {
+  return weekDates(plan.weekOf).every((date) => {
+    const entries = plan.entries.filter((entry) => entry.localDate === date);
+    if (!entries.length) return false;
+    const totals = entries.reduce((sum, entry) => ({ calories: sum.calories + (entry.nutrition?.calories ?? 0), proteinG: sum.proteinG + (entry.nutrition?.proteinG ?? 0) }), { calories: 0, proteinG: 0 });
+    return totals.calories >= calories * 0.85 && totals.calories <= calories && totals.proteinG >= proteinG * 0.85;
   });
 }
 
