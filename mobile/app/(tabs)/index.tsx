@@ -16,6 +16,7 @@ import { useProductionStore, type WorkoutPlan } from '@/stores/useProductionStor
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
 import { useRitualStore } from '@/stores/useRitualStore';
 import { useDailySignalsStore } from '@/stores/useDailySignalsStore';
+import { useDecisionStore } from '@/stores/useDecisionStore';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useHealthMetrics } from '@/hooks/useHealthMetrics';
@@ -61,6 +62,7 @@ export default function HomeScreen() {
   const localExpenses = useProductionStore((state) => state.expenses);
   const localJournalEntries = useProductionStore((state) => state.journalEntries);
   const toggleHabitCompletion = useProductionStore((state) => state.toggleHabitCompletion);
+  const recordDecision = useDecisionStore((state) => state.record);
   const mealsUser = useMealsStore(activeMealsUser);
   const { transactions } = useWallet();
   const { workouts, latestMetric } = useHealthMetrics();
@@ -232,7 +234,11 @@ export default function HomeScreen() {
           completedCount={completedHome}
           date={today}
           pageWidth={Math.max(280, width - spacing.md * 2)}
-          onToggle={toggleHabitCompletion}
+          onToggle={(id, date) => {
+            const wasComplete = homeHabits.find((habit) => habit.id === id)?.completedOn.includes(date);
+            toggleHabitCompletion(id, date);
+            recordDecision({ domain: 'habits', action: 'commitment', outcome: wasComplete ? 'undone' : 'completed', localDate: date });
+          }}
           onOpen={() => router.push('/habits')}
           onOpenHabit={(id) => router.push({ pathname: '/habits/[id]', params: { id } })}
         />

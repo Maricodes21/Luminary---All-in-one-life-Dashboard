@@ -8,6 +8,7 @@ import { catalogSubstitutions } from '@/lib/meals/recommendations';
 import { recipeImageUri } from '@/lib/meals/recipeImages';
 import type { NutritionProfile } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
+import { useDecisionStore } from '@/stores/useDecisionStore';
 
 type Adjustment = 'quicker' | 'protein' | 'available';
 
@@ -16,6 +17,7 @@ export default function AdjustMealPlanScreen() {
   const { planId, localDate } = useLocalSearchParams<{ planId: string; localDate: string }>();
   const user = useMealsStore(activeMealsUser);
   const updatePlanEntry = useMealsStore((s) => s.updatePlanEntry);
+  const recordDecision = useDecisionStore((s) => s.record);
   const plan = user?.plans.find((item) => item.id === planId);
   const entries = plan?.entries.filter((entry) => entry.localDate === localDate) ?? [];
 
@@ -42,7 +44,8 @@ export default function AdjustMealPlanScreen() {
       });
       changed += 1;
     });
-    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically.`);
+    recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'changed', reason: adjustmentReason(focus), localDate });
+    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically. ${adjustmentReason(focus)}`);
     router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
   }
 
@@ -67,6 +70,12 @@ export default function AdjustMealPlanScreen() {
       </View>
     </MealScreen>
   );
+}
+
+function adjustmentReason(focus: Adjustment) {
+  if (focus === 'quicker') return 'Shorter preparation time was prioritized.';
+  if (focus === 'protein') return 'Higher protein was prioritized.';
+  return 'Recipes with fewer ingredients were prioritized.';
 }
 
 function rank<T extends (typeof recipeCatalog)[number]>(recipes: T[], focus: Adjustment) {

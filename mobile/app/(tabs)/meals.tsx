@@ -20,6 +20,8 @@ import { makeUuid } from '@/lib/meals/state';
 import { calculateMealTotals, calculateRemaining } from '@/lib/meals/totals';
 import type { MealLogRecord, MealPlan, MealPlanEntry } from '@/lib/meals/types';
 import { activeMealsUser, useMealsStore } from '@/stores/useMealsStore';
+import { buildDailyDecisionContext, planContainsDate } from '@/lib/dailyDecisionSystem';
+import { useDecisionStore } from '@/stores/useDecisionStore';
 
 export default function MealsScreen() {
   const insets = useSafeAreaInsets();
@@ -62,7 +64,7 @@ export default function MealsScreen() {
   const remaining = target ? calculateRemaining(target, totals) : null;
   const plan = user?.plans[0] ?? null;
   const planDates = useMemo(() => (plan ? weekDates(plan.weekOf) : []), [plan]);
-  const planIsCurrent = !!plan && planDates.includes(today);
+  const planIsCurrent = !!plan && planContainsDate(plan.weekOf, today);
   const dates = useMemo(() => (planIsCurrent ? planDates : []), [planDates, planIsCurrent]);
   const profileStale = user?.profile
     ? Date.now() - new Date(user.profile.updatedAt).getTime() > 30 * 24 * 60 * 60 * 1000
@@ -380,12 +382,14 @@ function SmartSuggestion({
   onLogRecipe: (recipeId: string) => void;
 }) {
   const recordFeedback = useMealsStore((state) => state.recordSuggestionFeedback);
+  const recordDecision = useDecisionStore((state) => state.record);
   const [rankedIds, setRankedIds] = useState<string[]>([]);
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const [suggestionCursor, setSuggestionCursor] = useState(0);
   const profile = user?.profile ?? null;
   const now = new Date();
-  const today = localDateKey(now);
+  const decisionContext = buildDailyDecisionContext(now);
+  const today = decisionContext.localDate;
   const currentMealType = mealWindowFor(now);
   const plannedNow = user?.plans
     .flatMap((plan) => plan.entries)
@@ -494,6 +498,7 @@ function SmartSuggestion({
           <SectionLabel>Suggested for right now</SectionLabel>
         </View>
       </View>
+      <Text style={[type.bodySm, { color: palette.onSurfaceVariant, paddingHorizontal: spacing.sm }]}>{recommendation.rationale}</Text>
       {suggested.map((recipe) => (
         <DynamicMealCard
           key={recipe.id}
@@ -512,6 +517,7 @@ function SmartSuggestion({
                 setDismissedIds((current) => [...current, recipe.id]);
                 setSuggestionCursor(0);
                 recordFeedback(recipe.id, 'dismissed', { mealType: recipe.mealType });
+                recordDecision({ domain: 'meals', action: 'suggestion', outcome: 'dismissed', reason: recommendation.rationale, localDate: today });
               },
             },
             {
@@ -526,6 +532,7 @@ function SmartSuggestion({
               onPress: () => {
                 setDismissedIds((current) => [...current, recipe.id]);
                 recordFeedback(recipe.id, 'accepted', { mealType: recipe.mealType });
+                recordDecision({ domain: 'meals', action: 'suggestion', outcome: 'accepted', reason: recommendation.rationale, localDate: today });
                 onLogRecipe(recipe.id);
               },
             },

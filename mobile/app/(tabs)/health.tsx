@@ -35,6 +35,7 @@ import {
 import { useGuidedWorkoutStore } from '@/stores/useGuidedWorkoutStore';
 import { formatClock, warmupExercisesForSession } from '@/lib/guidedWorkout';
 import { localDateKey } from '@/lib/meals/dates';
+import { useDecisionStore } from '@/stores/useDecisionStore';
 
 type HealthView = 'today' | 'setup' | 'plan';
 type OutsideMode = Extract<WorkoutPlan['category'], 'cardio' | 'cycling'>;
@@ -66,6 +67,7 @@ export default function HealthScreen() {
   const adjustWorkoutDay = useProductionStore((state) => state.adjustWorkoutDay);
   const adjustWorkoutPlan = useProductionStore((state) => state.adjustWorkoutPlan);
   const moveWorkoutDay = useProductionStore((state) => state.moveWorkoutDay);
+  const recordDecision = useDecisionStore((state) => state.record);
   const startGuidedWorkout = useGuidedWorkoutStore((state) => state.startWorkout);
   const activeGuidedWorkout = useGuidedWorkoutStore((state) => state.active);
   const latestPlan = workoutPlans[0];
@@ -278,6 +280,7 @@ export default function HealthScreen() {
     });
     setWorkoutOpen(false);
     setView('today');
+    recordDecision({ domain: 'workouts', action: 'workout', outcome: 'completed', localDate: todayKey });
   };
 
   const onStartWorkout = (session: WorkoutSession) => {
@@ -293,6 +296,7 @@ export default function HealthScreen() {
       session: resolvedSession,
       category: planCategory,
     });
+    recordDecision({ domain: 'workouts', action: 'workout', outcome: 'accepted', reason: `${session.durationMinutes} minutes · ${focusLabel(planFocus)}`, localDate: todayKey });
     setWorkoutOpen(false);
     router.push('/health/workout');
   };
