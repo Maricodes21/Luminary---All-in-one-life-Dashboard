@@ -44,9 +44,19 @@ export default function AdjustMealPlanScreen() {
       });
       changed += 1;
     });
-    recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'changed', reason: adjustmentReason(focus), localDate });
-    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically. ${adjustmentReason(focus)}`);
-    router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
+    const reason = adjustmentReason(focus);
+    recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'changed', reason, localDate });
+    Alert.alert('Day adjusted', `${changed} ${changed === 1 ? 'meal was' : 'meals were'} updated automatically. ${reason}`, [
+      {
+        text: 'Undo',
+        onPress: () => {
+          entries.forEach((entry) => updatePlanEntry(plan.id, entry.id, entry));
+          recordDecision({ domain: 'meals', action: `adjust-day:${focus}`, outcome: 'undone', reason, localDate });
+          router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } });
+        },
+      },
+      { text: 'Keep changes', onPress: () => router.replace({ pathname: '/(tabs)/meals', params: { mode: 'plan' } }) },
+    ]);
   }
 
   function moveTomorrow() {
